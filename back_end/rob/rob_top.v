@@ -97,10 +97,7 @@ module rob_top #(
     output wire [ROB_IDX_WIDTH-1:0]    rob_bcast_head_rob_idx,
     output wire                        rob_bcast_head_valid,
     output wire [ROB_IDX_WIDTH-1:0]    rob_bcast_head_incomplete_rob_idx,
-    output wire                        rob_bcast_head_incomplete_valid,
-
-    output wire [(W_InstEntry * COMMIT_WIDTH)-1:0]
-                                       rob_commit_entry_for_backout
+    output wire                        rob_bcast_head_incomplete_valid
 );
 
     wire [W_RobIn-1:0]  pi;
@@ -290,11 +287,6 @@ module rob_top #(
             rob_bcast_trap_val, rob_bcast_pc, rob_bcast_head_rob_idx,
             rob_bcast_head_valid, rob_bcast_head_incomplete_rob_idx,
             rob_bcast_head_incomplete_valid} = rob_bcast;
-
-    // The exact RobCommitInst::to_inst_entry(valid) conversion is filled by
-    // the ROB slice.  These named outputs make the source explicit meanwhile.
-    assign rob_commit_entry_for_backout =
-        {(W_InstEntry * COMMIT_WIDTH){1'b0}};
 
     wire [FTQ_ROB_PC_PORT_NUM-1:0] ftq_rob_pc_req_valid;
     wire [(FTQ_IDX_WIDTH * FTQ_ROB_PC_PORT_NUM)-1:0]

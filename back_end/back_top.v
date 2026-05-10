@@ -235,16 +235,6 @@ module back_top #(
         (BPU_LOOP_META_IDX_BITS * FETCH_WIDTH) +
         (BPU_LOOP_META_TAG_BITS * FETCH_WIDTH) +
         FETCH_WIDTH,
-    parameter integer W_Back_in =
-        W_FrontPreIO + W_PeripheralRespIO + W_DcacheLsuIO,
-    parameter integer W_Back_out =
-        5 +
-        FETCH_WIDTH +
-        32 +
-        (W_InstEntry * COMMIT_WIDTH) +
-        32 + 32 + 32 + 2 +
-        W_PeripheralReqIO +
-        W_LsuDcacheIO,
     parameter integer W_PreIduQueueIn =
         W_FrontPreIO + W_IduConsumeIO + W_RobBroadcastIO + W_RobCommitIO +
         W_ExuIdIO + W_FtqPrfPcReqIO + W_FtqRobPcReqIO,
@@ -298,14 +288,27 @@ module back_top #(
         W_LsuDisIO + W_LsuRobIO + W_LsuExeIO + W_PeripheralReqIO +
         W_LsuDcacheIO + W_LsuMMUIO
 ) (
-    input  wire [W_Back_in-1:0]  Back_in,
-    output wire [W_Back_out-1:0] Back_out
-);
+    input  wire [W_FrontPreIO-1:0]       front2pre,
+    input  wire [W_PeripheralRespIO-1:0] peripheral_resp,
+    input  wire [W_DcacheLsuIO-1:0]      dcache2lsu,
+    input  wire [W_MMULsuIO-1:0]         mmu2lsu_io,
 
-    wire [W_FrontPreIO-1:0] front2pre;
-    wire [W_PeripheralRespIO-1:0] peripheral_resp;
-    wire [W_DcacheLsuIO-1:0] dcache2lsu;
-    assign {front2pre, peripheral_resp, dcache2lsu} = Back_in;
+    output wire                          mispred,
+    output wire                          stall,
+    output wire                          flush,
+    output wire                          fence_i,
+    output wire                          itlb_flush,
+    output wire [FETCH_WIDTH-1:0]        fire,
+    output wire [31:0]                   redirect_pc,
+    output wire [(W_InstEntry * COMMIT_WIDTH)-1:0] commit_entry,
+    output wire [31:0]                   sstatus,
+    output wire [31:0]                   mstatus,
+    output wire [31:0]                   satp,
+    output wire [1:0]                    privilege,
+    output wire [W_PeripheralReqIO-1:0]  peripheral_req,
+    output wire [W_LsuDcacheIO-1:0]      lsu2dcache,
+    output wire [W_LsuMMUIO-1:0]         lsu2mmu_io
+);
 
     wire [W_PreFrontIO-1:0] pre2front;
     wire [W_PreIssueIO-1:0] pre_issue;
@@ -336,8 +339,6 @@ module back_top #(
     wire [W_LsuExeIO-1:0] lsu2exe;
     wire [W_LsuDisIO-1:0] lsu2dis;
     wire [W_LsuRobIO-1:0] lsu2rob;
-    wire [W_LsuMMUIO-1:0] lsu2mmu_io;
-    wire [W_MMULsuIO-1:0] mmu2lsu_io;
 
     wire [W_RobDisIO-1:0] rob2dis;
     wire [W_RobCsrIO-1:0] rob2csr;
@@ -354,9 +355,6 @@ module back_top #(
     wire [W_FtqRobPcReqIO-1:0] ftq_rob_pc_req;
     wire [W_FtqRobPcRespIO-1:0] ftq_rob_pc_resp;
 
-    wire [W_PeripheralReqIO-1:0] lsu_out_peripheral_req;
-    wire [W_LsuDcacheIO-1:0] lsu_out_lsu2dcache;
-
     wire [FETCH_WIDTH-1:0] preiduqueue_out_pre2front_fire;
     wire preiduqueue_out_pre2front_ready;
 
@@ -370,8 +368,6 @@ module back_top #(
     wire rob_out_rob_bcast_fence;
     wire rob_out_rob_bcast_fence_i;
     wire [31:0] rob_out_rob_bcast_pc;
-    wire [(W_InstEntry * COMMIT_WIDTH)-1:0]
-        rob_out_rob_commit_entry_for_backout;
 
     wire [31:0] csr_out_csr2front_epc;
     wire [31:0] csr_out_csr2front_trap_pc;
@@ -380,15 +376,97 @@ module back_top #(
     wire [31:0] csr_out_csr_status_satp;
     wire [1:0] csr_out_csr_status_privilege;
 
+    wire [COMMIT_WIDTH-1:0] backout_rob_commit_entry_valid;
+    wire [(W_RobCommitInst * COMMIT_WIDTH)-1:0]
+        backout_rob_commit_entry_uop;
+    assign {backout_rob_commit_entry_valid,
+            backout_rob_commit_entry_uop} = rob_commit;
+
+    wire [(32 * COMMIT_WIDTH)-1:0]
+        backout_rob_commit_entry_uop_diag_val;
+    wire [(AREG_IDX_WIDTH * COMMIT_WIDTH)-1:0]
+        backout_rob_commit_entry_uop_dest_areg;
+    wire [(PRF_IDX_WIDTH * COMMIT_WIDTH)-1:0]
+        backout_rob_commit_entry_uop_dest_preg;
+    wire [(PRF_IDX_WIDTH * COMMIT_WIDTH)-1:0]
+        backout_rob_commit_entry_uop_old_dest_preg;
+    wire [(FTQ_IDX_WIDTH * COMMIT_WIDTH)-1:0]
+        backout_rob_commit_entry_uop_ftq_idx;
+    wire [(FTQ_OFFSET_WIDTH * COMMIT_WIDTH)-1:0]
+        backout_rob_commit_entry_uop_ftq_offset;
+    wire [COMMIT_WIDTH-1:0] backout_rob_commit_entry_uop_ftq_is_last;
+    wire [COMMIT_WIDTH-1:0] backout_rob_commit_entry_uop_mispred;
+    wire [COMMIT_WIDTH-1:0] backout_rob_commit_entry_uop_br_taken;
+    wire [COMMIT_WIDTH-1:0] backout_rob_commit_entry_uop_dest_en;
+    wire [(7 * COMMIT_WIDTH)-1:0]
+        backout_rob_commit_entry_uop_func7;
+    wire [(ROB_IDX_WIDTH * COMMIT_WIDTH)-1:0]
+        backout_rob_commit_entry_uop_rob_idx;
+    wire [COMMIT_WIDTH-1:0] backout_rob_commit_entry_uop_rob_flag;
+    wire [(STQ_IDX_WIDTH * COMMIT_WIDTH)-1:0]
+        backout_rob_commit_entry_uop_stq_idx;
+    wire [COMMIT_WIDTH-1:0] backout_rob_commit_entry_uop_stq_flag;
+    wire [COMMIT_WIDTH-1:0]
+        backout_rob_commit_entry_uop_page_fault_inst;
+    wire [COMMIT_WIDTH-1:0]
+        backout_rob_commit_entry_uop_page_fault_load;
+    wire [COMMIT_WIDTH-1:0]
+        backout_rob_commit_entry_uop_page_fault_store;
+    wire [COMMIT_WIDTH-1:0]
+        backout_rob_commit_entry_uop_illegal_inst;
+    wire [(INST_TYPE_WIDTH * COMMIT_WIDTH)-1:0]
+        backout_rob_commit_entry_uop_type;
+    wire [(W_TmaMeta * COMMIT_WIDTH)-1:0]
+        backout_rob_commit_entry_uop_tma;
+    wire [(W_DebugMeta * COMMIT_WIDTH)-1:0]
+        backout_rob_commit_entry_uop_dbg;
+    wire [COMMIT_WIDTH-1:0] backout_rob_commit_entry_uop_flush_pipe;
+    assign {backout_rob_commit_entry_uop_diag_val,
+            backout_rob_commit_entry_uop_dest_areg,
+            backout_rob_commit_entry_uop_dest_preg,
+            backout_rob_commit_entry_uop_old_dest_preg,
+            backout_rob_commit_entry_uop_ftq_idx,
+            backout_rob_commit_entry_uop_ftq_offset,
+            backout_rob_commit_entry_uop_ftq_is_last,
+            backout_rob_commit_entry_uop_mispred,
+            backout_rob_commit_entry_uop_br_taken,
+            backout_rob_commit_entry_uop_dest_en,
+            backout_rob_commit_entry_uop_func7,
+            backout_rob_commit_entry_uop_rob_idx,
+            backout_rob_commit_entry_uop_rob_flag,
+            backout_rob_commit_entry_uop_stq_idx,
+            backout_rob_commit_entry_uop_stq_flag,
+            backout_rob_commit_entry_uop_page_fault_inst,
+            backout_rob_commit_entry_uop_page_fault_load,
+            backout_rob_commit_entry_uop_page_fault_store,
+            backout_rob_commit_entry_uop_illegal_inst,
+            backout_rob_commit_entry_uop_type,
+            backout_rob_commit_entry_uop_tma,
+            backout_rob_commit_entry_uop_dbg,
+            backout_rob_commit_entry_uop_flush_pipe} =
+        backout_rob_commit_entry_uop;
+
+    wire [(32 * COMMIT_WIDTH)-1:0]
+        backout_commit_entry_uop_diag_val;
+
+    genvar commit_idx;
+    generate
+        for (commit_idx = 0; commit_idx < COMMIT_WIDTH;
+             commit_idx = commit_idx + 1) begin : gen_commit_entry_diag_val
+            assign backout_commit_entry_uop_diag_val
+                [(32 * (commit_idx + 1))-1:(32 * commit_idx)] =
+                    (flush && backout_rob_commit_entry_valid[commit_idx]) ?
+                    redirect_pc :
+                    backout_rob_commit_entry_uop_diag_val
+                        [(32 * (commit_idx + 1))-1:(32 * commit_idx)];
+        end
+    endgenerate
+
     // BackTop.cpp keeps this exact relation:
     //   rob->in.front_stall = &in.front_stall
-    wire front_stall_from_Back_in;
-    assign front_stall_from_Back_in =
+    wire front_stall_from_front2pre;
+    assign front_stall_from_front2pre =
         front2pre[W_FrontPreIO_AFTER_FRONT_STALL];
-
-    // MMU is kept as an empty boundary for now.  It is not counted as one of
-    // the ten backend modules until the new simulator interface is confirmed.
-    assign mmu2lsu_io = {W_MMULsuIO{1'b0}};
 
     preiduqueue_top #(
         .FETCH_WIDTH(FETCH_WIDTH),
@@ -515,7 +593,7 @@ module back_top #(
         .dec_bcast(dec_bcast),
         .exu2rob(exu2rob),
         .ftq_rob_pc_resp(ftq_rob_pc_resp),
-        .front_stall(front_stall_from_Back_in),
+        .front_stall(front_stall_from_front2pre),
         .rob2dis(rob2dis),
         .rob2csr(rob2csr),
         .rob_commit(rob_commit),
@@ -527,8 +605,7 @@ module back_top #(
         .rob_bcast_exception(rob_out_rob_bcast_exception),
         .rob_bcast_fence(rob_out_rob_bcast_fence),
         .rob_bcast_fence_i(rob_out_rob_bcast_fence_i),
-        .rob_bcast_pc(rob_out_rob_bcast_pc),
-        .rob_commit_entry_for_backout(rob_out_rob_commit_entry_for_backout)
+        .rob_bcast_pc(rob_out_rob_bcast_pc)
     );
 
     csr_top #(
@@ -566,36 +643,73 @@ module back_top #(
         .lsu2dis(lsu2dis),
         .lsu2rob(lsu2rob),
         .lsu2exe(lsu2exe),
-        .peripheral_req(lsu_out_peripheral_req),
-        .lsu2dcache(lsu_out_lsu2dcache),
+        .peripheral_req(peripheral_req),
+        .lsu2dcache(lsu2dcache),
         .lsu2mmu_io(lsu2mmu_io)
     );
 
-    // Back_out only gathers fields already split by each source module.
-    wire [FETCH_WIDTH-1:0] fire = preiduqueue_out_pre2front_fire;
-    wire flush = rob_out_rob_bcast_flush;
-    wire fence_i = rob_out_rob_bcast_fence_i;
-    wire itlb_flush = rob_out_rob_bcast_fence;
-    wire mispred =
+    assign fire = preiduqueue_out_pre2front_fire;
+    assign flush = rob_out_rob_bcast_flush;
+    assign fence_i = rob_out_rob_bcast_fence_i;
+    assign itlb_flush = rob_out_rob_bcast_fence;
+    assign mispred =
         rob_out_rob_bcast_flush ? 1'b1 : idu_out_dec_bcast_mispred;
-    wire stall = ~preiduqueue_out_pre2front_ready;
-    wire [31:0] redirect_pc =
+    assign stall = ~preiduqueue_out_pre2front_ready;
+    assign redirect_pc =
         (!rob_out_rob_bcast_flush) ? idu_out_idu_br_latch_redirect_pc :
         ((rob_out_rob_bcast_mret || rob_out_rob_bcast_sret) ?
             csr_out_csr2front_epc :
          (rob_out_rob_bcast_exception ?
             csr_out_csr2front_trap_pc :
             (rob_out_rob_bcast_pc + 32'd4)));
-    wire [31:0] sstatus = csr_out_csr_status_sstatus;
-    wire [31:0] mstatus = csr_out_csr_status_mstatus;
-    wire [31:0] satp = csr_out_csr_status_satp;
-    wire [1:0] privilege = csr_out_csr_status_privilege;
-    wire [(W_InstEntry * COMMIT_WIDTH)-1:0] commit_entry =
-        rob_out_rob_commit_entry_for_backout;
-
-    assign Back_out =
-        {mispred, stall, flush, fence_i, itlb_flush, fire, redirect_pc,
-         commit_entry, sstatus, mstatus, satp, privilege,
-         lsu_out_peripheral_req, lsu_out_lsu2dcache};
+    assign sstatus = csr_out_csr_status_sstatus;
+    assign mstatus = csr_out_csr_status_mstatus;
+    assign satp = csr_out_csr_status_satp;
+    assign privilege = csr_out_csr_status_privilege;
+    assign commit_entry =
+        {backout_rob_commit_entry_valid,
+         backout_commit_entry_uop_diag_val,
+         backout_rob_commit_entry_uop_dest_areg,
+         {(AREG_IDX_WIDTH * COMMIT_WIDTH){1'b0}},
+         {(AREG_IDX_WIDTH * COMMIT_WIDTH){1'b0}},
+         backout_rob_commit_entry_uop_dest_preg,
+         {(PRF_IDX_WIDTH * COMMIT_WIDTH){1'b0}},
+         {(PRF_IDX_WIDTH * COMMIT_WIDTH){1'b0}},
+         backout_rob_commit_entry_uop_old_dest_preg,
+         backout_rob_commit_entry_uop_ftq_idx,
+         backout_rob_commit_entry_uop_ftq_offset,
+         backout_rob_commit_entry_uop_ftq_is_last,
+         backout_rob_commit_entry_uop_mispred,
+         backout_rob_commit_entry_uop_br_taken,
+         backout_rob_commit_entry_uop_dest_en,
+         {COMMIT_WIDTH{1'b0}},
+         {COMMIT_WIDTH{1'b0}},
+         {COMMIT_WIDTH{1'b0}},
+         {COMMIT_WIDTH{1'b0}},
+         {COMMIT_WIDTH{1'b0}},
+         {COMMIT_WIDTH{1'b0}},
+         {COMMIT_WIDTH{1'b0}},
+         {(3 * COMMIT_WIDTH){1'b0}},
+         backout_rob_commit_entry_uop_func7,
+         {(32 * COMMIT_WIDTH){1'b0}},
+         {(BR_TAG_WIDTH * COMMIT_WIDTH){1'b0}},
+         {(BR_MASK_WIDTH * COMMIT_WIDTH){1'b0}},
+         {(CSR_IDX_WIDTH * COMMIT_WIDTH){1'b0}},
+         backout_rob_commit_entry_uop_rob_idx,
+         backout_rob_commit_entry_uop_stq_idx,
+         backout_rob_commit_entry_uop_stq_flag,
+         {(LDQ_IDX_WIDTH * COMMIT_WIDTH){1'b0}},
+         {(ROB_CPLT_MASK_WIDTH * COMMIT_WIDTH){1'b0}},
+         {(ROB_CPLT_MASK_WIDTH * COMMIT_WIDTH){1'b0}},
+         backout_rob_commit_entry_uop_rob_flag,
+         backout_rob_commit_entry_uop_page_fault_inst,
+         backout_rob_commit_entry_uop_page_fault_load,
+         backout_rob_commit_entry_uop_page_fault_store,
+         backout_rob_commit_entry_uop_illegal_inst,
+         {COMMIT_WIDTH{1'b0}},
+         backout_rob_commit_entry_uop_flush_pipe,
+         backout_rob_commit_entry_uop_type,
+         backout_rob_commit_entry_uop_tma,
+         backout_rob_commit_entry_uop_dbg};
 
 endmodule
