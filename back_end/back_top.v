@@ -268,57 +268,128 @@ module back_top #(
         (BPU_LOOP_META_TAG_BITS * FETCH_WIDTH) +
         FETCH_WIDTH,
     parameter integer W_PreIduQueueIn =
-        W_FrontPreIO + W_IduConsumeIO + W_RobBroadcastIO + W_RobCommitIO +
-        W_ExuIdIO + W_FtqPrfPcReqIO + W_FtqRobPcReqIO,
+        W_FrontPreIO
+        + W_IduConsumeIO
+        + W_RobBroadcastIO
+        + W_RobCommitIO
+        + W_ExuIdIO
+        + W_FtqPrfPcReqIO
+        + W_FtqRobPcReqIO,
     parameter integer W_PreIduQueueOut =
-        W_PreFrontIO + W_PreIssueIO + W_FtqPrfPcRespIO + W_FtqRobPcRespIO,
+        W_PreFrontIO
+        + W_PreIssueIO
+        + W_FtqPrfPcRespIO
+        + W_FtqRobPcRespIO,
     parameter integer W_IduIn =
-        W_PreIssueIO + W_RenDecIO + W_RobBroadcastIO + W_ExuIdIO,
+        W_PreIssueIO
+        + W_RenDecIO
+        + W_RobBroadcastIO
+        + W_ExuIdIO,
     // BackTop.cpp also reads idu->br_latch and feeds it to PreIduQueue.
     // Keep that boundary inside the aggregate IduOut bus instead of adding a
     // separate top-level port.
     parameter integer W_IduOut =
-        W_DecRenIO + W_DecBroadcastIO + W_IduConsumeIO + W_ExuIdIO,
+        W_DecRenIO
+        + W_DecBroadcastIO
+        + W_IduConsumeIO
+        + W_ExuIdIO,
     parameter integer W_RenIn =
-        W_DecRenIO + W_DecBroadcastIO + W_DisRenIO + W_RobBroadcastIO +
-        W_RobCommitIO,
-    parameter integer W_RenOut = W_RenDecIO + W_RenDisIO,
+        W_DecRenIO
+        + W_DecBroadcastIO
+        + W_DisRenIO
+        + W_RobBroadcastIO
+        + W_RobCommitIO,
+    parameter integer W_RenOut =
+        W_RenDecIO
+        + W_RenDisIO,
     parameter integer W_DisIn  =
-        W_RenDisIO + W_RobDisIO + W_IssDisIO + W_LsuDisIO + W_PrfAwakeIO +
-        W_IssAwakeIO + W_RobBroadcastIO + W_DecBroadcastIO,
+        W_RenDisIO
+        + W_RobDisIO
+        + W_IssDisIO
+        + W_LsuDisIO
+        + W_PrfAwakeIO
+        + W_IssAwakeIO
+        + W_RobBroadcastIO
+        + W_DecBroadcastIO,
     parameter integer W_DisOut =
-        W_DisRenIO + W_DisRobIO + W_DisIssIO + W_DisLsuIO,
+        W_DisRenIO
+        + W_DisRobIO
+        + W_DisIssIO
+        + W_DisLsuIO,
     parameter integer W_IsuIn =
-        W_DisIssIO + W_PrfAwakeIO + W_ExeIssIO + W_RobBroadcastIO +
-        W_DecBroadcastIO,
-    parameter integer W_IsuOut = W_IssPrfIO + W_IssDisIO + W_IssAwakeIO,
+        W_DisIssIO
+        + W_PrfAwakeIO
+        + W_ExeIssIO
+        + W_RobBroadcastIO
+        + W_DecBroadcastIO,
+    parameter integer W_IsuOut =
+        W_IssPrfIO
+        + W_IssDisIO
+        + W_IssAwakeIO,
     parameter integer W_PrfIn  =
-        W_IssPrfIO + W_ExePrfIO + W_DecBroadcastIO + W_RobBroadcastIO +
-        W_FtqPrfPcRespIO,
+        W_IssPrfIO
+        + W_ExePrfIO
+        + W_DecBroadcastIO
+        + W_RobBroadcastIO
+        + W_FtqPrfPcRespIO,
     parameter integer W_PrfOut =
-        W_PrfExeIO + W_PrfAwakeIO + W_FtqPrfPcReqIO,
+        W_PrfExeIO
+        + W_PrfAwakeIO
+        + W_FtqPrfPcReqIO,
     parameter integer W_ExuIn =
-        W_PrfExeIO + W_DecBroadcastIO + W_RobBroadcastIO + W_CsrExeIO +
-        W_LsuExeIO + W_CsrStatusIO,
+        W_PrfExeIO
+        + W_DecBroadcastIO
+        + W_RobBroadcastIO
+        + W_CsrExeIO
+        + W_LsuExeIO
+        + W_CsrStatusIO,
     parameter integer W_ExuOut =
-        W_ExePrfIO + W_ExeIssIO + W_ExeCsrIO + W_ExeLsuIO + W_ExuIdIO +
-        W_ExuRobIO,
+        W_ExePrfIO
+        + W_ExeIssIO
+        + W_ExeCsrIO
+        + W_ExeLsuIO
+        + W_ExuIdIO
+        + W_ExuRobIO,
     parameter integer W_RobIn =
-        W_DisRobIO + W_CsrRobIO + W_LsuRobIO + W_DecBroadcastIO + W_ExuRobIO +
-        W_FtqRobPcRespIO + 1,
+        W_DisRobIO
+        + W_CsrRobIO
+        + W_LsuRobIO
+        + W_DecBroadcastIO
+        + W_ExuRobIO
+        + W_FtqRobPcRespIO
+        + 1,
     parameter integer W_RobOut =
-        W_RobDisIO + W_RobCsrIO + W_RobCommitIO + W_RobBroadcastIO +
-        W_FtqRobPcReqIO,
-    parameter integer W_CsrIn  = W_ExeCsrIO + W_RobCsrIO + W_RobBroadcastIO,
+        W_RobDisIO
+        + W_RobCsrIO
+        + W_RobCommitIO
+        + W_RobBroadcastIO
+        + W_FtqRobPcReqIO,
+    parameter integer W_CsrIn  =
+        W_ExeCsrIO
+        + W_RobCsrIO
+        + W_RobBroadcastIO,
     parameter integer W_CsrOut =
-        W_CsrExeIO + W_CsrRobIO + W_CsrFrontIO + W_CsrStatusIO,
+        W_CsrExeIO
+        + W_CsrRobIO
+        + W_CsrFrontIO
+        + W_CsrStatusIO,
     parameter integer W_LsuIn =
-        W_RobCommitIO + W_RobBroadcastIO + W_DecBroadcastIO + W_CsrStatusIO +
-        W_DisLsuIO + W_ExeLsuIO + W_PeripheralRespIO + W_DcacheLsuIO +
-        W_MMULsuIO,
+        W_RobCommitIO
+        + W_RobBroadcastIO
+        + W_DecBroadcastIO
+        + W_CsrStatusIO
+        + W_DisLsuIO
+        + W_ExeLsuIO
+        + W_PeripheralRespIO
+        + W_DcacheLsuIO
+        + W_MMULsuIO,
     parameter integer W_LsuOut =
-        W_LsuDisIO + W_LsuRobIO + W_LsuExeIO + W_PeripheralReqIO +
-        W_LsuDcacheIO + W_LsuMMUIO
+        W_LsuDisIO
+        + W_LsuRobIO
+        + W_LsuExeIO
+        + W_PeripheralReqIO
+        + W_LsuDcacheIO
+        + W_LsuMMUIO
 ) (
     // External inputs from frontend, DCache, peripheral and MMU/DTLB side.
     input  wire [W_FrontPreIO-1:0]       front2pre,
