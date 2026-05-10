@@ -71,7 +71,7 @@ module back_top (
     output wire                          itlb_flush,
     output wire [FETCH_WIDTH-1:0]        fire,
     output wire [31:0]                   redirect_pc,
-    output wire [(W_InstEntry * COMMIT_WIDTH)-1:0] commit_entry,
+    output wire [(W_BackCommitEntry * COMMIT_WIDTH)-1:0] commit_entry,
     output wire [31:0]                   sstatus,
     output wire [31:0]                   mstatus,
     output wire [31:0]                   satp,
@@ -97,7 +97,7 @@ module back_top (
 | `itlb_flush` | output | `Back_out.itlb_flush` | 来自 ROB broadcast 的 fence 字段。 |
 | `fire` | output | `Back_out.fire` | 来自 PreIduQueue。 |
 | `redirect_pc` | output | `Back_out.redirect_pc` | 非 flush 来自 IDU，flush 时由 CSR/ROB 选择。 |
-| `commit_entry` | output | `Back_out.commit_entry` | 由 `rob_commit` 组合打包生成。 |
+| `commit_entry` | output | `Back_out.commit_entry` | 由 `rob_commit` 组合打包生成；对外提交版删去 `tma/dbg` 字段。 |
 | `sstatus/mstatus/satp/privilege` | output | `Back_out` 中 CSR 状态字段 | 来自 `csr_top`。 |
 | `peripheral_req` | output | `lsu->out.peripheral_req` | 由 `lsu_top` 直接输出。 |
 | `lsu2dcache` | output | `lsu->out.lsu2dcache` | 由 `lsu_top` 直接输出。 |
@@ -116,7 +116,7 @@ module back_top (
 | `fence_i` | `rob_top` | 来自 ROB broadcast。 |
 | `itlb_flush` | `rob_top` | 来自 ROB broadcast 的 fence 字段。 |
 | `redirect_pc` | `idu_top/csr_top/rob_top` | 根据 flush 状态在 IDU、CSR、ROB 来源之间选择。 |
-| `commit_entry` | `rob_top/back_top.v` | `rob_top` 输出 `rob_commit`，`back_top.v` 做组合打包；无来源字段按 C++ 默认清零语义处理。 |
+| `commit_entry` | `rob_top/back_top.v` | `rob_top` 输出 `rob_commit`，`back_top.v` 做组合打包；对外提交版不包含 `tma/dbg`。 |
 | `sstatus/mstatus/satp/privilege` | `csr_top` | CSR 状态信息。 |
 | `peripheral_req` | `lsu_top` | LSU 发给外设。 |
 | `lsu2dcache` | `lsu_top` | LSU 发给 DCache。 |

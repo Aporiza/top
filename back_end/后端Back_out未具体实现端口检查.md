@@ -67,7 +67,7 @@ lsu->out.lsu2mmu = &lsu2mmu_io;
 | `mispred` | 非 flush 来自 IDU，flush 时为 true | `idu_top/rob_top` | 已连接 |
 | `stall` | `out.stall = !pre2front.ready` | `preiduqueue_top` | 已连接 |
 | `redirect_pc` | 非 flush 来自 IDU，flush 时来自 CSR/ROB | `idu_top/csr_top/rob_top` | 已连接 |
-| `commit_entry` | 由 `rob_commit` 转为 `InstEntry` | `rob_top/back_top.v` | 已连接，能从 `RobCommitInst` 取得的字段均已连接，无来源字段按 C++ 默认清零语义处理 |
+| `commit_entry` | 由 `rob_commit` 转为提交输出 | `rob_top/back_top.v` | 已连接；对外提交版删去 `tma/dbg` 字段，其余功能字段按 `rob_commit` 或默认 0 生成 |
 | `sstatus` | `csr_status.sstatus` | `csr_top` | 已连接 |
 | `mstatus` | `csr_status.mstatus` | `csr_top` | 已连接 |
 | `satp` | `csr_status.satp` | `csr_top` | 已连接 |
@@ -100,7 +100,7 @@ lsu_top lsu (
 
 ### 4.3 commit_entry
 
-`commit_entry` 当前由 `rob_commit` 拆字段后组合打包生成，并处理 flush 场景下 `diag_val = redirect_pc` 的逻辑。能从 `RobCommitInst` 取得的字段均已连接；`InstEntry` 中存在但 `RobCommitInst` 没有来源的字段，按 C++ 中 `InstEntry dst` 默认初始化后的语义填 0，保持总线宽度一致。
+`commit_entry` 当前由 `rob_commit` 拆字段后组合打包生成，并处理 flush 场景下 `diag_val = redirect_pc` 的逻辑。当前对外提交版不包含 `tma/dbg` 两类性能/调试侧带字段；其余能从 `RobCommitInst` 取得的字段均已连接，`RobCommitInst` 没有来源的功能字段按 0 生成。
 
 ## 5. 当前重要待确认项
 

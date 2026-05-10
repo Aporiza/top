@@ -10,15 +10,20 @@
 // top further splits its local input/output buses before calling bsd_top.
 
 module back_top #(
-    // Keep the simulator constant names when a width is derived from config.h.
+    // ---------------------------------------------------------------------
+    // Core/backend shape constants.
+    // Keep simulator constant names when a width is derived from config.h.
+    // ---------------------------------------------------------------------
     parameter integer FETCH_WIDTH = 16,
     parameter integer DECODE_WIDTH = 8,
     parameter integer COMMIT_WIDTH = DECODE_WIDTH,
+
     parameter integer AREG_IDX_WIDTH = 6,
     parameter integer PRF_IDX_WIDTH = 11,
     parameter integer ROB_IDX_WIDTH = 11,
     parameter integer STQ_IDX_WIDTH = 9,
     parameter integer LDQ_IDX_WIDTH = 9,
+
     parameter integer BR_TAG_WIDTH = 6,
     parameter integer BR_MASK_WIDTH = 64,
     parameter integer CSR_IDX_WIDTH = 12,
@@ -27,6 +32,10 @@ module back_top #(
     parameter integer INST_TYPE_WIDTH = 5,
     parameter integer UOP_TYPE_WIDTH = 5,
     parameter integer ROB_CPLT_MASK_WIDTH = 3,
+
+    // ---------------------------------------------------------------------
+    // Frontend/BPU metadata constants carried through backend packets.
+    // ---------------------------------------------------------------------
     parameter integer IQ_NUM = 5,
     parameter integer MAX_UOP_TYPE = 18,
     parameter integer BPU_SCL_META_NTABLE = 8,
@@ -38,6 +47,10 @@ module back_top #(
     parameter integer TAGE_IDX_WIDTH = 12,
     parameter integer TAGE_TAG_WIDTH = 8,
     parameter integer pcpn_t_BITS = 3,
+
+    // ---------------------------------------------------------------------
+    // Issue, execution and LSU structure constants.
+    // ---------------------------------------------------------------------
     parameter integer IQ_READY_NUM_WIDTH = 11,
     parameter integer MAX_IQ_DISPATCH_WIDTH = DECODE_WIDTH,
     parameter integer MAX_STQ_DISPATCH_WIDTH = DECODE_WIDTH,
@@ -57,8 +70,10 @@ module back_top #(
     parameter integer W_STQ_COUNT = 10,
     parameter integer W_LDQ_COUNT = 10,
 
-    // Widths below are derived from the C++ IO structs.  Debug sideband fields
-    // are packed explicitly so that no backend module defaults to a 1-bit bus.
+    // ---------------------------------------------------------------------
+    // Basic sideband and instruction-entry widths.
+    // Widths below are derived from the C++ IO structs.
+    // ---------------------------------------------------------------------
     parameter integer W_DebugMeta = 32 + 32 + 8 + 1 + 64,
     parameter integer W_TmaMeta = 4,
     parameter integer W_RobDisTmaMeta = 3,
@@ -72,6 +87,13 @@ module back_top #(
         (2 * ROB_CPLT_MASK_WIDTH) + 1 + 6 + INST_TYPE_WIDTH +
         W_TmaMeta + W_DebugMeta,
     parameter integer W_InstEntry = 1 + W_InstInfo,
+    // Back_out.commit_entry intentionally drops perf/debug sideband fields.
+    parameter integer W_BackCommitInfo = W_InstInfo - W_TmaMeta - W_DebugMeta,
+    parameter integer W_BackCommitEntry = 1 + W_BackCommitInfo,
+
+    // ---------------------------------------------------------------------
+    // IDU, rename, dispatch and ROB packet widths.
+    // ---------------------------------------------------------------------
     parameter integer W_DecRenInst =
         32 + (3 * AREG_IDX_WIDTH) +
         FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + INST_TYPE_WIDTH +
@@ -118,6 +140,10 @@ module back_top #(
     parameter integer W_WakeInfo = 1 + PRF_IDX_WIDTH,
     parameter integer W_PrfAwakeIO = LSU_LOAD_WB_WIDTH * W_WakeInfo,
     parameter integer W_IssAwakeIO = MAX_WAKEUP_PORTS * W_WakeInfo,
+
+    // ---------------------------------------------------------------------
+    // Issue, PRF and EXU packet widths.
+    // ---------------------------------------------------------------------
     parameter integer W_DisIssUop =
         (3 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 +
         3 + 2 + 2 + 3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH +
@@ -155,6 +181,10 @@ module back_top #(
     parameter integer W_RobCsrIO = 2,
     parameter integer W_CsrFrontIO = 32 + 32,
     parameter integer W_CsrStatusIO = 32 + 32 + 32 + 2,
+
+    // ---------------------------------------------------------------------
+    // LSU, DCache, peripheral and MMU packet widths.
+    // ---------------------------------------------------------------------
     parameter integer W_DisLsuIO =
         MAX_STQ_DISPATCH_WIDTH *
             (1 + BR_MASK_WIDTH + 3 + ROB_IDX_WIDTH + 1 + 1) +
@@ -194,7 +224,9 @@ module back_top #(
     parameter integer W_MMULsuIO =
         (W_MMUResp * LSU_LDU_COUNT) + (W_MMUResp * LSU_STA_COUNT),
 
+    // ---------------------------------------------------------------------
     // Aggregate module interface widths.
+    // ---------------------------------------------------------------------
     parameter integer W_FrontPreIO =
         (32 * FETCH_WIDTH) +
         (32 * FETCH_WIDTH) +
@@ -300,7 +332,7 @@ module back_top #(
     output wire                          itlb_flush,
     output wire [FETCH_WIDTH-1:0]        fire,
     output wire [31:0]                   redirect_pc,
-    output wire [(W_InstEntry * COMMIT_WIDTH)-1:0] commit_entry,
+    output wire [(W_BackCommitEntry * COMMIT_WIDTH)-1:0] commit_entry,
     output wire [31:0]                   sstatus,
     output wire [31:0]                   mstatus,
     output wire [31:0]                   satp,
@@ -416,11 +448,11 @@ module back_top #(
         backout_rob_commit_entry_uop_illegal_inst;
     wire [(INST_TYPE_WIDTH * COMMIT_WIDTH)-1:0]
         backout_rob_commit_entry_uop_type;
-    wire [(W_TmaMeta * COMMIT_WIDTH)-1:0]
-        backout_rob_commit_entry_uop_tma;
-    wire [(W_DebugMeta * COMMIT_WIDTH)-1:0]
-        backout_rob_commit_entry_uop_dbg;
     wire [COMMIT_WIDTH-1:0] backout_rob_commit_entry_uop_flush_pipe;
+    wire [(W_TmaMeta * COMMIT_WIDTH)-1:0]
+        backout_rob_commit_entry_uop_tma_drop;
+    wire [(W_DebugMeta * COMMIT_WIDTH)-1:0]
+        backout_rob_commit_entry_uop_dbg_drop;
     assign {backout_rob_commit_entry_uop_diag_val,
             backout_rob_commit_entry_uop_dest_areg,
             backout_rob_commit_entry_uop_dest_preg,
@@ -441,8 +473,8 @@ module back_top #(
             backout_rob_commit_entry_uop_page_fault_store,
             backout_rob_commit_entry_uop_illegal_inst,
             backout_rob_commit_entry_uop_type,
-            backout_rob_commit_entry_uop_tma,
-            backout_rob_commit_entry_uop_dbg,
+            backout_rob_commit_entry_uop_tma_drop,
+            backout_rob_commit_entry_uop_dbg_drop,
             backout_rob_commit_entry_uop_flush_pipe} =
         backout_rob_commit_entry_uop;
 
@@ -666,50 +698,59 @@ module back_top #(
     assign mstatus = csr_out_csr_status_mstatus;
     assign satp = csr_out_csr_status_satp;
     assign privilege = csr_out_csr_status_privilege;
-    assign commit_entry =
-        {backout_rob_commit_entry_valid,
-         backout_commit_entry_uop_diag_val,
-         backout_rob_commit_entry_uop_dest_areg,
-         {(AREG_IDX_WIDTH * COMMIT_WIDTH){1'b0}},
-         {(AREG_IDX_WIDTH * COMMIT_WIDTH){1'b0}},
-         backout_rob_commit_entry_uop_dest_preg,
-         {(PRF_IDX_WIDTH * COMMIT_WIDTH){1'b0}},
-         {(PRF_IDX_WIDTH * COMMIT_WIDTH){1'b0}},
-         backout_rob_commit_entry_uop_old_dest_preg,
-         backout_rob_commit_entry_uop_ftq_idx,
-         backout_rob_commit_entry_uop_ftq_offset,
-         backout_rob_commit_entry_uop_ftq_is_last,
-         backout_rob_commit_entry_uop_mispred,
-         backout_rob_commit_entry_uop_br_taken,
-         backout_rob_commit_entry_uop_dest_en,
-         {COMMIT_WIDTH{1'b0}},
-         {COMMIT_WIDTH{1'b0}},
-         {COMMIT_WIDTH{1'b0}},
-         {COMMIT_WIDTH{1'b0}},
-         {COMMIT_WIDTH{1'b0}},
-         {COMMIT_WIDTH{1'b0}},
-         {COMMIT_WIDTH{1'b0}},
-         {(3 * COMMIT_WIDTH){1'b0}},
-         backout_rob_commit_entry_uop_func7,
-         {(32 * COMMIT_WIDTH){1'b0}},
-         {(BR_TAG_WIDTH * COMMIT_WIDTH){1'b0}},
-         {(BR_MASK_WIDTH * COMMIT_WIDTH){1'b0}},
-         {(CSR_IDX_WIDTH * COMMIT_WIDTH){1'b0}},
-         backout_rob_commit_entry_uop_rob_idx,
-         backout_rob_commit_entry_uop_stq_idx,
-         backout_rob_commit_entry_uop_stq_flag,
-         {(LDQ_IDX_WIDTH * COMMIT_WIDTH){1'b0}},
-         {(ROB_CPLT_MASK_WIDTH * COMMIT_WIDTH){1'b0}},
-         {(ROB_CPLT_MASK_WIDTH * COMMIT_WIDTH){1'b0}},
-         backout_rob_commit_entry_uop_rob_flag,
-         backout_rob_commit_entry_uop_page_fault_inst,
-         backout_rob_commit_entry_uop_page_fault_load,
-         backout_rob_commit_entry_uop_page_fault_store,
-         backout_rob_commit_entry_uop_illegal_inst,
-         {COMMIT_WIDTH{1'b0}},
-         backout_rob_commit_entry_uop_flush_pipe,
-         backout_rob_commit_entry_uop_type,
-         backout_rob_commit_entry_uop_tma,
-         backout_rob_commit_entry_uop_dbg};
+    // Back_out.commit_entry follows InstEntry field order, but omits tma/dbg.
+    // Fields not present in RobCommitInst keep the C++ default-init value 0.
+    assign commit_entry = {
+        // InstEntry.valid
+        backout_rob_commit_entry_valid,
+
+        // InstInfo architectural and physical register fields.
+        backout_commit_entry_uop_diag_val,
+        backout_rob_commit_entry_uop_dest_areg,
+        {(2 * AREG_IDX_WIDTH * COMMIT_WIDTH){1'b0}},   // src1/2_areg
+        backout_rob_commit_entry_uop_dest_preg,
+        {(2 * PRF_IDX_WIDTH * COMMIT_WIDTH){1'b0}},    // src1/2_preg
+        backout_rob_commit_entry_uop_old_dest_preg,
+
+        // FTQ and branch prediction fields.
+        backout_rob_commit_entry_uop_ftq_idx,
+        backout_rob_commit_entry_uop_ftq_offset,
+        backout_rob_commit_entry_uop_ftq_is_last,
+        backout_rob_commit_entry_uop_mispred,
+        backout_rob_commit_entry_uop_br_taken,
+
+        // Operand and immediate fields.
+        backout_rob_commit_entry_uop_dest_en,
+        {COMMIT_WIDTH{1'b0}},                          // src1_en
+        {COMMIT_WIDTH{1'b0}},                          // src2_en
+        {COMMIT_WIDTH{1'b0}},                          // src1_busy
+        {COMMIT_WIDTH{1'b0}},                          // src2_busy
+        {COMMIT_WIDTH{1'b0}},                          // src1_is_pc
+        {COMMIT_WIDTH{1'b0}},                          // src2_is_imm
+        {(3 * COMMIT_WIDTH){1'b0}},                    // func3
+        backout_rob_commit_entry_uop_func7,
+        {(32 * COMMIT_WIDTH){1'b0}},                   // imm
+        {(BR_TAG_WIDTH * COMMIT_WIDTH){1'b0}},          // br_id
+        {(BR_MASK_WIDTH * COMMIT_WIDTH){1'b0}},         // br_mask
+        {(CSR_IDX_WIDTH * COMMIT_WIDTH){1'b0}},         // csr_idx
+
+        // ROB/LSU bookkeeping fields.
+        backout_rob_commit_entry_uop_rob_idx,
+        backout_rob_commit_entry_uop_stq_idx,
+        backout_rob_commit_entry_uop_stq_flag,
+        {(LDQ_IDX_WIDTH * COMMIT_WIDTH){1'b0}},         // ldq_idx
+        {(ROB_CPLT_MASK_WIDTH * COMMIT_WIDTH){1'b0}},   // expect_mask
+        {(ROB_CPLT_MASK_WIDTH * COMMIT_WIDTH){1'b0}},   // cplt_mask
+        backout_rob_commit_entry_uop_rob_flag,
+
+        // Exception and type fields.
+        backout_rob_commit_entry_uop_page_fault_inst,
+        backout_rob_commit_entry_uop_page_fault_load,
+        backout_rob_commit_entry_uop_page_fault_store,
+        backout_rob_commit_entry_uop_illegal_inst,
+        {COMMIT_WIDTH{1'b0}},                          // is_atomic
+        backout_rob_commit_entry_uop_flush_pipe,
+        backout_rob_commit_entry_uop_type
+    };
 
 endmodule
