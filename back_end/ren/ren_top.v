@@ -18,13 +18,10 @@ module ren_top #(
     parameter integer INST_TYPE_WIDTH     = 5,
     parameter integer ROB_CPLT_MASK_WIDTH = 3,
     parameter integer COMMIT_WIDTH        = DECODE_WIDTH,
-    parameter integer W_DebugMeta         = 32 + 32 + 8 + 1 + 64,
-    parameter integer W_TmaMeta           = 4,
     parameter integer W_DecRenInst        =
         32 + (3 * AREG_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 +
         INST_TYPE_WIDTH + 3 + 1 + 2 + 3 + 7 + 32 + BR_TAG_WIDTH +
-        BR_MASK_WIDTH + CSR_IDX_WIDTH + (2 * ROB_CPLT_MASK_WIDTH) + 2 +
-        W_TmaMeta + W_DebugMeta,
+        BR_MASK_WIDTH + CSR_IDX_WIDTH + (2 * ROB_CPLT_MASK_WIDTH) + 2,
     parameter integer W_DecRenIO       = DECODE_WIDTH * (W_DecRenInst + 1),
     parameter integer W_DecBroadcastIO =
         1 + BR_MASK_WIDTH + BR_TAG_WIDTH + ROB_IDX_WIDTH + BR_MASK_WIDTH,
@@ -34,14 +31,14 @@ module ren_top #(
     parameter integer W_RobCommitInst =
         32 + AREG_IDX_WIDTH + (2 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH +
         FTQ_OFFSET_WIDTH + 1 + 2 + 1 + 7 + ROB_IDX_WIDTH + 1 +
-        STQ_IDX_WIDTH + 1 + 4 + INST_TYPE_WIDTH + W_TmaMeta + W_DebugMeta + 1,
+        STQ_IDX_WIDTH + 1 + 4 + INST_TYPE_WIDTH + 1,
     parameter integer W_RobCommitIO = COMMIT_WIDTH * (1 + W_RobCommitInst),
     parameter integer W_RenDecIO    = 1,
     parameter integer W_RenDisInst  =
         32 + (3 * AREG_IDX_WIDTH) + (4 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH +
         FTQ_OFFSET_WIDTH + 1 + INST_TYPE_WIDTH + 3 + 1 + 2 + 2 + 3 + 7 +
         32 + BR_TAG_WIDTH + BR_MASK_WIDTH + CSR_IDX_WIDTH +
-        (2 * ROB_CPLT_MASK_WIDTH) + 2 + W_TmaMeta + W_DebugMeta,
+        (2 * ROB_CPLT_MASK_WIDTH) + 2,
     parameter integer W_RenDisIO = DECODE_WIDTH * (W_RenDisInst + 1),
     parameter integer W_RenIn    =
         W_DecRenIO + W_DecBroadcastIO + W_DisRenIO + W_RobBroadcastIO +
@@ -64,7 +61,10 @@ module ren_top #(
     // Field-level view of dec2ren, matching DecRenIO.
     wire [(W_DecRenInst * DECODE_WIDTH)-1:0] dec2ren_uop;
     wire [DECODE_WIDTH-1:0]                  dec2ren_valid;
-    assign {dec2ren_uop, dec2ren_valid} = dec2ren;
+    assign {
+        dec2ren_uop,
+        dec2ren_valid
+    } = dec2ren;
     wire [(32 * DECODE_WIDTH)-1:0]               dec2ren_uop_diag_val;
     wire [(AREG_IDX_WIDTH * DECODE_WIDTH)-1:0]   dec2ren_uop_dest_areg;
     wire [(AREG_IDX_WIDTH * DECODE_WIDTH)-1:0]   dec2ren_uop_src1_areg;
@@ -91,29 +91,45 @@ module ren_top #(
         dec2ren_uop_cplt_mask;
     wire [DECODE_WIDTH-1:0]                 dec2ren_uop_page_fault_inst;
     wire [DECODE_WIDTH-1:0]                 dec2ren_uop_illegal_inst;
-    wire [(W_TmaMeta * DECODE_WIDTH)-1:0]   dec2ren_uop_tma;
-    wire [(W_DebugMeta * DECODE_WIDTH)-1:0] dec2ren_uop_dbg;
-    assign {dec2ren_uop_diag_val, dec2ren_uop_dest_areg,
-            dec2ren_uop_src1_areg, dec2ren_uop_src2_areg,
-            dec2ren_uop_ftq_idx, dec2ren_uop_ftq_offset,
-            dec2ren_uop_ftq_is_last, dec2ren_uop_type,
-            dec2ren_uop_dest_en, dec2ren_uop_src1_en,
-            dec2ren_uop_src2_en, dec2ren_uop_is_atomic,
-            dec2ren_uop_src1_is_pc, dec2ren_uop_src2_is_imm,
-            dec2ren_uop_func3, dec2ren_uop_func7, dec2ren_uop_imm,
-            dec2ren_uop_br_id, dec2ren_uop_br_mask,
-            dec2ren_uop_csr_idx, dec2ren_uop_expect_mask,
-            dec2ren_uop_cplt_mask, dec2ren_uop_page_fault_inst,
-            dec2ren_uop_illegal_inst, dec2ren_uop_tma,
-            dec2ren_uop_dbg} = dec2ren_uop;
+    assign {
+        dec2ren_uop_diag_val,
+        dec2ren_uop_dest_areg,
+        dec2ren_uop_src1_areg,
+        dec2ren_uop_src2_areg,
+        dec2ren_uop_ftq_idx,
+        dec2ren_uop_ftq_offset,
+        dec2ren_uop_ftq_is_last,
+        dec2ren_uop_type,
+        dec2ren_uop_dest_en,
+        dec2ren_uop_src1_en,
+        dec2ren_uop_src2_en,
+        dec2ren_uop_is_atomic,
+        dec2ren_uop_src1_is_pc,
+        dec2ren_uop_src2_is_imm,
+        dec2ren_uop_func3,
+        dec2ren_uop_func7,
+        dec2ren_uop_imm,
+        dec2ren_uop_br_id,
+        dec2ren_uop_br_mask,
+        dec2ren_uop_csr_idx,
+        dec2ren_uop_expect_mask,
+        dec2ren_uop_cplt_mask,
+        dec2ren_uop_page_fault_inst,
+        dec2ren_uop_illegal_inst
+    } = dec2ren_uop;
 
     wire                     dec_bcast_mispred;
     wire [BR_MASK_WIDTH-1:0] dec_bcast_br_mask;
     wire [BR_TAG_WIDTH-1:0]  dec_bcast_br_id;
     wire [ROB_IDX_WIDTH-1:0] dec_bcast_redirect_rob_idx;
     wire [BR_MASK_WIDTH-1:0] dec_bcast_clear_mask;
-    assign {dec_bcast_mispred, dec_bcast_br_mask, dec_bcast_br_id,
-            dec_bcast_redirect_rob_idx, dec_bcast_clear_mask} = dec_bcast;
+    assign {
+        dec_bcast_mispred,
+        dec_bcast_br_mask,
+        dec_bcast_br_id,
+        dec_bcast_redirect_rob_idx,
+        dec_bcast_clear_mask
+    } = dec_bcast;
 
     wire dis2ren_ready;
     assign dis2ren_ready = dis2ren;
@@ -136,18 +152,33 @@ module ren_top #(
     wire                     rob_bcast_head_valid;
     wire [ROB_IDX_WIDTH-1:0] rob_bcast_head_incomplete_rob_idx;
     wire                     rob_bcast_head_incomplete_valid;
-    assign {rob_bcast_flush, rob_bcast_mret, rob_bcast_sret,
-            rob_bcast_ecall, rob_bcast_exception, rob_bcast_fence,
-            rob_bcast_fence_i, rob_bcast_page_fault_inst,
-            rob_bcast_page_fault_load, rob_bcast_page_fault_store,
-            rob_bcast_illegal_inst, rob_bcast_interrupt,
-            rob_bcast_trap_val, rob_bcast_pc, rob_bcast_head_rob_idx,
-            rob_bcast_head_valid, rob_bcast_head_incomplete_rob_idx,
-            rob_bcast_head_incomplete_valid} = rob_bcast;
+    assign {
+        rob_bcast_flush,
+        rob_bcast_mret,
+        rob_bcast_sret,
+        rob_bcast_ecall,
+        rob_bcast_exception,
+        rob_bcast_fence,
+        rob_bcast_fence_i,
+        rob_bcast_page_fault_inst,
+        rob_bcast_page_fault_load,
+        rob_bcast_page_fault_store,
+        rob_bcast_illegal_inst,
+        rob_bcast_interrupt,
+        rob_bcast_trap_val,
+        rob_bcast_pc,
+        rob_bcast_head_rob_idx,
+        rob_bcast_head_valid,
+        rob_bcast_head_incomplete_rob_idx,
+        rob_bcast_head_incomplete_valid
+    } = rob_bcast;
 
     wire [COMMIT_WIDTH-1:0]                     rob_commit_entry_valid;
     wire [(W_RobCommitInst * COMMIT_WIDTH)-1:0] rob_commit_entry_uop;
-    assign {rob_commit_entry_valid, rob_commit_entry_uop} = rob_commit;
+    assign {
+        rob_commit_entry_valid,
+        rob_commit_entry_uop
+    } = rob_commit;
     wire [(32 * COMMIT_WIDTH)-1:0] rob_commit_entry_uop_diag_val;
     wire [(AREG_IDX_WIDTH * COMMIT_WIDTH)-1:0]
         rob_commit_entry_uop_dest_areg;
@@ -175,39 +206,40 @@ module ren_top #(
     wire [COMMIT_WIDTH-1:0]                     rob_commit_entry_uop_page_fault_store;
     wire [COMMIT_WIDTH-1:0]                     rob_commit_entry_uop_illegal_inst;
     wire [(INST_TYPE_WIDTH * COMMIT_WIDTH)-1:0] rob_commit_entry_uop_type;
-    wire [(W_TmaMeta * COMMIT_WIDTH)-1:0]       rob_commit_entry_uop_tma;
-    wire [(W_DebugMeta * COMMIT_WIDTH)-1:0]     rob_commit_entry_uop_dbg;
     wire [COMMIT_WIDTH-1:0]                     rob_commit_entry_uop_flush_pipe;
-    assign {rob_commit_entry_uop_diag_val,
-            rob_commit_entry_uop_dest_areg,
-            rob_commit_entry_uop_dest_preg,
-            rob_commit_entry_uop_old_dest_preg,
-            rob_commit_entry_uop_ftq_idx,
-            rob_commit_entry_uop_ftq_offset,
-            rob_commit_entry_uop_ftq_is_last,
-            rob_commit_entry_uop_mispred,
-            rob_commit_entry_uop_br_taken,
-            rob_commit_entry_uop_dest_en,
-            rob_commit_entry_uop_func7,
-            rob_commit_entry_uop_rob_idx,
-            rob_commit_entry_uop_rob_flag,
-            rob_commit_entry_uop_stq_idx,
-            rob_commit_entry_uop_stq_flag,
-            rob_commit_entry_uop_page_fault_inst,
-            rob_commit_entry_uop_page_fault_load,
-            rob_commit_entry_uop_page_fault_store,
-            rob_commit_entry_uop_illegal_inst,
-            rob_commit_entry_uop_type,
-            rob_commit_entry_uop_tma,
-            rob_commit_entry_uop_dbg,
-            rob_commit_entry_uop_flush_pipe} = rob_commit_entry_uop;
+    assign {
+        rob_commit_entry_uop_diag_val,
+        rob_commit_entry_uop_dest_areg,
+        rob_commit_entry_uop_dest_preg,
+        rob_commit_entry_uop_old_dest_preg,
+        rob_commit_entry_uop_ftq_idx,
+        rob_commit_entry_uop_ftq_offset,
+        rob_commit_entry_uop_ftq_is_last,
+        rob_commit_entry_uop_mispred,
+        rob_commit_entry_uop_br_taken,
+        rob_commit_entry_uop_dest_en,
+        rob_commit_entry_uop_func7,
+        rob_commit_entry_uop_rob_idx,
+        rob_commit_entry_uop_rob_flag,
+        rob_commit_entry_uop_stq_idx,
+        rob_commit_entry_uop_stq_flag,
+        rob_commit_entry_uop_page_fault_inst,
+        rob_commit_entry_uop_page_fault_load,
+        rob_commit_entry_uop_page_fault_store,
+        rob_commit_entry_uop_illegal_inst,
+        rob_commit_entry_uop_type,
+        rob_commit_entry_uop_flush_pipe
+    } = rob_commit_entry_uop;
 
     wire ren2dec_ready;
     assign ren2dec_ready = ren2dec;
 
     wire [(W_RenDisInst * DECODE_WIDTH)-1:0] ren2dis_uop;
     wire [DECODE_WIDTH-1:0]                  ren2dis_valid;
-    assign {ren2dis_uop, ren2dis_valid} = ren2dis;
+    assign {
+        ren2dis_uop,
+        ren2dis_valid
+    } = ren2dis;
     wire [(32 * DECODE_WIDTH)-1:0]               ren2dis_uop_diag_val;
     wire [(AREG_IDX_WIDTH * DECODE_WIDTH)-1:0]   ren2dis_uop_dest_areg;
     wire [(AREG_IDX_WIDTH * DECODE_WIDTH)-1:0]   ren2dis_uop_src1_areg;
@@ -240,27 +272,50 @@ module ren_top #(
         ren2dis_uop_cplt_mask;
     wire [DECODE_WIDTH-1:0]                 ren2dis_uop_page_fault_inst;
     wire [DECODE_WIDTH-1:0]                 ren2dis_uop_illegal_inst;
-    wire [(W_TmaMeta * DECODE_WIDTH)-1:0]   ren2dis_uop_tma;
-    wire [(W_DebugMeta * DECODE_WIDTH)-1:0] ren2dis_uop_dbg;
-    assign {ren2dis_uop_diag_val, ren2dis_uop_dest_areg,
-            ren2dis_uop_src1_areg, ren2dis_uop_src2_areg,
-            ren2dis_uop_dest_preg, ren2dis_uop_src1_preg,
-            ren2dis_uop_src2_preg, ren2dis_uop_old_dest_preg,
-            ren2dis_uop_ftq_idx, ren2dis_uop_ftq_offset,
-            ren2dis_uop_ftq_is_last, ren2dis_uop_type,
-            ren2dis_uop_dest_en, ren2dis_uop_src1_en,
-            ren2dis_uop_src2_en, ren2dis_uop_is_atomic,
-            ren2dis_uop_src1_busy, ren2dis_uop_src2_busy,
-            ren2dis_uop_src1_is_pc, ren2dis_uop_src2_is_imm,
-            ren2dis_uop_func3, ren2dis_uop_func7, ren2dis_uop_imm,
-            ren2dis_uop_br_id, ren2dis_uop_br_mask,
-            ren2dis_uop_csr_idx, ren2dis_uop_expect_mask,
-            ren2dis_uop_cplt_mask, ren2dis_uop_page_fault_inst,
-            ren2dis_uop_illegal_inst, ren2dis_uop_tma,
-            ren2dis_uop_dbg} = ren2dis_uop;
+    assign {
+        ren2dis_uop_diag_val,
+        ren2dis_uop_dest_areg,
+        ren2dis_uop_src1_areg,
+        ren2dis_uop_src2_areg,
+        ren2dis_uop_dest_preg,
+        ren2dis_uop_src1_preg,
+        ren2dis_uop_src2_preg,
+        ren2dis_uop_old_dest_preg,
+        ren2dis_uop_ftq_idx,
+        ren2dis_uop_ftq_offset,
+        ren2dis_uop_ftq_is_last,
+        ren2dis_uop_type,
+        ren2dis_uop_dest_en,
+        ren2dis_uop_src1_en,
+        ren2dis_uop_src2_en,
+        ren2dis_uop_is_atomic,
+        ren2dis_uop_src1_busy,
+        ren2dis_uop_src2_busy,
+        ren2dis_uop_src1_is_pc,
+        ren2dis_uop_src2_is_imm,
+        ren2dis_uop_func3,
+        ren2dis_uop_func7,
+        ren2dis_uop_imm,
+        ren2dis_uop_br_id,
+        ren2dis_uop_br_mask,
+        ren2dis_uop_csr_idx,
+        ren2dis_uop_expect_mask,
+        ren2dis_uop_cplt_mask,
+        ren2dis_uop_page_fault_inst,
+        ren2dis_uop_illegal_inst
+    } = ren2dis_uop;
 
-    assign pi = {dec2ren, dec_bcast, dis2ren, rob_bcast, rob_commit};
-    assign {ren2dec, ren2dis} = po;
+    assign pi = {
+        dec2ren,
+        dec_bcast,
+        dis2ren,
+        rob_bcast,
+        rob_commit
+    };
+    assign {
+        ren2dec,
+        ren2dis
+    } = po;
 
     ren_bsd_top #(
         .W_RenIn(W_RenIn),

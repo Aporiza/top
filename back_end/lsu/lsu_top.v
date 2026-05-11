@@ -30,12 +30,10 @@ module lsu_top #(
     parameter integer ROB_NUM                = 2048,
     parameter integer W_STQ_COUNT            = 10,
     parameter integer W_LDQ_COUNT            = 10,
-    parameter integer W_DebugMeta            = 32 + 32 + 8 + 1 + 64,
-    parameter integer W_TmaMeta              = 4,
     parameter integer W_RobCommitInst        =
         32 + AREG_IDX_WIDTH + (2 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH +
         FTQ_OFFSET_WIDTH + 1 + 2 + 1 + 7 + ROB_IDX_WIDTH + 1 +
-        STQ_IDX_WIDTH + 1 + 4 + INST_TYPE_WIDTH + W_TmaMeta + W_DebugMeta + 1,
+        STQ_IDX_WIDTH + 1 + 4 + INST_TYPE_WIDTH + 1,
     parameter integer W_RobCommitIO    = COMMIT_WIDTH * (1 + W_RobCommitInst),
     parameter integer W_RobBroadcastIO =
         7 + 5 + 32 + 32 + ROB_IDX_WIDTH + 1 + ROB_IDX_WIDTH + 1,
@@ -49,8 +47,7 @@ module lsu_top #(
             (1 + LDQ_IDX_WIDTH + BR_MASK_WIDTH + ROB_IDX_WIDTH + 1),
     parameter integer W_ExeLsuReqUop =
         32 + PRF_IDX_WIDTH + 3 + 7 + 1 + BR_MASK_WIDTH + ROB_IDX_WIDTH +
-        STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + 1 + 1 + UOP_TYPE_WIDTH +
-        W_DebugMeta,
+        STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + 1 + 1 + UOP_TYPE_WIDTH,
     parameter integer W_ExeLsuIO =
         (LSU_AGU_COUNT + LSU_SDU_COUNT) * (1 + W_ExeLsuReqUop),
     parameter integer W_PeripheralRespIO = 1 + 1 + 32,
@@ -65,10 +62,10 @@ module lsu_top #(
     parameter integer W_LsuDisIO =
         STQ_IDX_WIDTH + 1 + W_STQ_COUNT + W_LDQ_COUNT +
         (LDQ_IDX_WIDTH * MAX_LDQ_DISPATCH_WIDTH) + MAX_LDQ_DISPATCH_WIDTH,
-    parameter integer W_LsuRobIO      = ROB_NUM + 1,
+    parameter integer W_LsuRobIO      = 1,
     parameter integer W_LsuExeRespUop =
         32 + 32 + PRF_IDX_WIDTH + BR_MASK_WIDTH + ROB_IDX_WIDTH + 1 +
-        2 + UOP_TYPE_WIDTH + W_DebugMeta + 1,
+        2 + UOP_TYPE_WIDTH + 1,
     parameter integer W_LsuExeIO =
         (LSU_LOAD_WB_WIDTH + LSU_STA_COUNT) * (1 + W_LsuExeRespUop),
     parameter integer W_PeripheralReqIO = 1 + 1 + 32 + 32 + 3,
@@ -111,7 +108,10 @@ module lsu_top #(
 
     wire [COMMIT_WIDTH-1:0]                     rob_commit_entry_valid;
     wire [(W_RobCommitInst * COMMIT_WIDTH)-1:0] rob_commit_entry_uop;
-    assign {rob_commit_entry_valid, rob_commit_entry_uop} = rob_commit;
+    assign {
+        rob_commit_entry_valid,
+        rob_commit_entry_uop
+    } = rob_commit;
     wire [(32 * COMMIT_WIDTH)-1:0] rob_commit_entry_uop_diag_val;
     wire [(AREG_IDX_WIDTH * COMMIT_WIDTH)-1:0]
         rob_commit_entry_uop_dest_areg;
@@ -139,32 +139,30 @@ module lsu_top #(
     wire [COMMIT_WIDTH-1:0]                     rob_commit_entry_uop_page_fault_store;
     wire [COMMIT_WIDTH-1:0]                     rob_commit_entry_uop_illegal_inst;
     wire [(INST_TYPE_WIDTH * COMMIT_WIDTH)-1:0] rob_commit_entry_uop_type;
-    wire [(W_TmaMeta * COMMIT_WIDTH)-1:0]       rob_commit_entry_uop_tma;
-    wire [(W_DebugMeta * COMMIT_WIDTH)-1:0]     rob_commit_entry_uop_dbg;
     wire [COMMIT_WIDTH-1:0]                     rob_commit_entry_uop_flush_pipe;
-    assign {rob_commit_entry_uop_diag_val,
-            rob_commit_entry_uop_dest_areg,
-            rob_commit_entry_uop_dest_preg,
-            rob_commit_entry_uop_old_dest_preg,
-            rob_commit_entry_uop_ftq_idx,
-            rob_commit_entry_uop_ftq_offset,
-            rob_commit_entry_uop_ftq_is_last,
-            rob_commit_entry_uop_mispred,
-            rob_commit_entry_uop_br_taken,
-            rob_commit_entry_uop_dest_en,
-            rob_commit_entry_uop_func7,
-            rob_commit_entry_uop_rob_idx,
-            rob_commit_entry_uop_rob_flag,
-            rob_commit_entry_uop_stq_idx,
-            rob_commit_entry_uop_stq_flag,
-            rob_commit_entry_uop_page_fault_inst,
-            rob_commit_entry_uop_page_fault_load,
-            rob_commit_entry_uop_page_fault_store,
-            rob_commit_entry_uop_illegal_inst,
-            rob_commit_entry_uop_type,
-            rob_commit_entry_uop_tma,
-            rob_commit_entry_uop_dbg,
-            rob_commit_entry_uop_flush_pipe} = rob_commit_entry_uop;
+    assign {
+        rob_commit_entry_uop_diag_val,
+        rob_commit_entry_uop_dest_areg,
+        rob_commit_entry_uop_dest_preg,
+        rob_commit_entry_uop_old_dest_preg,
+        rob_commit_entry_uop_ftq_idx,
+        rob_commit_entry_uop_ftq_offset,
+        rob_commit_entry_uop_ftq_is_last,
+        rob_commit_entry_uop_mispred,
+        rob_commit_entry_uop_br_taken,
+        rob_commit_entry_uop_dest_en,
+        rob_commit_entry_uop_func7,
+        rob_commit_entry_uop_rob_idx,
+        rob_commit_entry_uop_rob_flag,
+        rob_commit_entry_uop_stq_idx,
+        rob_commit_entry_uop_stq_flag,
+        rob_commit_entry_uop_page_fault_inst,
+        rob_commit_entry_uop_page_fault_load,
+        rob_commit_entry_uop_page_fault_store,
+        rob_commit_entry_uop_illegal_inst,
+        rob_commit_entry_uop_type,
+        rob_commit_entry_uop_flush_pipe
+    } = rob_commit_entry_uop;
 
     wire                     rob_bcast_flush;
     wire                     rob_bcast_mret;
@@ -184,29 +182,50 @@ module lsu_top #(
     wire                     rob_bcast_head_valid;
     wire [ROB_IDX_WIDTH-1:0] rob_bcast_head_incomplete_rob_idx;
     wire                     rob_bcast_head_incomplete_valid;
-    assign {rob_bcast_flush, rob_bcast_mret, rob_bcast_sret,
-            rob_bcast_ecall, rob_bcast_exception, rob_bcast_fence,
-            rob_bcast_fence_i, rob_bcast_page_fault_inst,
-            rob_bcast_page_fault_load, rob_bcast_page_fault_store,
-            rob_bcast_illegal_inst, rob_bcast_interrupt,
-            rob_bcast_trap_val, rob_bcast_pc, rob_bcast_head_rob_idx,
-            rob_bcast_head_valid, rob_bcast_head_incomplete_rob_idx,
-            rob_bcast_head_incomplete_valid} = rob_bcast;
+    assign {
+        rob_bcast_flush,
+        rob_bcast_mret,
+        rob_bcast_sret,
+        rob_bcast_ecall,
+        rob_bcast_exception,
+        rob_bcast_fence,
+        rob_bcast_fence_i,
+        rob_bcast_page_fault_inst,
+        rob_bcast_page_fault_load,
+        rob_bcast_page_fault_store,
+        rob_bcast_illegal_inst,
+        rob_bcast_interrupt,
+        rob_bcast_trap_val,
+        rob_bcast_pc,
+        rob_bcast_head_rob_idx,
+        rob_bcast_head_valid,
+        rob_bcast_head_incomplete_rob_idx,
+        rob_bcast_head_incomplete_valid
+    } = rob_bcast;
 
     wire                     dec_bcast_mispred;
     wire [BR_MASK_WIDTH-1:0] dec_bcast_br_mask;
     wire [BR_TAG_WIDTH-1:0]  dec_bcast_br_id;
     wire [ROB_IDX_WIDTH-1:0] dec_bcast_redirect_rob_idx;
     wire [BR_MASK_WIDTH-1:0] dec_bcast_clear_mask;
-    assign {dec_bcast_mispred, dec_bcast_br_mask, dec_bcast_br_id,
-            dec_bcast_redirect_rob_idx, dec_bcast_clear_mask} = dec_bcast;
+    assign {
+        dec_bcast_mispred,
+        dec_bcast_br_mask,
+        dec_bcast_br_id,
+        dec_bcast_redirect_rob_idx,
+        dec_bcast_clear_mask
+    } = dec_bcast;
 
     wire [31:0] csr_status_sstatus;
     wire [31:0] csr_status_mstatus;
     wire [31:0] csr_status_satp;
     wire [1:0]  csr_status_privilege;
-    assign {csr_status_sstatus, csr_status_mstatus, csr_status_satp,
-            csr_status_privilege} = csr_status;
+    assign {
+        csr_status_sstatus,
+        csr_status_mstatus,
+        csr_status_satp,
+        csr_status_privilege
+    } = csr_status;
 
     wire [MAX_STQ_DISPATCH_WIDTH-1:0]                   dis2lsu_alloc_req;
     wire [(BR_MASK_WIDTH * MAX_STQ_DISPATCH_WIDTH)-1:0] dis2lsu_br_mask;
@@ -219,15 +238,27 @@ module lsu_top #(
     wire [(BR_MASK_WIDTH * MAX_LDQ_DISPATCH_WIDTH)-1:0] dis2lsu_ldq_br_mask;
     wire [(ROB_IDX_WIDTH * MAX_LDQ_DISPATCH_WIDTH)-1:0] dis2lsu_ldq_rob_idx;
     wire [MAX_LDQ_DISPATCH_WIDTH-1:0]                   dis2lsu_ldq_rob_flag;
-    assign {dis2lsu_alloc_req, dis2lsu_br_mask, dis2lsu_func3,
-            dis2lsu_rob_idx, dis2lsu_rob_flag, dis2lsu_stq_flag,
-            dis2lsu_ldq_alloc_req, dis2lsu_ldq_idx, dis2lsu_ldq_br_mask,
-            dis2lsu_ldq_rob_idx, dis2lsu_ldq_rob_flag} = dis2lsu;
+    assign {
+        dis2lsu_alloc_req,
+        dis2lsu_br_mask,
+        dis2lsu_func3,
+        dis2lsu_rob_idx,
+        dis2lsu_rob_flag,
+        dis2lsu_stq_flag,
+        dis2lsu_ldq_alloc_req,
+        dis2lsu_ldq_idx,
+        dis2lsu_ldq_br_mask,
+        dis2lsu_ldq_rob_idx,
+        dis2lsu_ldq_rob_flag
+    } = dis2lsu;
 
     wire [(LSU_AGU_COUNT + LSU_SDU_COUNT)-1:0] exe2lsu_req_valid;
     wire [(W_ExeLsuReqUop * (LSU_AGU_COUNT + LSU_SDU_COUNT))-1:0]
         exe2lsu_req_uop;
-    assign {exe2lsu_req_valid, exe2lsu_req_uop} = exe2lsu;
+    assign {
+        exe2lsu_req_valid,
+        exe2lsu_req_uop
+    } = exe2lsu;
     wire [(32 * (LSU_AGU_COUNT + LSU_SDU_COUNT))-1:0]
         exe2lsu_req_uop_result;
     wire [(PRF_IDX_WIDTH * (LSU_AGU_COUNT + LSU_SDU_COUNT))-1:0]
@@ -254,29 +285,44 @@ module lsu_top #(
         exe2lsu_req_uop_dest_en;
     wire [(UOP_TYPE_WIDTH * (LSU_AGU_COUNT + LSU_SDU_COUNT))-1:0]
         exe2lsu_req_uop_op;
-    wire [(W_DebugMeta * (LSU_AGU_COUNT + LSU_SDU_COUNT))-1:0]
-        exe2lsu_req_uop_dbg;
-    assign {exe2lsu_req_uop_result, exe2lsu_req_uop_dest_preg,
-            exe2lsu_req_uop_func3, exe2lsu_req_uop_func7,
-            exe2lsu_req_uop_is_atomic, exe2lsu_req_uop_br_mask,
-            exe2lsu_req_uop_rob_idx, exe2lsu_req_uop_stq_idx,
-            exe2lsu_req_uop_stq_flag, exe2lsu_req_uop_ldq_idx,
-            exe2lsu_req_uop_rob_flag, exe2lsu_req_uop_dest_en,
-            exe2lsu_req_uop_op, exe2lsu_req_uop_dbg} = exe2lsu_req_uop;
+    assign {
+        exe2lsu_req_uop_result,
+        exe2lsu_req_uop_dest_preg,
+        exe2lsu_req_uop_func3,
+        exe2lsu_req_uop_func7,
+        exe2lsu_req_uop_is_atomic,
+        exe2lsu_req_uop_br_mask,
+        exe2lsu_req_uop_rob_idx,
+        exe2lsu_req_uop_stq_idx,
+        exe2lsu_req_uop_stq_flag,
+        exe2lsu_req_uop_ldq_idx,
+        exe2lsu_req_uop_rob_flag,
+        exe2lsu_req_uop_dest_en,
+        exe2lsu_req_uop_op
+    } = exe2lsu_req_uop;
 
     wire        peripheral_resp_is_mmio;
     wire        peripheral_resp_ready;
     wire [31:0] peripheral_resp_mmio_rdata;
-    assign {peripheral_resp_is_mmio, peripheral_resp_ready,
-            peripheral_resp_mmio_rdata} = peripheral_resp;
+    assign {
+        peripheral_resp_is_mmio,
+        peripheral_resp_ready,
+        peripheral_resp_mmio_rdata
+    } = peripheral_resp;
 
     wire [W_DCacheRespPorts-1:0] dcache2lsu_resp_ports;
     wire                         dcache2lsu_mshr_fill;
-    assign {dcache2lsu_resp_ports, dcache2lsu_mshr_fill} = dcache2lsu;
+    assign {
+        dcache2lsu_resp_ports,
+        dcache2lsu_mshr_fill
+    } = dcache2lsu;
 
     wire [(W_MMUResp * LSU_LDU_COUNT)-1:0] mmu2lsu_ldq_resp;
     wire [(W_MMUResp * LSU_STA_COUNT)-1:0] mmu2lsu_stq_resp;
-    assign {mmu2lsu_ldq_resp, mmu2lsu_stq_resp} = mmu2lsu_io;
+    assign {
+        mmu2lsu_ldq_resp,
+        mmu2lsu_stq_resp
+    } = mmu2lsu_io;
 
     wire [STQ_IDX_WIDTH-1:0] lsu2dis_stq_tail;
     wire                     lsu2dis_stq_tail_flag;
@@ -285,19 +331,25 @@ module lsu_top #(
     wire [(LDQ_IDX_WIDTH * MAX_LDQ_DISPATCH_WIDTH)-1:0]
         lsu2dis_ldq_alloc_idx;
     wire [MAX_LDQ_DISPATCH_WIDTH-1:0] lsu2dis_ldq_alloc_valid;
-    assign {lsu2dis_stq_tail, lsu2dis_stq_tail_flag, lsu2dis_stq_free,
-            lsu2dis_ldq_free, lsu2dis_ldq_alloc_idx,
-            lsu2dis_ldq_alloc_valid} = lsu2dis;
+    assign {
+        lsu2dis_stq_tail,
+        lsu2dis_stq_tail_flag,
+        lsu2dis_stq_free,
+        lsu2dis_ldq_free,
+        lsu2dis_ldq_alloc_idx,
+        lsu2dis_ldq_alloc_valid
+    } = lsu2dis;
 
-    wire [ROB_NUM-1:0] lsu2rob_tma_miss_mask;
     wire               lsu2rob_committed_store_pending;
-    assign {lsu2rob_tma_miss_mask,
-            lsu2rob_committed_store_pending} = lsu2rob;
+    assign lsu2rob_committed_store_pending = lsu2rob;
 
     wire [(LSU_LOAD_WB_WIDTH + LSU_STA_COUNT)-1:0] lsu2exe_wb_req_valid;
     wire [(W_LsuExeRespUop * (LSU_LOAD_WB_WIDTH + LSU_STA_COUNT))-1:0]
         lsu2exe_wb_req_uop;
-    assign {lsu2exe_wb_req_valid, lsu2exe_wb_req_uop} = lsu2exe;
+    assign {
+        lsu2exe_wb_req_valid,
+        lsu2exe_wb_req_uop
+    } = lsu2exe;
     wire [(32 * (LSU_LOAD_WB_WIDTH + LSU_STA_COUNT))-1:0]
         lsu2exe_wb_req_uop_diag_val;
     wire [(32 * (LSU_LOAD_WB_WIDTH + LSU_STA_COUNT))-1:0]
@@ -316,42 +368,69 @@ module lsu_top #(
         lsu2exe_wb_req_uop_page_fault_store;
     wire [(UOP_TYPE_WIDTH * (LSU_LOAD_WB_WIDTH + LSU_STA_COUNT))-1:0]
         lsu2exe_wb_req_uop_op;
-    wire [(W_DebugMeta * (LSU_LOAD_WB_WIDTH + LSU_STA_COUNT))-1:0]
-        lsu2exe_wb_req_uop_dbg;
     wire [(LSU_LOAD_WB_WIDTH + LSU_STA_COUNT)-1:0]
         lsu2exe_wb_req_uop_flush_pipe;
-    assign {lsu2exe_wb_req_uop_diag_val, lsu2exe_wb_req_uop_result,
-            lsu2exe_wb_req_uop_dest_preg, lsu2exe_wb_req_uop_br_mask,
-            lsu2exe_wb_req_uop_rob_idx, lsu2exe_wb_req_uop_dest_en,
-            lsu2exe_wb_req_uop_page_fault_load,
-            lsu2exe_wb_req_uop_page_fault_store,
-            lsu2exe_wb_req_uop_op, lsu2exe_wb_req_uop_dbg,
-            lsu2exe_wb_req_uop_flush_pipe} = lsu2exe_wb_req_uop;
+    assign {
+        lsu2exe_wb_req_uop_diag_val,
+        lsu2exe_wb_req_uop_result,
+        lsu2exe_wb_req_uop_dest_preg,
+        lsu2exe_wb_req_uop_br_mask,
+        lsu2exe_wb_req_uop_rob_idx,
+        lsu2exe_wb_req_uop_dest_en,
+        lsu2exe_wb_req_uop_page_fault_load,
+        lsu2exe_wb_req_uop_page_fault_store,
+        lsu2exe_wb_req_uop_op,
+        lsu2exe_wb_req_uop_flush_pipe
+    } = lsu2exe_wb_req_uop;
 
     wire        peripheral_req_is_mmio;
     wire        peripheral_req_wen;
     wire [31:0] peripheral_req_mmio_addr;
     wire [31:0] peripheral_req_mmio_wdata;
     wire [2:0]  peripheral_req_mmio_fun3;
-    assign {peripheral_req_is_mmio, peripheral_req_wen,
-            peripheral_req_mmio_addr, peripheral_req_mmio_wdata,
-            peripheral_req_mmio_fun3} = peripheral_req;
+    assign {
+        peripheral_req_is_mmio,
+        peripheral_req_wen,
+        peripheral_req_mmio_addr,
+        peripheral_req_mmio_wdata,
+        peripheral_req_mmio_fun3
+    } = peripheral_req;
 
     wire [W_DCacheReqPorts-1:0] lsu2dcache_req_ports;
     wire [LSU_LDU_WIDTH:0]      lsu2dcache_icache_req;
-    assign {lsu2dcache_req_ports, lsu2dcache_icache_req} = lsu2dcache;
+    assign {
+        lsu2dcache_req_ports,
+        lsu2dcache_icache_req
+    } = lsu2dcache;
 
     wire [(W_MMUReq * LSU_LDU_COUNT)-1:0] lsu2mmu_ldq_req;
     wire [(W_MMUReq * LSU_STA_COUNT)-1:0] lsu2mmu_stq_req;
     wire [W_CsrStatusIO-1:0]              lsu2mmu_csr_status;
-    assign {lsu2mmu_ldq_req, lsu2mmu_stq_req,
-            lsu2mmu_csr_status} = lsu2mmu_io;
+    assign {
+        lsu2mmu_ldq_req,
+        lsu2mmu_stq_req,
+        lsu2mmu_csr_status
+    } = lsu2mmu_io;
 
-    assign pi =
-        {rob_commit, rob_bcast, dec_bcast, csr_status, dis2lsu, exe2lsu,
-         peripheral_resp, dcache2lsu, mmu2lsu_io};
-    assign {lsu2dis, lsu2rob, lsu2exe, peripheral_req, lsu2dcache,
-            lsu2mmu_io} = po;
+    assign pi = {
+        rob_commit,
+        rob_bcast,
+        dec_bcast,
+        csr_status,
+        dis2lsu,
+        exe2lsu,
+        peripheral_resp,
+        dcache2lsu,
+        mmu2lsu_io
+    };
+    assign {
+        lsu2dis,
+        lsu2rob,
+        lsu2exe,
+        peripheral_req,
+        lsu2dcache,
+        lsu2mmu_io
+    } = po;
 
     lsu_bsd_top #(
         .W_LsuIn(W_LsuIn),

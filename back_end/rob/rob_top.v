@@ -23,39 +23,36 @@ module rob_top #(
     parameter integer ISSUE_WIDTH         = 24,
     parameter integer ROB_NUM             = 2048,
     parameter integer FTQ_ROB_PC_PORT_NUM = 1,
-    parameter integer W_DebugMeta         = 32 + 32 + 8 + 1 + 64,
-    parameter integer W_TmaMeta           = 4,
     parameter integer W_InstInfo          =
         32 + (3 * AREG_IDX_WIDTH) + (4 * PRF_IDX_WIDTH) +
         FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 2 + 3 + 2 + 2 +
         3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH + CSR_IDX_WIDTH +
         ROB_IDX_WIDTH + STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH +
-        (2 * ROB_CPLT_MASK_WIDTH) + 1 + 6 + INST_TYPE_WIDTH +
-        W_TmaMeta + W_DebugMeta,
+        (2 * ROB_CPLT_MASK_WIDTH) + 1 + 6 + INST_TYPE_WIDTH,
     parameter integer W_InstEntry  = 1 + W_InstInfo,
     parameter integer W_DisRobInst =
         32 + (2 * AREG_IDX_WIDTH) + (2 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH +
         FTQ_OFFSET_WIDTH + 1 + 2 + INST_TYPE_WIDTH + 1 + 1 + 3 + 7 + 32 +
         BR_MASK_WIDTH + ROB_IDX_WIDTH + STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH +
-        (2 * ROB_CPLT_MASK_WIDTH) + 1 + 3 + W_TmaMeta + W_DebugMeta,
+        (2 * ROB_CPLT_MASK_WIDTH) + 1 + 3,
     parameter integer W_DisRobIO       = DECODE_WIDTH * (W_DisRobInst + 1 + 1),
     parameter integer W_CsrRobIO       = 1,
-    parameter integer W_LsuRobIO       = ROB_NUM + 1,
+    parameter integer W_LsuRobIO       = 1,
     parameter integer W_DecBroadcastIO =
         1 + BR_MASK_WIDTH + BR_TAG_WIDTH + ROB_IDX_WIDTH + BR_MASK_WIDTH,
     parameter integer W_ExuRobUop =
-        32 + 32 + ROB_IDX_WIDTH + 2 + 3 + UOP_TYPE_WIDTH + W_DebugMeta + 1,
+        32 + 32 + ROB_IDX_WIDTH + 2 + 3 + UOP_TYPE_WIDTH + 1,
     parameter integer W_ExuRobIO       = ISSUE_WIDTH * (1 + W_ExuRobUop),
     parameter integer W_FtqPcReadReq   = 1 + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH,
     parameter integer W_FtqPcReadResp  = 1 + 1 + 32 + 1 + 32,
     parameter integer W_FtqRobPcReqIO  = FTQ_ROB_PC_PORT_NUM * W_FtqPcReadReq,
     parameter integer W_FtqRobPcRespIO = FTQ_ROB_PC_PORT_NUM * W_FtqPcReadResp,
-    parameter integer W_RobDisIO       = 3 + 3 + ROB_IDX_WIDTH + 1,
+    parameter integer W_RobDisIO       = 3 + ROB_IDX_WIDTH + 1,
     parameter integer W_RobCsrIO       = 2,
     parameter integer W_RobCommitInst  =
         32 + AREG_IDX_WIDTH + (2 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH +
         FTQ_OFFSET_WIDTH + 1 + 2 + 1 + 7 + ROB_IDX_WIDTH + 1 +
-        STQ_IDX_WIDTH + 1 + 4 + INST_TYPE_WIDTH + W_TmaMeta + W_DebugMeta + 1,
+        STQ_IDX_WIDTH + 1 + 4 + INST_TYPE_WIDTH + 1,
     parameter integer W_RobCommitIO    = COMMIT_WIDTH * (1 + W_RobCommitInst),
     parameter integer W_RobBroadcastIO =
         7 + 5 + 32 + 32 + ROB_IDX_WIDTH + 1 + ROB_IDX_WIDTH + 1,
@@ -106,7 +103,11 @@ module rob_top #(
     wire [(W_DisRobInst * DECODE_WIDTH)-1:0] dis2rob_uop;
     wire [DECODE_WIDTH-1:0]                  dis2rob_valid;
     wire [DECODE_WIDTH-1:0]                  dis2rob_dis_fire;
-    assign {dis2rob_uop, dis2rob_valid, dis2rob_dis_fire} = dis2rob;
+    assign {
+        dis2rob_uop,
+        dis2rob_valid,
+        dis2rob_dis_fire
+    } = dis2rob;
     wire [(32 * DECODE_WIDTH)-1:0]               dis2rob_uop_diag_val;
     wire [(AREG_IDX_WIDTH * DECODE_WIDTH)-1:0]   dis2rob_uop_dest_areg;
     wire [(AREG_IDX_WIDTH * DECODE_WIDTH)-1:0]   dis2rob_uop_src1_areg;
@@ -136,42 +137,61 @@ module rob_top #(
     wire [DECODE_WIDTH-1:0]                 dis2rob_uop_page_fault_inst;
     wire [DECODE_WIDTH-1:0]                 dis2rob_uop_illegal_inst;
     wire [DECODE_WIDTH-1:0]                 dis2rob_uop_flush_pipe;
-    wire [(W_TmaMeta * DECODE_WIDTH)-1:0]   dis2rob_uop_tma;
-    wire [(W_DebugMeta * DECODE_WIDTH)-1:0] dis2rob_uop_dbg;
-    assign {dis2rob_uop_diag_val, dis2rob_uop_dest_areg,
-            dis2rob_uop_src1_areg, dis2rob_uop_dest_preg,
-            dis2rob_uop_old_dest_preg, dis2rob_uop_ftq_idx,
-            dis2rob_uop_ftq_offset, dis2rob_uop_ftq_is_last,
-            dis2rob_uop_mispred, dis2rob_uop_br_taken,
-            dis2rob_uop_type, dis2rob_uop_dest_en,
-            dis2rob_uop_is_atomic, dis2rob_uop_func3,
-            dis2rob_uop_func7, dis2rob_uop_imm, dis2rob_uop_br_mask,
-            dis2rob_uop_rob_idx, dis2rob_uop_stq_idx,
-            dis2rob_uop_stq_flag, dis2rob_uop_ldq_idx,
-            dis2rob_uop_expect_mask, dis2rob_uop_cplt_mask,
-            dis2rob_uop_rob_flag, dis2rob_uop_page_fault_inst,
-            dis2rob_uop_illegal_inst, dis2rob_uop_flush_pipe,
-            dis2rob_uop_tma, dis2rob_uop_dbg} = dis2rob_uop;
+    assign {
+        dis2rob_uop_diag_val,
+        dis2rob_uop_dest_areg,
+        dis2rob_uop_src1_areg,
+        dis2rob_uop_dest_preg,
+        dis2rob_uop_old_dest_preg,
+        dis2rob_uop_ftq_idx,
+        dis2rob_uop_ftq_offset,
+        dis2rob_uop_ftq_is_last,
+        dis2rob_uop_mispred,
+        dis2rob_uop_br_taken,
+        dis2rob_uop_type,
+        dis2rob_uop_dest_en,
+        dis2rob_uop_is_atomic,
+        dis2rob_uop_func3,
+        dis2rob_uop_func7,
+        dis2rob_uop_imm,
+        dis2rob_uop_br_mask,
+        dis2rob_uop_rob_idx,
+        dis2rob_uop_stq_idx,
+        dis2rob_uop_stq_flag,
+        dis2rob_uop_ldq_idx,
+        dis2rob_uop_expect_mask,
+        dis2rob_uop_cplt_mask,
+        dis2rob_uop_rob_flag,
+        dis2rob_uop_page_fault_inst,
+        dis2rob_uop_illegal_inst,
+        dis2rob_uop_flush_pipe
+    } = dis2rob_uop;
 
     wire csr2rob_interrupt_req;
     assign csr2rob_interrupt_req = csr2rob;
 
-    wire [ROB_NUM-1:0] lsu2rob_tma_miss_mask;
     wire               lsu2rob_committed_store_pending;
-    assign {lsu2rob_tma_miss_mask,
-            lsu2rob_committed_store_pending} = lsu2rob;
+    assign lsu2rob_committed_store_pending = lsu2rob;
 
     wire                     dec_bcast_mispred;
     wire [BR_MASK_WIDTH-1:0] dec_bcast_br_mask;
     wire [BR_TAG_WIDTH-1:0]  dec_bcast_br_id;
     wire [ROB_IDX_WIDTH-1:0] dec_bcast_redirect_rob_idx;
     wire [BR_MASK_WIDTH-1:0] dec_bcast_clear_mask;
-    assign {dec_bcast_mispred, dec_bcast_br_mask, dec_bcast_br_id,
-            dec_bcast_redirect_rob_idx, dec_bcast_clear_mask} = dec_bcast;
+    assign {
+        dec_bcast_mispred,
+        dec_bcast_br_mask,
+        dec_bcast_br_id,
+        dec_bcast_redirect_rob_idx,
+        dec_bcast_clear_mask
+    } = dec_bcast;
 
     wire [ISSUE_WIDTH-1:0]                 exu2rob_entry_valid;
     wire [(W_ExuRobUop * ISSUE_WIDTH)-1:0] exu2rob_entry_uop;
-    assign {exu2rob_entry_valid, exu2rob_entry_uop} = exu2rob;
+    assign {
+        exu2rob_entry_valid,
+        exu2rob_entry_uop
+    } = exu2rob;
     wire [(32 * ISSUE_WIDTH)-1:0]             exu2rob_entry_uop_diag_val;
     wire [(32 * ISSUE_WIDTH)-1:0]             exu2rob_entry_uop_result;
     wire [(ROB_IDX_WIDTH * ISSUE_WIDTH)-1:0]  exu2rob_entry_uop_rob_idx;
@@ -181,50 +201,76 @@ module rob_top #(
     wire [ISSUE_WIDTH-1:0]                    exu2rob_entry_uop_page_fault_load;
     wire [ISSUE_WIDTH-1:0]                    exu2rob_entry_uop_page_fault_store;
     wire [(UOP_TYPE_WIDTH * ISSUE_WIDTH)-1:0] exu2rob_entry_uop_op;
-    wire [(W_DebugMeta * ISSUE_WIDTH)-1:0]    exu2rob_entry_uop_dbg;
     wire [ISSUE_WIDTH-1:0]                    exu2rob_entry_uop_flush_pipe;
-    assign {exu2rob_entry_uop_diag_val, exu2rob_entry_uop_result,
-            exu2rob_entry_uop_rob_idx, exu2rob_entry_uop_mispred,
-            exu2rob_entry_uop_br_taken,
-            exu2rob_entry_uop_page_fault_inst,
-            exu2rob_entry_uop_page_fault_load,
-            exu2rob_entry_uop_page_fault_store, exu2rob_entry_uop_op,
-            exu2rob_entry_uop_dbg,
-            exu2rob_entry_uop_flush_pipe} = exu2rob_entry_uop;
+    assign {
+        exu2rob_entry_uop_diag_val,
+        exu2rob_entry_uop_result,
+        exu2rob_entry_uop_rob_idx,
+        exu2rob_entry_uop_mispred,
+        exu2rob_entry_uop_br_taken,
+        exu2rob_entry_uop_page_fault_inst,
+        exu2rob_entry_uop_page_fault_load,
+        exu2rob_entry_uop_page_fault_store,
+        exu2rob_entry_uop_op,
+        exu2rob_entry_uop_flush_pipe
+    } = exu2rob_entry_uop;
 
     wire [FTQ_ROB_PC_PORT_NUM-1:0]        ftq_rob_pc_resp_valid;
     wire [FTQ_ROB_PC_PORT_NUM-1:0]        ftq_rob_pc_resp_entry_valid;
     wire [(32 * FTQ_ROB_PC_PORT_NUM)-1:0] ftq_rob_pc_resp_pc;
     wire [FTQ_ROB_PC_PORT_NUM-1:0]        ftq_rob_pc_resp_pred_taken;
     wire [(32 * FTQ_ROB_PC_PORT_NUM)-1:0] ftq_rob_pc_resp_next_pc;
-    assign {ftq_rob_pc_resp_valid, ftq_rob_pc_resp_entry_valid,
-            ftq_rob_pc_resp_pc, ftq_rob_pc_resp_pred_taken,
-            ftq_rob_pc_resp_next_pc} = ftq_rob_pc_resp;
+    assign {
+        ftq_rob_pc_resp_valid,
+        ftq_rob_pc_resp_entry_valid,
+        ftq_rob_pc_resp_pc,
+        ftq_rob_pc_resp_pred_taken,
+        ftq_rob_pc_resp_next_pc
+    } = ftq_rob_pc_resp;
 
-    assign pi =
-        {dis2rob, csr2rob, lsu2rob, dec_bcast, exu2rob, ftq_rob_pc_resp,
-         front_stall};
-    assign {rob2dis, rob2csr, rob_commit, rob_bcast, ftq_rob_pc_req} = po;
+    assign pi = {
+        dis2rob,
+        csr2rob,
+        lsu2rob,
+        dec_bcast,
+        exu2rob,
+        ftq_rob_pc_resp,
+        front_stall
+    };
+    assign {
+        rob2dis,
+        rob2csr,
+        rob_commit,
+        rob_bcast,
+        ftq_rob_pc_req
+    } = po;
 
-    wire                     rob2dis_tma_head_is_memory;
-    wire                     rob2dis_tma_head_is_miss;
-    wire                     rob2dis_tma_head_not_ready;
     wire                     rob2dis_ready;
     wire                     rob2dis_empty;
     wire                     rob2dis_stall;
     wire [ROB_IDX_WIDTH-1:0] rob2dis_enq_idx;
     wire                     rob2dis_rob_flag;
-    assign {rob2dis_tma_head_is_memory, rob2dis_tma_head_is_miss,
-            rob2dis_tma_head_not_ready, rob2dis_ready, rob2dis_empty,
-            rob2dis_stall, rob2dis_enq_idx, rob2dis_rob_flag} = rob2dis;
+    assign {
+        rob2dis_ready,
+        rob2dis_empty,
+        rob2dis_stall,
+        rob2dis_enq_idx,
+        rob2dis_rob_flag
+    } = rob2dis;
 
     wire rob2csr_interrupt_resp;
     wire rob2csr_commit;
-    assign {rob2csr_interrupt_resp, rob2csr_commit} = rob2csr;
+    assign {
+        rob2csr_interrupt_resp,
+        rob2csr_commit
+    } = rob2csr;
 
     wire [COMMIT_WIDTH-1:0]                     rob_commit_entry_valid;
     wire [(W_RobCommitInst * COMMIT_WIDTH)-1:0] rob_commit_entry_uop;
-    assign {rob_commit_entry_valid, rob_commit_entry_uop} = rob_commit;
+    assign {
+        rob_commit_entry_valid,
+        rob_commit_entry_uop
+    } = rob_commit;
     wire [(32 * COMMIT_WIDTH)-1:0] rob_commit_entry_uop_diag_val;
     wire [(AREG_IDX_WIDTH * COMMIT_WIDTH)-1:0]
         rob_commit_entry_uop_dest_areg;
@@ -252,49 +298,62 @@ module rob_top #(
     wire [COMMIT_WIDTH-1:0]                     rob_commit_entry_uop_page_fault_store;
     wire [COMMIT_WIDTH-1:0]                     rob_commit_entry_uop_illegal_inst;
     wire [(INST_TYPE_WIDTH * COMMIT_WIDTH)-1:0] rob_commit_entry_uop_type;
-    wire [(W_TmaMeta * COMMIT_WIDTH)-1:0]       rob_commit_entry_uop_tma;
-    wire [(W_DebugMeta * COMMIT_WIDTH)-1:0]     rob_commit_entry_uop_dbg;
     wire [COMMIT_WIDTH-1:0]                     rob_commit_entry_uop_flush_pipe;
-    assign {rob_commit_entry_uop_diag_val,
-            rob_commit_entry_uop_dest_areg,
-            rob_commit_entry_uop_dest_preg,
-            rob_commit_entry_uop_old_dest_preg,
-            rob_commit_entry_uop_ftq_idx,
-            rob_commit_entry_uop_ftq_offset,
-            rob_commit_entry_uop_ftq_is_last,
-            rob_commit_entry_uop_mispred,
-            rob_commit_entry_uop_br_taken,
-            rob_commit_entry_uop_dest_en,
-            rob_commit_entry_uop_func7,
-            rob_commit_entry_uop_rob_idx,
-            rob_commit_entry_uop_rob_flag,
-            rob_commit_entry_uop_stq_idx,
-            rob_commit_entry_uop_stq_flag,
-            rob_commit_entry_uop_page_fault_inst,
-            rob_commit_entry_uop_page_fault_load,
-            rob_commit_entry_uop_page_fault_store,
-            rob_commit_entry_uop_illegal_inst,
-            rob_commit_entry_uop_type,
-            rob_commit_entry_uop_tma,
-            rob_commit_entry_uop_dbg,
-            rob_commit_entry_uop_flush_pipe} = rob_commit_entry_uop;
+    assign {
+        rob_commit_entry_uop_diag_val,
+        rob_commit_entry_uop_dest_areg,
+        rob_commit_entry_uop_dest_preg,
+        rob_commit_entry_uop_old_dest_preg,
+        rob_commit_entry_uop_ftq_idx,
+        rob_commit_entry_uop_ftq_offset,
+        rob_commit_entry_uop_ftq_is_last,
+        rob_commit_entry_uop_mispred,
+        rob_commit_entry_uop_br_taken,
+        rob_commit_entry_uop_dest_en,
+        rob_commit_entry_uop_func7,
+        rob_commit_entry_uop_rob_idx,
+        rob_commit_entry_uop_rob_flag,
+        rob_commit_entry_uop_stq_idx,
+        rob_commit_entry_uop_stq_flag,
+        rob_commit_entry_uop_page_fault_inst,
+        rob_commit_entry_uop_page_fault_load,
+        rob_commit_entry_uop_page_fault_store,
+        rob_commit_entry_uop_illegal_inst,
+        rob_commit_entry_uop_type,
+        rob_commit_entry_uop_flush_pipe
+    } = rob_commit_entry_uop;
 
-    assign {rob_bcast_flush, rob_bcast_mret, rob_bcast_sret,
-            rob_bcast_ecall, rob_bcast_exception, rob_bcast_fence,
-            rob_bcast_fence_i, rob_bcast_page_fault_inst,
-            rob_bcast_page_fault_load, rob_bcast_page_fault_store,
-            rob_bcast_illegal_inst, rob_bcast_interrupt,
-            rob_bcast_trap_val, rob_bcast_pc, rob_bcast_head_rob_idx,
-            rob_bcast_head_valid, rob_bcast_head_incomplete_rob_idx,
-            rob_bcast_head_incomplete_valid} = rob_bcast;
+    assign {
+        rob_bcast_flush,
+        rob_bcast_mret,
+        rob_bcast_sret,
+        rob_bcast_ecall,
+        rob_bcast_exception,
+        rob_bcast_fence,
+        rob_bcast_fence_i,
+        rob_bcast_page_fault_inst,
+        rob_bcast_page_fault_load,
+        rob_bcast_page_fault_store,
+        rob_bcast_illegal_inst,
+        rob_bcast_interrupt,
+        rob_bcast_trap_val,
+        rob_bcast_pc,
+        rob_bcast_head_rob_idx,
+        rob_bcast_head_valid,
+        rob_bcast_head_incomplete_rob_idx,
+        rob_bcast_head_incomplete_valid
+    } = rob_bcast;
 
     wire [FTQ_ROB_PC_PORT_NUM-1:0] ftq_rob_pc_req_valid;
     wire [(FTQ_IDX_WIDTH * FTQ_ROB_PC_PORT_NUM)-1:0]
         ftq_rob_pc_req_ftq_idx;
     wire [(FTQ_OFFSET_WIDTH * FTQ_ROB_PC_PORT_NUM)-1:0]
         ftq_rob_pc_req_ftq_offset;
-    assign {ftq_rob_pc_req_valid, ftq_rob_pc_req_ftq_idx,
-            ftq_rob_pc_req_ftq_offset} = ftq_rob_pc_req;
+    assign {
+        ftq_rob_pc_req_valid,
+        ftq_rob_pc_req_ftq_idx,
+        ftq_rob_pc_req_ftq_offset
+    } = ftq_rob_pc_req;
 
     rob_bsd_top #(
         .W_RobIn(W_RobIn),

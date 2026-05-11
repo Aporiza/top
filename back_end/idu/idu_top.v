@@ -19,8 +19,6 @@ module idu_top #(
     parameter integer FTQ_OFFSET_WIDTH         = 4,
     parameter integer INST_TYPE_WIDTH          = 5,
     parameter integer ROB_CPLT_MASK_WIDTH      = 3,
-    parameter integer W_DebugMeta              = 32 + 32 + 8 + 1 + 64,
-    parameter integer W_TmaMeta                = 4,
     parameter integer W_InstructionBufferEntry =
         1 + 32 + 32 + 1 + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1,
     parameter integer W_PreIssueIO     = W_InstructionBufferEntry * DECODE_WIDTH,
@@ -32,8 +30,7 @@ module idu_top #(
     parameter integer W_DecRenInst =
         32 + (3 * AREG_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 +
         INST_TYPE_WIDTH + 3 + 1 + 2 + 3 + 7 + 32 + BR_TAG_WIDTH +
-        BR_MASK_WIDTH + CSR_IDX_WIDTH + (2 * ROB_CPLT_MASK_WIDTH) + 2 +
-        W_TmaMeta + W_DebugMeta,
+        BR_MASK_WIDTH + CSR_IDX_WIDTH + (2 * ROB_CPLT_MASK_WIDTH) + 2,
     parameter integer W_DecRenIO       = DECODE_WIDTH * (W_DecRenInst + 1),
     parameter integer W_DecBroadcastIO =
         1 + BR_MASK_WIDTH + BR_TAG_WIDTH + ROB_IDX_WIDTH + BR_MASK_WIDTH,
@@ -94,14 +91,26 @@ module idu_top #(
     wire                     rob_bcast_head_valid;
     wire [ROB_IDX_WIDTH-1:0] rob_bcast_head_incomplete_rob_idx;
     wire                     rob_bcast_head_incomplete_valid;
-    assign {rob_bcast_flush, rob_bcast_mret, rob_bcast_sret,
-            rob_bcast_ecall, rob_bcast_exception, rob_bcast_fence,
-            rob_bcast_fence_i, rob_bcast_page_fault_inst,
-            rob_bcast_page_fault_load, rob_bcast_page_fault_store,
-            rob_bcast_illegal_inst, rob_bcast_interrupt,
-            rob_bcast_trap_val, rob_bcast_pc, rob_bcast_head_rob_idx,
-            rob_bcast_head_valid, rob_bcast_head_incomplete_rob_idx,
-            rob_bcast_head_incomplete_valid} = rob_bcast;
+    assign {
+        rob_bcast_flush,
+        rob_bcast_mret,
+        rob_bcast_sret,
+        rob_bcast_ecall,
+        rob_bcast_exception,
+        rob_bcast_fence,
+        rob_bcast_fence_i,
+        rob_bcast_page_fault_inst,
+        rob_bcast_page_fault_load,
+        rob_bcast_page_fault_store,
+        rob_bcast_illegal_inst,
+        rob_bcast_interrupt,
+        rob_bcast_trap_val,
+        rob_bcast_pc,
+        rob_bcast_head_rob_idx,
+        rob_bcast_head_valid,
+        rob_bcast_head_incomplete_rob_idx,
+        rob_bcast_head_incomplete_valid
+    } = rob_bcast;
 
     wire                     exu2id_mispred;
     wire [31:0]              exu2id_redirect_pc;
@@ -109,15 +118,34 @@ module idu_top #(
     wire [BR_TAG_WIDTH-1:0]  exu2id_br_id;
     wire [FTQ_IDX_WIDTH-1:0] exu2id_ftq_idx;
     wire [BR_MASK_WIDTH-1:0] exu2id_clear_mask;
-    assign {exu2id_mispred, exu2id_redirect_pc, exu2id_redirect_rob_idx,
-            exu2id_br_id, exu2id_ftq_idx, exu2id_clear_mask} = exu2id;
+    assign {
+        exu2id_mispred,
+        exu2id_redirect_pc,
+        exu2id_redirect_rob_idx,
+        exu2id_br_id,
+        exu2id_ftq_idx,
+        exu2id_clear_mask
+    } = exu2id;
 
-    assign pi = {pre_issue, ren2dec, rob_bcast, exu2id};
-    assign {dec2ren, dec_bcast, idu_consume, idu_br_latch} = po;
+    assign pi = {
+        pre_issue,
+        ren2dec,
+        rob_bcast,
+        exu2id
+    };
+    assign {
+        dec2ren,
+        dec_bcast,
+        idu_consume,
+        idu_br_latch
+    } = po;
 
     wire [(W_DecRenInst * DECODE_WIDTH)-1:0] dec2ren_uop;
     wire [DECODE_WIDTH-1:0]                  dec2ren_valid;
-    assign {dec2ren_uop, dec2ren_valid} = dec2ren;
+    assign {
+        dec2ren_uop,
+        dec2ren_valid
+    } = dec2ren;
     wire [(32 * DECODE_WIDTH)-1:0]               dec2ren_uop_diag_val;
     wire [(AREG_IDX_WIDTH * DECODE_WIDTH)-1:0]   dec2ren_uop_dest_areg;
     wire [(AREG_IDX_WIDTH * DECODE_WIDTH)-1:0]   dec2ren_uop_src1_areg;
@@ -144,31 +172,52 @@ module idu_top #(
         dec2ren_uop_cplt_mask;
     wire [DECODE_WIDTH-1:0]                 dec2ren_uop_page_fault_inst;
     wire [DECODE_WIDTH-1:0]                 dec2ren_uop_illegal_inst;
-    wire [(W_TmaMeta * DECODE_WIDTH)-1:0]   dec2ren_uop_tma;
-    wire [(W_DebugMeta * DECODE_WIDTH)-1:0] dec2ren_uop_dbg;
-    assign {dec2ren_uop_diag_val, dec2ren_uop_dest_areg,
-            dec2ren_uop_src1_areg, dec2ren_uop_src2_areg,
-            dec2ren_uop_ftq_idx, dec2ren_uop_ftq_offset,
-            dec2ren_uop_ftq_is_last, dec2ren_uop_type,
-            dec2ren_uop_dest_en, dec2ren_uop_src1_en,
-            dec2ren_uop_src2_en, dec2ren_uop_is_atomic,
-            dec2ren_uop_src1_is_pc, dec2ren_uop_src2_is_imm,
-            dec2ren_uop_func3, dec2ren_uop_func7, dec2ren_uop_imm,
-            dec2ren_uop_br_id, dec2ren_uop_br_mask,
-            dec2ren_uop_csr_idx, dec2ren_uop_expect_mask,
-            dec2ren_uop_cplt_mask, dec2ren_uop_page_fault_inst,
-            dec2ren_uop_illegal_inst, dec2ren_uop_tma,
-            dec2ren_uop_dbg} = dec2ren_uop;
+    assign {
+        dec2ren_uop_diag_val,
+        dec2ren_uop_dest_areg,
+        dec2ren_uop_src1_areg,
+        dec2ren_uop_src2_areg,
+        dec2ren_uop_ftq_idx,
+        dec2ren_uop_ftq_offset,
+        dec2ren_uop_ftq_is_last,
+        dec2ren_uop_type,
+        dec2ren_uop_dest_en,
+        dec2ren_uop_src1_en,
+        dec2ren_uop_src2_en,
+        dec2ren_uop_is_atomic,
+        dec2ren_uop_src1_is_pc,
+        dec2ren_uop_src2_is_imm,
+        dec2ren_uop_func3,
+        dec2ren_uop_func7,
+        dec2ren_uop_imm,
+        dec2ren_uop_br_id,
+        dec2ren_uop_br_mask,
+        dec2ren_uop_csr_idx,
+        dec2ren_uop_expect_mask,
+        dec2ren_uop_cplt_mask,
+        dec2ren_uop_page_fault_inst,
+        dec2ren_uop_illegal_inst
+    } = dec2ren_uop;
 
-    assign {dec_bcast_mispred, dec_bcast_br_mask, dec_bcast_br_id,
-            dec_bcast_redirect_rob_idx, dec_bcast_clear_mask} = dec_bcast;
+    assign {
+        dec_bcast_mispred,
+        dec_bcast_br_mask,
+        dec_bcast_br_id,
+        dec_bcast_redirect_rob_idx,
+        dec_bcast_clear_mask
+    } = dec_bcast;
 
     wire [DECODE_WIDTH-1:0] idu_consume_fire;
     assign idu_consume_fire = idu_consume;
 
-    assign {idu_br_latch_mispred, idu_br_latch_redirect_pc,
-            idu_br_latch_redirect_rob_idx, idu_br_latch_br_id,
-            idu_br_latch_ftq_idx, idu_br_latch_clear_mask} = idu_br_latch;
+    assign {
+        idu_br_latch_mispred,
+        idu_br_latch_redirect_pc,
+        idu_br_latch_redirect_rob_idx,
+        idu_br_latch_br_id,
+        idu_br_latch_ftq_idx,
+        idu_br_latch_clear_mask
+    } = idu_br_latch;
 
     idu_bsd_top #(
         .W_IduIn(W_IduIn),

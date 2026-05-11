@@ -43,12 +43,20 @@ module csr_top #(
     wire [11:0] exe2csr_idx;
     wire [31:0] exe2csr_wdata;
     wire [31:0] exe2csr_wcmd;
-    assign {exe2csr_we, exe2csr_re, exe2csr_idx, exe2csr_wdata,
-            exe2csr_wcmd} = exe2csr;
+    assign {
+        exe2csr_we,
+        exe2csr_re,
+        exe2csr_idx,
+        exe2csr_wdata,
+        exe2csr_wcmd
+    } = exe2csr;
 
     wire rob2csr_interrupt_resp;
     wire rob2csr_commit;
-    assign {rob2csr_interrupt_resp, rob2csr_commit} = rob2csr;
+    assign {
+        rob2csr_interrupt_resp,
+        rob2csr_commit
+    } = rob2csr;
 
     wire                     rob_bcast_flush;
     wire                     rob_bcast_mret;
@@ -68,17 +76,38 @@ module csr_top #(
     wire                     rob_bcast_head_valid;
     wire [ROB_IDX_WIDTH-1:0] rob_bcast_head_incomplete_rob_idx;
     wire                     rob_bcast_head_incomplete_valid;
-    assign {rob_bcast_flush, rob_bcast_mret, rob_bcast_sret,
-            rob_bcast_ecall, rob_bcast_exception, rob_bcast_fence,
-            rob_bcast_fence_i, rob_bcast_page_fault_inst,
-            rob_bcast_page_fault_load, rob_bcast_page_fault_store,
-            rob_bcast_illegal_inst, rob_bcast_interrupt,
-            rob_bcast_trap_val, rob_bcast_pc, rob_bcast_head_rob_idx,
-            rob_bcast_head_valid, rob_bcast_head_incomplete_rob_idx,
-            rob_bcast_head_incomplete_valid} = rob_bcast;
+    assign {
+        rob_bcast_flush,
+        rob_bcast_mret,
+        rob_bcast_sret,
+        rob_bcast_ecall,
+        rob_bcast_exception,
+        rob_bcast_fence,
+        rob_bcast_fence_i,
+        rob_bcast_page_fault_inst,
+        rob_bcast_page_fault_load,
+        rob_bcast_page_fault_store,
+        rob_bcast_illegal_inst,
+        rob_bcast_interrupt,
+        rob_bcast_trap_val,
+        rob_bcast_pc,
+        rob_bcast_head_rob_idx,
+        rob_bcast_head_valid,
+        rob_bcast_head_incomplete_rob_idx,
+        rob_bcast_head_incomplete_valid
+    } = rob_bcast;
 
-    assign pi = {exe2csr, rob2csr, rob_bcast};
-    assign {csr2exe, csr2rob, csr2front, csr_status} = po;
+    assign pi = {
+        exe2csr,
+        rob2csr,
+        rob_bcast
+    };
+    assign {
+        csr2exe,
+        csr2rob,
+        csr2front,
+        csr_status
+    } = po;
 
     wire [31:0] csr2exe_rdata;
     assign csr2exe_rdata = csr2exe;
@@ -86,9 +115,16 @@ module csr_top #(
     wire csr2rob_interrupt_req;
     assign csr2rob_interrupt_req = csr2rob;
 
-    assign {csr2front_epc, csr2front_trap_pc} = csr2front;
-    assign {csr_status_sstatus, csr_status_mstatus, csr_status_satp,
-            csr_status_privilege} = csr_status;
+    assign {
+        csr2front_epc,
+        csr2front_trap_pc
+    } = csr2front;
+    assign {
+        csr_status_sstatus,
+        csr_status_mstatus,
+        csr_status_satp,
+        csr_status_privilege
+    } = csr_status;
 
     csr_bsd_top #(
         .W_CsrIn(W_CsrIn),

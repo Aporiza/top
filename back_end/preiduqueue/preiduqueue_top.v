@@ -31,8 +31,6 @@ module preiduqueue_top #(
     parameter integer pcpn_t_BITS              = 3,
     parameter integer FTQ_PRF_PC_PORT_NUM      = 12,
     parameter integer FTQ_ROB_PC_PORT_NUM      = 1,
-    parameter integer W_DebugMeta              = 32 + 32 + 8 + 1 + 64,
-    parameter integer W_TmaMeta                = 4,
     parameter integer W_InstructionBufferEntry =
         1 + 32 + 32 + 1 + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1,
     parameter integer W_FrontPreIO =
@@ -52,7 +50,7 @@ module preiduqueue_top #(
     parameter integer W_RobCommitInst =
         32 + AREG_IDX_WIDTH + (2 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH +
         FTQ_OFFSET_WIDTH + 1 + 2 + 1 + 7 + ROB_IDX_WIDTH + 1 +
-        STQ_IDX_WIDTH + 1 + 4 + INST_TYPE_WIDTH + W_TmaMeta + W_DebugMeta + 1,
+        STQ_IDX_WIDTH + 1 + 4 + INST_TYPE_WIDTH + 1,
     parameter integer W_RobCommitIO = COMMIT_WIDTH * (1 + W_RobCommitInst),
     parameter integer W_ExuIdIO     =
         1 + 32 + ROB_IDX_WIDTH + BR_TAG_WIDTH + FTQ_IDX_WIDTH + BR_MASK_WIDTH,
@@ -112,14 +110,29 @@ module preiduqueue_top #(
     wire [(BPU_LOOP_META_IDX_BITS * FETCH_WIDTH)-1:0] front2pre_loop_idx;
     wire [(BPU_LOOP_META_TAG_BITS * FETCH_WIDTH)-1:0] front2pre_loop_tag;
     wire [FETCH_WIDTH-1:0]                            front2pre_page_fault_inst;
-    assign {front2pre_inst, front2pre_pc, front2pre_valid,
-            front2pre_front_stall, front2pre_predict_dir,
-            front2pre_alt_pred, front2pre_altpcpn, front2pre_pcpn,
-            front2pre_predict_next_fetch_address, front2pre_tage_idx,
-            front2pre_tage_tag, front2pre_sc_used, front2pre_sc_pred,
-            front2pre_sc_sum, front2pre_sc_idx, front2pre_loop_used,
-            front2pre_loop_hit, front2pre_loop_pred, front2pre_loop_idx,
-            front2pre_loop_tag, front2pre_page_fault_inst} = front2pre;
+    assign {
+        front2pre_inst,
+        front2pre_pc,
+        front2pre_valid,
+        front2pre_front_stall,
+        front2pre_predict_dir,
+        front2pre_alt_pred,
+        front2pre_altpcpn,
+        front2pre_pcpn,
+        front2pre_predict_next_fetch_address,
+        front2pre_tage_idx,
+        front2pre_tage_tag,
+        front2pre_sc_used,
+        front2pre_sc_pred,
+        front2pre_sc_sum,
+        front2pre_sc_idx,
+        front2pre_loop_used,
+        front2pre_loop_hit,
+        front2pre_loop_pred,
+        front2pre_loop_idx,
+        front2pre_loop_tag,
+        front2pre_page_fault_inst
+    } = front2pre;
 
     wire [DECODE_WIDTH-1:0] idu_consume_fire;
     assign idu_consume_fire = idu_consume;
@@ -142,18 +155,33 @@ module preiduqueue_top #(
     wire                     rob_bcast_head_valid;
     wire [ROB_IDX_WIDTH-1:0] rob_bcast_head_incomplete_rob_idx;
     wire                     rob_bcast_head_incomplete_valid;
-    assign {rob_bcast_flush, rob_bcast_mret, rob_bcast_sret,
-            rob_bcast_ecall, rob_bcast_exception, rob_bcast_fence,
-            rob_bcast_fence_i, rob_bcast_page_fault_inst,
-            rob_bcast_page_fault_load, rob_bcast_page_fault_store,
-            rob_bcast_illegal_inst, rob_bcast_interrupt,
-            rob_bcast_trap_val, rob_bcast_pc, rob_bcast_head_rob_idx,
-            rob_bcast_head_valid, rob_bcast_head_incomplete_rob_idx,
-            rob_bcast_head_incomplete_valid} = rob_bcast;
+    assign {
+        rob_bcast_flush,
+        rob_bcast_mret,
+        rob_bcast_sret,
+        rob_bcast_ecall,
+        rob_bcast_exception,
+        rob_bcast_fence,
+        rob_bcast_fence_i,
+        rob_bcast_page_fault_inst,
+        rob_bcast_page_fault_load,
+        rob_bcast_page_fault_store,
+        rob_bcast_illegal_inst,
+        rob_bcast_interrupt,
+        rob_bcast_trap_val,
+        rob_bcast_pc,
+        rob_bcast_head_rob_idx,
+        rob_bcast_head_valid,
+        rob_bcast_head_incomplete_rob_idx,
+        rob_bcast_head_incomplete_valid
+    } = rob_bcast;
 
     wire [COMMIT_WIDTH-1:0]                     rob_commit_entry_valid;
     wire [(W_RobCommitInst * COMMIT_WIDTH)-1:0] rob_commit_entry_uop;
-    assign {rob_commit_entry_valid, rob_commit_entry_uop} = rob_commit;
+    assign {
+        rob_commit_entry_valid,
+        rob_commit_entry_uop
+    } = rob_commit;
     wire [(32 * COMMIT_WIDTH)-1:0] rob_commit_entry_uop_diag_val;
     wire [(AREG_IDX_WIDTH * COMMIT_WIDTH)-1:0]
         rob_commit_entry_uop_dest_areg;
@@ -181,32 +209,30 @@ module preiduqueue_top #(
     wire [COMMIT_WIDTH-1:0]                     rob_commit_entry_uop_page_fault_store;
     wire [COMMIT_WIDTH-1:0]                     rob_commit_entry_uop_illegal_inst;
     wire [(INST_TYPE_WIDTH * COMMIT_WIDTH)-1:0] rob_commit_entry_uop_type;
-    wire [(W_TmaMeta * COMMIT_WIDTH)-1:0]       rob_commit_entry_uop_tma;
-    wire [(W_DebugMeta * COMMIT_WIDTH)-1:0]     rob_commit_entry_uop_dbg;
     wire [COMMIT_WIDTH-1:0]                     rob_commit_entry_uop_flush_pipe;
-    assign {rob_commit_entry_uop_diag_val,
-            rob_commit_entry_uop_dest_areg,
-            rob_commit_entry_uop_dest_preg,
-            rob_commit_entry_uop_old_dest_preg,
-            rob_commit_entry_uop_ftq_idx,
-            rob_commit_entry_uop_ftq_offset,
-            rob_commit_entry_uop_ftq_is_last,
-            rob_commit_entry_uop_mispred,
-            rob_commit_entry_uop_br_taken,
-            rob_commit_entry_uop_dest_en,
-            rob_commit_entry_uop_func7,
-            rob_commit_entry_uop_rob_idx,
-            rob_commit_entry_uop_rob_flag,
-            rob_commit_entry_uop_stq_idx,
-            rob_commit_entry_uop_stq_flag,
-            rob_commit_entry_uop_page_fault_inst,
-            rob_commit_entry_uop_page_fault_load,
-            rob_commit_entry_uop_page_fault_store,
-            rob_commit_entry_uop_illegal_inst,
-            rob_commit_entry_uop_type,
-            rob_commit_entry_uop_tma,
-            rob_commit_entry_uop_dbg,
-            rob_commit_entry_uop_flush_pipe} = rob_commit_entry_uop;
+    assign {
+        rob_commit_entry_uop_diag_val,
+        rob_commit_entry_uop_dest_areg,
+        rob_commit_entry_uop_dest_preg,
+        rob_commit_entry_uop_old_dest_preg,
+        rob_commit_entry_uop_ftq_idx,
+        rob_commit_entry_uop_ftq_offset,
+        rob_commit_entry_uop_ftq_is_last,
+        rob_commit_entry_uop_mispred,
+        rob_commit_entry_uop_br_taken,
+        rob_commit_entry_uop_dest_en,
+        rob_commit_entry_uop_func7,
+        rob_commit_entry_uop_rob_idx,
+        rob_commit_entry_uop_rob_flag,
+        rob_commit_entry_uop_stq_idx,
+        rob_commit_entry_uop_stq_flag,
+        rob_commit_entry_uop_page_fault_inst,
+        rob_commit_entry_uop_page_fault_load,
+        rob_commit_entry_uop_page_fault_store,
+        rob_commit_entry_uop_illegal_inst,
+        rob_commit_entry_uop_type,
+        rob_commit_entry_uop_flush_pipe
+    } = rob_commit_entry_uop;
 
     wire                     idu_br_latch_mispred;
     wire [31:0]              idu_br_latch_redirect_pc;
@@ -214,32 +240,57 @@ module preiduqueue_top #(
     wire [BR_TAG_WIDTH-1:0]  idu_br_latch_br_id;
     wire [FTQ_IDX_WIDTH-1:0] idu_br_latch_ftq_idx;
     wire [BR_MASK_WIDTH-1:0] idu_br_latch_clear_mask;
-    assign {idu_br_latch_mispred, idu_br_latch_redirect_pc,
-            idu_br_latch_redirect_rob_idx, idu_br_latch_br_id,
-            idu_br_latch_ftq_idx, idu_br_latch_clear_mask} = idu_br_latch;
+    assign {
+        idu_br_latch_mispred,
+        idu_br_latch_redirect_pc,
+        idu_br_latch_redirect_rob_idx,
+        idu_br_latch_br_id,
+        idu_br_latch_ftq_idx,
+        idu_br_latch_clear_mask
+    } = idu_br_latch;
 
     wire [FTQ_PRF_PC_PORT_NUM-1:0] ftq_prf_pc_req_valid;
     wire [(FTQ_IDX_WIDTH * FTQ_PRF_PC_PORT_NUM)-1:0]
         ftq_prf_pc_req_ftq_idx;
     wire [(FTQ_OFFSET_WIDTH * FTQ_PRF_PC_PORT_NUM)-1:0]
         ftq_prf_pc_req_ftq_offset;
-    assign {ftq_prf_pc_req_valid, ftq_prf_pc_req_ftq_idx,
-            ftq_prf_pc_req_ftq_offset} = ftq_prf_pc_req;
+    assign {
+        ftq_prf_pc_req_valid,
+        ftq_prf_pc_req_ftq_idx,
+        ftq_prf_pc_req_ftq_offset
+    } = ftq_prf_pc_req;
 
     wire [FTQ_ROB_PC_PORT_NUM-1:0] ftq_rob_pc_req_valid;
     wire [(FTQ_IDX_WIDTH * FTQ_ROB_PC_PORT_NUM)-1:0]
         ftq_rob_pc_req_ftq_idx;
     wire [(FTQ_OFFSET_WIDTH * FTQ_ROB_PC_PORT_NUM)-1:0]
         ftq_rob_pc_req_ftq_offset;
-    assign {ftq_rob_pc_req_valid, ftq_rob_pc_req_ftq_idx,
-            ftq_rob_pc_req_ftq_offset} = ftq_rob_pc_req;
+    assign {
+        ftq_rob_pc_req_valid,
+        ftq_rob_pc_req_ftq_idx,
+        ftq_rob_pc_req_ftq_offset
+    } = ftq_rob_pc_req;
 
-    assign pi =
-        {front2pre, idu_consume, rob_bcast, rob_commit, idu_br_latch,
-         ftq_prf_pc_req, ftq_rob_pc_req};
-    assign {pre2front, pre_issue, ftq_prf_pc_resp, ftq_rob_pc_resp} = po;
+    assign pi = {
+        front2pre,
+        idu_consume,
+        rob_bcast,
+        rob_commit,
+        idu_br_latch,
+        ftq_prf_pc_req,
+        ftq_rob_pc_req
+    };
+    assign {
+        pre2front,
+        pre_issue,
+        ftq_prf_pc_resp,
+        ftq_rob_pc_resp
+    } = po;
 
-    assign {pre2front_fire, pre2front_ready} = pre2front;
+    assign {
+        pre2front_fire,
+        pre2front_ready
+    } = pre2front;
 
     wire [(W_InstructionBufferEntry * DECODE_WIDTH)-1:0] pre_issue_entries;
     assign pre_issue_entries = pre_issue;
@@ -249,18 +300,26 @@ module preiduqueue_top #(
     wire [(32 * FTQ_PRF_PC_PORT_NUM)-1:0] ftq_prf_pc_resp_pc;
     wire [FTQ_PRF_PC_PORT_NUM-1:0]        ftq_prf_pc_resp_pred_taken;
     wire [(32 * FTQ_PRF_PC_PORT_NUM)-1:0] ftq_prf_pc_resp_next_pc;
-    assign {ftq_prf_pc_resp_valid, ftq_prf_pc_resp_entry_valid,
-            ftq_prf_pc_resp_pc, ftq_prf_pc_resp_pred_taken,
-            ftq_prf_pc_resp_next_pc} = ftq_prf_pc_resp;
+    assign {
+        ftq_prf_pc_resp_valid,
+        ftq_prf_pc_resp_entry_valid,
+        ftq_prf_pc_resp_pc,
+        ftq_prf_pc_resp_pred_taken,
+        ftq_prf_pc_resp_next_pc
+    } = ftq_prf_pc_resp;
 
     wire [FTQ_ROB_PC_PORT_NUM-1:0]        ftq_rob_pc_resp_valid;
     wire [FTQ_ROB_PC_PORT_NUM-1:0]        ftq_rob_pc_resp_entry_valid;
     wire [(32 * FTQ_ROB_PC_PORT_NUM)-1:0] ftq_rob_pc_resp_pc;
     wire [FTQ_ROB_PC_PORT_NUM-1:0]        ftq_rob_pc_resp_pred_taken;
     wire [(32 * FTQ_ROB_PC_PORT_NUM)-1:0] ftq_rob_pc_resp_next_pc;
-    assign {ftq_rob_pc_resp_valid, ftq_rob_pc_resp_entry_valid,
-            ftq_rob_pc_resp_pc, ftq_rob_pc_resp_pred_taken,
-            ftq_rob_pc_resp_next_pc} = ftq_rob_pc_resp;
+    assign {
+        ftq_rob_pc_resp_valid,
+        ftq_rob_pc_resp_entry_valid,
+        ftq_rob_pc_resp_pc,
+        ftq_rob_pc_resp_pred_taken,
+        ftq_rob_pc_resp_next_pc
+    } = ftq_rob_pc_resp;
 
     preiduqueue_bsd_top #(
         .W_PreIduQueueIn(W_PreIduQueueIn),

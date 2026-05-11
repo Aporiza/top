@@ -67,7 +67,7 @@ lsu->out.lsu2mmu = &lsu2mmu_io;
 | `mispred` | 非 flush 来自 IDU，flush 时为 true | `idu_top/rob_top` | 已连接 |
 | `stall` | `out.stall = !pre2front.ready` | `preiduqueue_top` | 已连接 |
 | `redirect_pc` | 非 flush 来自 IDU，flush 时来自 CSR/ROB | `idu_top/csr_top/rob_top` | 已连接 |
-| `commit_entry` | 由 `rob_commit` 转为提交输出 | `rob_top/back_top.v` | 已连接；对外提交版删除 `tma/dbg` 字段 |
+| `commit_entry` | 由 `rob_commit` 转为提交输出 | `rob_top/back_top.v` | 已连接；对外提交版只保留功能字段 |
 | `sstatus` | `csr_status.sstatus` | `csr_top` | 已连接 |
 | `mstatus` | `csr_status.mstatus` | `csr_top` | 已连接 |
 | `satp` | `csr_status.satp` | `csr_top` | 已连接 |
@@ -130,7 +130,6 @@ lsu_top lsu (
 | 可从 `RobCommitInst` 取得的字段 | 直接由 `rob_commit` 拆出后连接。 |
 | `RobCommitInst` 没有来源的字段 | 按 C++ 默认清零行为补 0。 |
 | `diag_val` | 正常来自 `rob_commit`，flush 且 valid 时改为 `redirect_pc`。 |
-| `tma/dbg` | 对外提交版删除，不进入 `commit_entry`。 |
 
 ## 5. 当前重要待确认项
 

@@ -198,7 +198,7 @@ module back_top (
 
 ## 7. commit_entry 处理说明
 
-`commit_entry` 由 `rob_commit` 组合打包生成。当前对外提交版不包含 `tma/dbg` 两类性能/调试侧带字段；`rob_commit` 内部原始宽度仍保留这些字段，用于和已有模块接口对齐。
+`commit_entry` 由 `rob_commit` 组合打包生成。当前对外提交版不包含额外性能/调试侧带字段，保持提交输出只包含需要上交的功能字段。
 
 | `commit_entry` 字段类型 | 当前来源 |
 |---|---|
@@ -212,7 +212,6 @@ module back_top (
 | `flush_pipe/type` | 来自 `rob_commit`。 |
 | `src_areg/src_preg/src_en/src_busy/src_is_pc/src_is_imm` | `RobCommitInst` 当前没有来源，按 C++ `to_inst_entry` 默认清零行为填 0。 |
 | `func3/imm/br_id/br_mask/csr_idx/ldq_idx/expect_mask/cplt_mask/is_atomic` | `RobCommitInst` 当前没有来源，按 C++ `to_inst_entry` 默认清零行为填 0。 |
-| `tma/dbg` | 对外提交版已删除，不进入 `commit_entry`。 |
 
 ## 8. 单模块 wrapper 规则
 
