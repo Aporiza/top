@@ -64,6 +64,7 @@ module bpu_top #(
     output wire [FETCH_WIDTH-1:0] predict_dir,
     output wire [31:0] predict_base_pc,
     output wire update_queue_full,
+    output wire two_ahead_valid,
     output wire mini_flush_req,
     output wire mini_flush_correct,
     output wire [31:0] two_ahead_target,
@@ -113,8 +114,9 @@ module bpu_top #(
         bpu_meta,
         predict_base_pc,
         update_queue_full,
-        mini_flush_req,
+        two_ahead_valid,
         two_ahead_target,
+        mini_flush_req,
         mini_flush_correct,
         mini_flush_target
     } = po;

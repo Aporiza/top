@@ -1,0 +1,1701 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Backend Top Interactive View</title>
+  <style>
+    :root {
+      --bg: #f4f7f7;
+      --panel: #ffffff;
+      --ink: #1d2527;
+      --muted: #667477;
+      --line: #9aabb0;
+      --active: #d84a3a;
+      --active-soft: #fff2ef;
+      --external: #f3dddd;
+      --queue: #f7f1ff;
+      --decode: #fff1e4;
+      --issue: #e8f6ed;
+      --execute: #e7f3ff;
+      --commit: #eef0ff;
+      --memory: #fff7d7;
+      --shadow: 0 16px 40px rgba(40, 60, 64, 0.14);
+      --radius: 8px;
+      font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background: linear-gradient(135deg, rgba(220, 239, 242, 0.75), rgba(244, 247, 247, 0.95));
+      overflow: hidden;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 292px 1fr 340px;
+      grid-template-rows: 100vh;
+      gap: 14px;
+      padding: 14px;
+    }
+
+    aside,
+    main,
+    .details {
+      background: rgba(255, 255, 255, 0.93);
+      border: 1px solid rgba(188, 202, 205, 0.82);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      min-height: 0;
+    }
+
+    aside,
+    .details {
+      overflow: auto;
+      padding: 16px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 20px;
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      margin: 22px 0 10px;
+      font-size: 15px;
+      line-height: 1.35;
+      letter-spacing: 0;
+    }
+
+    p {
+      margin: 0 0 10px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    button {
+      border: 1px solid #c8d4d6;
+      background: #fff;
+      color: var(--ink);
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+    }
+
+    button:hover {
+      border-color: #7f999f;
+      background: #f2f8f9;
+    }
+
+    button.active {
+      border-color: var(--active);
+      background: var(--active-soft);
+      color: #9f2a20;
+      font-weight: 650;
+    }
+
+    button.related {
+      border-color: #ef4136;
+      background: #fff1ee;
+      color: #b72f27;
+      font-weight: 650;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 12px 0 8px;
+    }
+
+    .legend,
+    .path-list,
+    .module-list {
+      display: grid;
+      gap: 7px;
+    }
+
+    .module-list button,
+    .path-list button {
+      text-align: left;
+      width: 100%;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .swatch {
+      width: 18px;
+      height: 12px;
+      border-radius: 3px;
+      border: 1px solid #b7c4c7;
+      flex: 0 0 auto;
+    }
+
+    main {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stage-head {
+      position: absolute;
+      z-index: 5;
+      left: 16px;
+      top: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.88);
+      border: 1px solid rgba(190, 204, 207, 0.85);
+      border-radius: 7px;
+      padding: 8px 10px;
+      backdrop-filter: blur(8px);
+    }
+
+    .stage-head strong {
+      font-size: 13px;
+    }
+
+    .stage-head span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: grab;
+      user-select: none;
+    }
+
+    svg.dragging {
+      cursor: grabbing;
+    }
+
+    .cluster {
+      fill: rgba(255, 241, 228, 0.62);
+      stroke: #d8b99b;
+      stroke-width: 1.25;
+      rx: 8;
+    }
+
+    .cluster-title {
+      fill: #4b4038;
+      font-size: 17px;
+      font-weight: 700;
+    }
+
+    .module rect {
+      stroke: #51696e;
+      stroke-width: 1.2;
+      rx: 7;
+      filter: drop-shadow(0 6px 10px rgba(45, 61, 64, 0.1));
+    }
+
+    .module text.name {
+      fill: #1d2527;
+      font-size: 13px;
+      font-weight: 680;
+    }
+
+    .module text.meta {
+      fill: #607073;
+      font-size: 11px;
+    }
+
+    .module.dim {
+      opacity: 0.24;
+    }
+
+    .module.active rect {
+      stroke: var(--active);
+      stroke-width: 2.6;
+    }
+
+    .module.selected rect {
+      stroke: #1264a3;
+      stroke-width: 2.8;
+    }
+
+    .module.related rect {
+      stroke: #ef4136;
+      stroke-width: 2.5;
+    }
+
+    .module.edge-source rect,
+    .module.edge-target rect {
+      stroke: #e64b3c;
+      stroke-width: 2.6;
+      filter: drop-shadow(0 0 5px rgba(230, 75, 60, 0.24));
+    }
+
+    .edge {
+      fill: none;
+      stroke: var(--line);
+      stroke-width: 1.55;
+      marker-end: url(#arrow);
+      opacity: 0.42;
+      pointer-events: none;
+      transition: opacity 0.15s ease, stroke-width 0.15s ease, stroke 0.15s ease;
+    }
+
+    .edge-hit {
+      fill: none;
+      stroke: rgba(239, 65, 54, 0.001);
+      stroke-width: 18;
+      pointer-events: stroke;
+      cursor: pointer;
+      outline: none;
+    }
+
+    .edge-hit:focus {
+      outline: none;
+    }
+
+    .edge-highlight {
+      fill: none;
+      pointer-events: none;
+      stroke: #ef4136;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      marker-end: url(#arrowActive);
+    }
+
+    .edge-highlight.related {
+      stroke-width: 2.8;
+      opacity: 0.82;
+    }
+
+    .edge-highlight.active {
+      stroke-width: 3;
+      opacity: 0.86;
+    }
+
+    .edge-highlight.selected {
+      stroke-width: 3.8;
+      opacity: 1;
+      filter: drop-shadow(0 0 2px rgba(239, 65, 54, 0.34));
+    }
+
+    .edge.dim {
+      opacity: 0.06;
+    }
+
+    .edge.active {
+      stroke: var(--active);
+      stroke-width: 3.8;
+      opacity: 1;
+      marker-end: url(#arrowActive);
+    }
+
+    .edge.related {
+      stroke: #ef4136;
+      stroke-width: 3;
+      opacity: 0.88;
+      stroke-dasharray: 6 5;
+    }
+
+    .edge.selected {
+      stroke: #e64b3c;
+      stroke-width: 7;
+      opacity: 1;
+      stroke-dasharray: none;
+      marker-end: url(#arrowActive);
+      filter: drop-shadow(0 0 7px rgba(230, 75, 60, 0.62));
+    }
+
+    .edge-label {
+      fill: #4d5c60;
+      font-size: 10px;
+      paint-order: stroke;
+      stroke: rgba(255, 255, 255, 0.92);
+      stroke-width: 4px;
+      stroke-linejoin: round;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s ease, fill 0.15s ease;
+    }
+
+    .edge-label.dim {
+      opacity: 0;
+    }
+
+    .edge-label.active {
+      fill: #9f2a20;
+      font-weight: 700;
+      opacity: 1;
+    }
+
+    .edge-label.related {
+      fill: #b72f27;
+      font-weight: 700;
+      opacity: 1;
+    }
+
+    .edge-label.selected {
+      fill: #e64b3c;
+      font-weight: 700;
+      opacity: 1;
+    }
+
+    .detail-title {
+      margin-bottom: 6px;
+      font-size: 18px;
+      font-weight: 750;
+    }
+
+    .detail-subtitle {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 14px;
+    }
+
+    .kv {
+      display: grid;
+      grid-template-columns: 92px 1fr;
+      gap: 8px;
+      margin: 10px 0;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .kv span:first-child {
+      color: var(--muted);
+    }
+
+    code {
+      background: #f2f5f5;
+      border: 1px solid #dde6e8;
+      border-radius: 4px;
+      padding: 1px 5px;
+      font-family: Consolas, "Cascadia Mono", monospace;
+      font-size: 12px;
+    }
+
+    .evidence-list {
+      display: grid;
+      gap: 7px;
+      margin-top: 10px;
+    }
+
+    .evidence-list code {
+      display: block;
+      padding: 7px 8px;
+      background: #f7fafb;
+      color: #2e4145;
+      line-height: 1.45;
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+
+    .related-paths {
+      display: grid;
+      gap: 10px;
+      margin: 10px 0 14px;
+    }
+
+    .edge-summary {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 9px;
+      margin: 12px 0;
+    }
+
+    .endpoint-card,
+    .path-card {
+      border: 1px solid #d7e3e5;
+      border-radius: 7px;
+      background: #fbfdfd;
+      padding: 10px;
+    }
+
+    .endpoint-card span,
+    .path-meta {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 5px;
+    }
+
+    .endpoint-card strong {
+      display: block;
+      margin-bottom: 7px;
+      color: #1d2527;
+      font-size: 13px;
+    }
+
+    .path-card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 7px;
+    }
+
+    .path-card-head strong {
+      color: #1d2527;
+      font-size: 13px;
+    }
+
+    .path-card p {
+      margin: 0 0 8px;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .path-meta {
+      margin: 0;
+    }
+
+    .path-chip {
+      width: auto;
+      padding: 6px 9px;
+      border-color: #efb0a9;
+      background: #fff1ee;
+      color: #b72f27;
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .path-chip:hover {
+      border-color: #ef4136;
+      background: #ffe3de;
+    }
+
+    @media (max-width: 1180px) {
+      .app {
+        grid-template-columns: 250px 1fr;
+      }
+
+      .details {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside>
+      <h1>Backend Top</h1>
+      <p>基于 <code>top/back_end/back_top.v</code> 的 10 个后端一级 wrapper 绘制。支持缩放、拖拽、点击模块、连线和路径高亮。</p>
+
+      <h2>路径高亮</h2>
+      <div class="path-list" id="pathList"></div>
+
+      <h2>视图控制</h2>
+      <div class="toolbar">
+        <button id="resetView">复位视图</button>
+        <button id="clearPath">清除高亮</button>
+      </div>
+
+      <h2>模块定位</h2>
+      <div class="module-list" id="moduleList"></div>
+
+      <h2>图例</h2>
+      <div class="legend">
+        <div class="legend-item"><span class="swatch" style="background: var(--queue);"></span>队列 / 入口</div>
+        <div class="legend-item"><span class="swatch" style="background: var(--decode);"></span>译码 / 重命名 / 分派</div>
+        <div class="legend-item"><span class="swatch" style="background: var(--issue);"></span>发射 / 读寄存器</div>
+        <div class="legend-item"><span class="swatch" style="background: var(--execute);"></span>执行 / CSR</div>
+        <div class="legend-item"><span class="swatch" style="background: var(--commit);"></span>提交 / 恢复</div>
+        <div class="legend-item"><span class="swatch" style="background: var(--memory);"></span>访存 / 外部接口</div>
+        <div class="legend-item"><span class="swatch" style="background: var(--external);"></span>外部边界</div>
+      </div>
+    </aside>
+
+    <main>
+      <div class="stage-head">
+        <strong>Interactive Backend Top</strong>
+        <span>滚轮缩放，拖拽平移，点击模块或连线查看依据</span>
+      </div>
+      <svg id="canvas" viewBox="0 0 2050 1160" role="img" aria-label="Backend top interactive diagram">
+        <defs>
+          <marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto" markerUnits="strokeWidth">
+            <path d="M0,0 L10,4 L0,8 Z" fill="#9aabb0"></path>
+          </marker>
+          <marker id="arrowActive" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto" markerUnits="strokeWidth">
+            <path d="M0,0 L10,4 L0,8 Z" fill="#ef4136"></path>
+          </marker>
+        </defs>
+        <g id="viewport"></g>
+      </svg>
+    </main>
+
+    <section class="details">
+      <div class="detail-title" id="detailTitle">选择一个模块</div>
+      <div class="detail-subtitle" id="detailSubtitle">点击图中的模块或连线查看说明与代码依据。</div>
+      <div id="detailBody"></div>
+    </section>
+  </div>
+
+  <script>
+    "use strict";
+
+    const modules = [
+      {
+        id: "external_front",
+        name: "front2pre",
+        group: "external",
+        x: 40,
+        y: 155,
+        w: 170,
+        h: 74,
+        kind: "外部输入",
+        file: "front-end/front_IO.h / back_top.v",
+        bits: "FrontPre IO",
+        desc: "来自前端的取指包，包括 inst、pc、valid、预测方向、训练元信息和 page_fault_inst。"
+      },
+      {
+        id: "preiduqueue_top",
+        name: "preiduqueue_top",
+        group: "queue",
+        x: 260,
+        y: 145,
+        w: 190,
+        h: 76,
+        kind: "PreIduQueue / FTQ",
+        file: "top/back_end/preiduqueue/preiduqueue_top.v",
+        bits: "Pre queue in/out",
+        desc: "接收前端包，维护 IDU 前的指令队列和 FTQ PC 查询服务，并向前端返回 fire/ready。"
+      },
+      {
+        id: "idu_top",
+        name: "idu_top",
+        group: "decode",
+        x: 510,
+        y: 145,
+        w: 160,
+        h: 76,
+        kind: "Decode",
+        file: "top/back_end/idu/idu_top.v",
+        bits: "W_IduIn -> W_IduOut",
+        desc: "消费 pre_issue，生成 dec2ren、dec_bcast、idu_consume 和分支重定向 latch。"
+      },
+      {
+        id: "ren_top",
+        name: "ren_top",
+        group: "decode",
+        x: 730,
+        y: 145,
+        w: 160,
+        h: 76,
+        kind: "Rename",
+        file: "top/back_end/ren/ren_top.v",
+        bits: "W_RenIn -> W_RenOut",
+        desc: "处理架构寄存器到物理寄存器的映射，接收提交释放和 flush/broadcast 信息。"
+      },
+      {
+        id: "dispatch_top",
+        name: "dispatch_top",
+        group: "decode",
+        x: 950,
+        y: 145,
+        w: 175,
+        h: 76,
+        kind: "Dispatch",
+        file: "top/back_end/dispatch/dispatch_top.v",
+        bits: "W_DisIn -> W_DisOut",
+        desc: "汇总 ROB、Issue、LSU、PRF wakeup 等资源状态，将指令分派到 issue/ROB/LSU。"
+      },
+      {
+        id: "isu_top",
+        name: "isu_top",
+        group: "issue",
+        x: 1185,
+        y: 145,
+        w: 160,
+        h: 76,
+        kind: "Issue",
+        file: "top/back_end/isu/isu_top.v",
+        bits: "W_IsuIn -> W_IsuOut",
+        desc: "管理多个 issue queue，接收 dispatch uop 和 wakeup，输出 iss2prf 与 ready/backpressure。"
+      },
+      {
+        id: "prf_top",
+        name: "prf_top",
+        group: "issue",
+        x: 1185,
+        y: 330,
+        w: 160,
+        h: 76,
+        kind: "Physical RF",
+        file: "top/back_end/prf/prf_top.v",
+        bits: "W_PrfIn -> W_PrfOut",
+        desc: "读取物理寄存器，接收执行写回，生成 prf2exe、prf_awake 和 FTQ PC 请求。"
+      },
+      {
+        id: "exu_top",
+        name: "exu_top",
+        group: "execute",
+        x: 950,
+        y: 330,
+        w: 175,
+        h: 76,
+        kind: "Execute",
+        file: "top/back_end/exu/exu_top.v",
+        bits: "EXU in/out",
+        desc: "执行 ALU/BR/CSR/访存地址等 uop，向 PRF、ISU、CSR、LSU、IDU 和 ROB 回传结果。"
+      },
+      {
+        id: "rob_top",
+        name: "rob_top",
+        group: "commit",
+        x: 700,
+        y: 520,
+        w: 190,
+        h: 82,
+        kind: "ROB / Commit",
+        file: "top/back_end/rob/rob_top.v",
+        bits: "ROB in/out",
+        desc: "维护乱序窗口，提交指令，生成 rob_bcast、rob_commit、flush/fence/redirect 等恢复控制。"
+      },
+      {
+        id: "csr_top",
+        name: "csr_top",
+        group: "execute",
+        x: 950,
+        y: 520,
+        w: 175,
+        h: 76,
+        kind: "CSR",
+        file: "top/back_end/csr/csr_top.v",
+        bits: "CSR in/out",
+        desc: "处理 CSR 读写、异常/返回 PC、状态寄存器，并向 EXU/ROB/顶层提供状态。"
+      },
+      {
+        id: "lsu_top",
+        name: "lsu_top",
+        group: "memory",
+        x: 1185,
+        y: 520,
+        w: 175,
+        h: 76,
+        kind: "LSU",
+        file: "top/back_end/lsu/lsu_top.v",
+        bits: "LSU in/out",
+        desc: "处理 load/store 队列、地址请求、DCache/MMU/Peripheral 交互，并回传 dispatch/ROB/EXU。"
+      },
+      {
+        id: "external_mem",
+        name: "DCache / MMU / IO",
+        group: "external",
+        x: 1415,
+        y: 520,
+        w: 170,
+        h: 84,
+        kind: "外部接口",
+        file: "back_top.v external ports",
+        bits: "LSU external IO",
+        desc: "后端访存侧外部边界，包括 DCache、MMU/DTLB 和外设请求响应。"
+      },
+      {
+        id: "external_out",
+        name: "back_top outputs",
+        group: "external",
+        x: 260,
+        y: 780,
+        w: 190,
+        h: 84,
+        kind: "外部输出",
+        file: "top/back_end/back_top.v",
+        bits: "Back_out fields",
+        desc: "对外输出 mispred、stall、flush、fence_i、redirect_pc、commit_entry、CSR 状态和 LSU 外部请求。"
+      }
+    ];
+
+    const groups = {
+      external: { fill: "var(--external)", label: "External boundary" },
+      queue: { fill: "var(--queue)", label: "Queue / FTQ" },
+      decode: { fill: "var(--decode)", label: "Decode / Rename / Dispatch" },
+      issue: { fill: "var(--issue)", label: "Issue / PRF" },
+      execute: { fill: "var(--execute)", label: "Execute / CSR" },
+      commit: { fill: "var(--commit)", label: "ROB / Commit" },
+      memory: { fill: "var(--memory)", label: "Memory" }
+    };
+
+    const clusters = [
+      { id: "frontCluster", title: "Frontend ingress", x: 25, y: 100, w: 445, h: 170 },
+      { id: "pipeCluster", title: "Decode / issue mainline", x: 485, y: 100, w: 880, h: 355 },
+      { id: "recoveryCluster", title: "Commit, recovery and memory", x: 675, y: 485, w: 710, h: 160 },
+      { id: "externalCluster", title: "External outputs", x: 245, y: 745, w: 360, h: 150 }
+    ];
+
+    const edges = [
+      { id: "e_front_pre", from: "external_front", to: "preiduqueue_top", label: "front2pre" },
+      { id: "e_pre_idu", from: "preiduqueue_top", to: "idu_top", label: "pre_issue" },
+      { id: "e_idu_pre", from: "idu_top", to: "preiduqueue_top", label: "idu_consume / br_latch" },
+      { id: "e_idu_ren", from: "idu_top", to: "ren_top", label: "dec2ren" },
+      { id: "e_ren_idu", from: "ren_top", to: "idu_top", label: "ren2dec" },
+      { id: "e_ren_dispatch", from: "ren_top", to: "dispatch_top", label: "ren2dis" },
+      { id: "e_dispatch_ren", from: "dispatch_top", to: "ren_top", label: "dis2ren" },
+      { id: "e_dispatch_isu", from: "dispatch_top", to: "isu_top", label: "dis2iss" },
+      { id: "e_isu_dispatch", from: "isu_top", to: "dispatch_top", label: "iss2dis" },
+      { id: "e_isu_prf", from: "isu_top", to: "prf_top", label: "iss2prf" },
+      { id: "e_prf_exu", from: "prf_top", to: "exu_top", label: "prf2exe" },
+      { id: "e_exu_prf", from: "exu_top", to: "prf_top", label: "exe2prf" },
+      { id: "e_exu_isu", from: "exu_top", to: "isu_top", label: "exe2iss" },
+      { id: "e_dispatch_rob", from: "dispatch_top", to: "rob_top", label: "dis2rob" },
+      { id: "e_dispatch_lsu", from: "dispatch_top", to: "lsu_top", label: "dis2lsu" },
+      { id: "e_exu_lsu", from: "exu_top", to: "lsu_top", label: "exe2lsu" },
+      { id: "e_lsu_exu", from: "lsu_top", to: "exu_top", label: "lsu2exe" },
+      { id: "e_lsu_dispatch", from: "lsu_top", to: "dispatch_top", label: "lsu2dis" },
+      { id: "e_lsu_rob", from: "lsu_top", to: "rob_top", label: "lsu2rob" },
+      { id: "e_exu_rob", from: "exu_top", to: "rob_top", label: "exu2rob" },
+      { id: "e_exu_idu", from: "exu_top", to: "idu_top", label: "exu2id" },
+      { id: "e_exu_csr", from: "exu_top", to: "csr_top", label: "exe2csr" },
+      { id: "e_csr_exu", from: "csr_top", to: "exu_top", label: "csr2exe / status" },
+      { id: "e_csr_rob", from: "csr_top", to: "rob_top", label: "csr2rob" },
+      { id: "e_rob_dispatch", from: "rob_top", to: "dispatch_top", label: "rob2dis" },
+      { id: "e_rob_csr", from: "rob_top", to: "csr_top", label: "rob2csr / bcast" },
+      { id: "e_rob_pre", from: "rob_top", to: "preiduqueue_top", label: "rob_bcast / commit" },
+      { id: "e_rob_ren", from: "rob_top", to: "ren_top", label: "rob_bcast / commit" },
+      { id: "e_rob_exu", from: "rob_top", to: "exu_top", label: "rob_bcast" },
+      { id: "e_rob_lsu", from: "rob_top", to: "lsu_top", label: "rob_bcast / commit" },
+      { id: "e_rob_isu", from: "rob_top", to: "isu_top", label: "rob_bcast" },
+      { id: "e_rob_prf", from: "rob_top", to: "prf_top", label: "rob_bcast" },
+      { id: "e_idu_bcast", from: "idu_top", to: "dispatch_top", label: "dec_bcast" },
+      { id: "e_prf_wake_dispatch", from: "prf_top", to: "dispatch_top", label: "prf_awake" },
+      { id: "e_isu_wake_dispatch", from: "isu_top", to: "dispatch_top", label: "iss_awake" },
+      { id: "e_prf_ftq_pre", from: "prf_top", to: "preiduqueue_top", label: "ftq_prf_pc_req" },
+      { id: "e_pre_ftq_prf", from: "preiduqueue_top", to: "prf_top", label: "ftq_prf_pc_resp" },
+      { id: "e_rob_ftq_pre", from: "rob_top", to: "preiduqueue_top", label: "ftq_rob_pc_req" },
+      { id: "e_pre_ftq_rob", from: "preiduqueue_top", to: "rob_top", label: "ftq_rob_pc_resp" },
+      { id: "e_mem_lsu", from: "external_mem", to: "lsu_top", label: "resp / dcache / mmu" },
+      { id: "e_lsu_mem", from: "lsu_top", to: "external_mem", label: "req / lsu2dcache / mmu" },
+      { id: "e_pre_out", from: "preiduqueue_top", to: "external_out", label: "fire / stall" },
+      { id: "e_idu_out", from: "idu_top", to: "external_out", label: "mispred / redirect" },
+      { id: "e_rob_out", from: "rob_top", to: "external_out", label: "flush / fence / commit" },
+      { id: "e_csr_out", from: "csr_top", to: "external_out", label: "CSR status / trap PC" },
+      { id: "e_lsu_out", from: "lsu_top", to: "external_out", label: "memory req" }
+    ];
+
+    const edgeEvidence = {
+      e_front_pre: [
+        "back_top.v:387 input wire [W_FrontPreIO-1:0] front2pre",
+        "back_top.v:644 preiduqueue_top.pre .front2pre(front2pre)",
+        "back_top.v:262-269 W_PreIduQueueIn includes W_FrontPreIO"
+      ],
+      e_pre_idu: [
+        "back_top.v:417 wire [W_PreIssueIO-1:0] pre_issue",
+        "back_top.v:652 preiduqueue_top.pre .pre_issue(pre_issue)",
+        "back_top.v:664 idu_top.idu .pre_issue(pre_issue)"
+      ],
+      e_idu_pre: [
+        "back_top.v:418 wire [W_IduConsumeIO-1:0] idu_consume",
+        "back_top.v:419 wire [W_ExuIdIO-1:0] idu_br_latch",
+        "back_top.v:670-671 idu_top.idu outputs idu_consume / idu_br_latch",
+        "back_top.v:645,648 preiduqueue_top.pre consumes idu_consume / idu_br_latch"
+      ],
+      e_idu_ren: [
+        "back_top.v:422 wire [W_DecRenIO-1:0] dec2ren",
+        "back_top.v:668 idu_top.idu .dec2ren(dec2ren)",
+        "back_top.v:681 ren_top.rename .dec2ren(dec2ren)"
+      ],
+      e_ren_idu: [
+        "back_top.v:424 wire [W_RenDecIO-1:0] ren2dec",
+        "back_top.v:686 ren_top.rename .ren2dec(ren2dec)",
+        "back_top.v:665 idu_top.idu .ren2dec(ren2dec)"
+      ],
+      e_ren_dispatch: [
+        "back_top.v:425 wire [W_RenDisIO-1:0] ren2dis",
+        "back_top.v:687 ren_top.rename .ren2dis(ren2dis)",
+        "back_top.v:695 dispatch_top.dispatch .ren2dis(ren2dis)"
+      ],
+      e_dispatch_ren: [
+        "back_top.v:426 wire [W_DisRenIO-1:0] dis2ren",
+        "back_top.v:703 dispatch_top.dispatch .dis2ren(dis2ren)",
+        "back_top.v:683 ren_top.rename .dis2ren(dis2ren)"
+      ],
+      e_dispatch_isu: [
+        "back_top.v:427 wire [W_DisIssIO-1:0] dis2iss",
+        "back_top.v:705 dispatch_top.dispatch .dis2iss(dis2iss)",
+        "back_top.v:714 isu_top.isu .dis2iss(dis2iss)"
+      ],
+      e_isu_dispatch: [
+        "back_top.v:430 wire [W_IssDisIO-1:0] iss2dis",
+        "back_top.v:720 isu_top.isu .iss2dis(iss2dis)",
+        "back_top.v:697 dispatch_top.dispatch .iss2dis(iss2dis)"
+      ],
+      e_isu_prf: [
+        "back_top.v:431 wire [W_IssPrfIO-1:0] iss2prf",
+        "back_top.v:719 isu_top.isu .iss2prf(iss2prf)",
+        "back_top.v:729 prf_top.prf .iss2prf(iss2prf)"
+      ],
+      e_prf_exu: [
+        "back_top.v:436 wire [W_PrfExeIO-1:0] prf2exe",
+        "back_top.v:734 prf_top.prf .prf2exe(prf2exe)",
+        "back_top.v:744 exu_top.exu .prf2exe(prf2exe)"
+      ],
+      e_exu_prf: [
+        "back_top.v:437 wire [W_ExePrfIO-1:0] exe2prf",
+        "back_top.v:750 exu_top.exu .exe2prf(exe2prf)",
+        "back_top.v:730 prf_top.prf .exe2prf(exe2prf)"
+      ],
+      e_exu_isu: [
+        "back_top.v:438 wire [W_ExeIssIO-1:0] exe2iss",
+        "back_top.v:751 exu_top.exu .exe2iss(exe2iss)",
+        "back_top.v:716 isu_top.isu .exe2iss(exe2iss)"
+      ],
+      e_dispatch_rob: [
+        "back_top.v:428 wire [W_DisRobIO-1:0] dis2rob",
+        "back_top.v:704 dispatch_top.dispatch .dis2rob(dis2rob)",
+        "back_top.v:765 rob_top.rob .dis2rob(dis2rob)"
+      ],
+      e_dispatch_lsu: [
+        "back_top.v:429 wire [W_DisLsuIO-1:0] dis2lsu",
+        "back_top.v:706 dispatch_top.dispatch .dis2lsu(dis2lsu)",
+        "back_top.v:815 lsu_top.lsu .dis2lsu(dis2lsu)"
+      ],
+      e_exu_lsu: [
+        "back_top.v:439 wire [W_ExeLsuIO-1:0] exe2lsu",
+        "back_top.v:753 exu_top.exu .exe2lsu(exe2lsu)",
+        "back_top.v:816 lsu_top.lsu .exe2lsu(exe2lsu)"
+      ],
+      e_lsu_exu: [
+        "back_top.v:444 wire [W_LsuExeIO-1:0] lsu2exe",
+        "back_top.v:822 lsu_top.lsu .lsu2exe(lsu2exe)",
+        "back_top.v:748 exu_top.exu .lsu2exe(lsu2exe)"
+      ],
+      e_lsu_dispatch: [
+        "back_top.v:445 wire [W_LsuDisIO-1:0] lsu2dis",
+        "back_top.v:820 lsu_top.lsu .lsu2dis(lsu2dis)",
+        "back_top.v:698 dispatch_top.dispatch .lsu2dis(lsu2dis)"
+      ],
+      e_lsu_rob: [
+        "back_top.v:446 wire [W_LsuRobIO-1:0] lsu2rob",
+        "back_top.v:821 lsu_top.lsu .lsu2rob(lsu2rob)",
+        "back_top.v:767 rob_top.rob .lsu2rob(lsu2rob)"
+      ],
+      e_exu_rob: [
+        "back_top.v:442 wire [W_ExuRobIO-1:0] exu2rob",
+        "back_top.v:755 exu_top.exu .exu2rob(exu2rob)",
+        "back_top.v:769 rob_top.rob .exu2rob(exu2rob)"
+      ],
+      e_exu_idu: [
+        "back_top.v:441 wire [W_ExuIdIO-1:0] exu2id",
+        "back_top.v:754 exu_top.exu .exu2id(exu2id)",
+        "back_top.v:667 idu_top.idu .exu2id(exu2id)"
+      ],
+      e_exu_csr: [
+        "back_top.v:440 wire [W_ExeCsrIO-1:0] exe2csr",
+        "back_top.v:752 exu_top.exu .exe2csr(exe2csr)",
+        "back_top.v:791 csr_top.csr .exe2csr(exe2csr)"
+      ],
+      e_csr_exu: [
+        "back_top.v:454 wire [W_CsrExeIO-1:0] csr2exe",
+        "back_top.v:457 wire [W_CsrStatusIO-1:0] csr_status",
+        "back_top.v:794,797 csr_top.csr outputs csr2exe / csr_status",
+        "back_top.v:747,749 exu_top.exu consumes csr2exe / csr_status"
+      ],
+      e_csr_rob: [
+        "back_top.v:455 wire [W_CsrRobIO-1:0] csr2rob",
+        "back_top.v:795 csr_top.csr .csr2rob(csr2rob)",
+        "back_top.v:766 rob_top.rob .csr2rob(csr2rob)"
+      ],
+      e_rob_dispatch: [
+        "back_top.v:449 wire [W_RobDisIO-1:0] rob2dis",
+        "back_top.v:772 rob_top.rob .rob2dis(rob2dis)",
+        "back_top.v:696 dispatch_top.dispatch .rob2dis(rob2dis)"
+      ],
+      e_rob_csr: [
+        "back_top.v:450 wire [W_RobCsrIO-1:0] rob2csr",
+        "back_top.v:451 wire [W_RobBroadcastIO-1:0] rob_bcast",
+        "back_top.v:773,775 rob_top.rob outputs rob2csr / rob_bcast",
+        "back_top.v:792-793 csr_top.csr consumes rob2csr / rob_bcast"
+      ],
+      e_rob_pre: [
+        "back_top.v:451 wire [W_RobBroadcastIO-1:0] rob_bcast",
+        "back_top.v:452 wire [W_RobCommitIO-1:0] rob_commit",
+        "back_top.v:774-775 rob_top.rob outputs rob_commit / rob_bcast",
+        "back_top.v:646-647 preiduqueue_top.pre consumes rob_bcast / rob_commit"
+      ],
+      e_rob_ren: [
+        "back_top.v:451 wire [W_RobBroadcastIO-1:0] rob_bcast",
+        "back_top.v:452 wire [W_RobCommitIO-1:0] rob_commit",
+        "back_top.v:774-775 rob_top.rob outputs rob_commit / rob_bcast",
+        "back_top.v:684-685 ren_top.rename consumes rob_bcast / rob_commit"
+      ],
+      e_rob_exu: [
+        "back_top.v:451 wire [W_RobBroadcastIO-1:0] rob_bcast",
+        "back_top.v:775 rob_top.rob .rob_bcast(rob_bcast)",
+        "back_top.v:746 exu_top.exu .rob_bcast(rob_bcast)"
+      ],
+      e_rob_lsu: [
+        "back_top.v:451 wire [W_RobBroadcastIO-1:0] rob_bcast",
+        "back_top.v:452 wire [W_RobCommitIO-1:0] rob_commit",
+        "back_top.v:774-775 rob_top.rob outputs rob_commit / rob_bcast",
+        "back_top.v:811-812 lsu_top.lsu consumes rob_commit / rob_bcast"
+      ],
+      e_rob_isu: [
+        "back_top.v:451 wire [W_RobBroadcastIO-1:0] rob_bcast",
+        "back_top.v:775 rob_top.rob .rob_bcast(rob_bcast)",
+        "back_top.v:717 isu_top.isu .rob_bcast(rob_bcast)"
+      ],
+      e_rob_prf: [
+        "back_top.v:451 wire [W_RobBroadcastIO-1:0] rob_bcast",
+        "back_top.v:775 rob_top.rob .rob_bcast(rob_bcast)",
+        "back_top.v:732 prf_top.prf .rob_bcast(rob_bcast)"
+      ],
+      e_idu_bcast: [
+        "back_top.v:423 wire [W_DecBroadcastIO-1:0] dec_bcast",
+        "back_top.v:669 idu_top.idu .dec_bcast(dec_bcast)",
+        "back_top.v:702 dispatch_top.dispatch .dec_bcast(dec_bcast)"
+      ],
+      e_prf_wake_dispatch: [
+        "back_top.v:433 wire [W_PrfAwakeIO-1:0] prf_awake",
+        "back_top.v:735 prf_top.prf .prf_awake(prf_awake)",
+        "back_top.v:699 dispatch_top.dispatch .prf_awake(prf_awake)"
+      ],
+      e_isu_wake_dispatch: [
+        "back_top.v:432 wire [W_IssAwakeIO-1:0] iss_awake",
+        "back_top.v:721 isu_top.isu .iss_awake(iss_awake)",
+        "back_top.v:700 dispatch_top.dispatch .iss_awake(iss_awake)"
+      ],
+      e_prf_ftq_pre: [
+        "back_top.v:460 wire [W_FtqPrfPcReqIO-1:0] ftq_prf_pc_req",
+        "back_top.v:736 prf_top.prf .ftq_prf_pc_req(ftq_prf_pc_req)",
+        "back_top.v:649 preiduqueue_top.pre .ftq_prf_pc_req(ftq_prf_pc_req)"
+      ],
+      e_pre_ftq_prf: [
+        "back_top.v:461 wire [W_FtqPrfPcRespIO-1:0] ftq_prf_pc_resp",
+        "back_top.v:653 preiduqueue_top.pre .ftq_prf_pc_resp(ftq_prf_pc_resp)",
+        "back_top.v:733 prf_top.prf .ftq_prf_pc_resp(ftq_prf_pc_resp)"
+      ],
+      e_rob_ftq_pre: [
+        "back_top.v:462 wire [W_FtqRobPcReqIO-1:0] ftq_rob_pc_req",
+        "back_top.v:776 rob_top.rob .ftq_rob_pc_req(ftq_rob_pc_req)",
+        "back_top.v:650 preiduqueue_top.pre .ftq_rob_pc_req(ftq_rob_pc_req)"
+      ],
+      e_pre_ftq_rob: [
+        "back_top.v:463 wire [W_FtqRobPcRespIO-1:0] ftq_rob_pc_resp",
+        "back_top.v:654 preiduqueue_top.pre .ftq_rob_pc_resp(ftq_rob_pc_resp)",
+        "back_top.v:770 rob_top.rob .ftq_rob_pc_resp(ftq_rob_pc_resp)"
+      ],
+      e_mem_lsu: [
+        "back_top.v:388 input wire [W_PeripheralRespIO-1:0] peripheral_resp",
+        "back_top.v:389 input wire [W_DcacheLsuIO-1:0] dcache2lsu",
+        "back_top.v:390 input wire [W_MMULsuIO-1:0] mmu2lsu_io",
+        "back_top.v:817-819 lsu_top.lsu consumes peripheral_resp / dcache2lsu / mmu2lsu_io"
+      ],
+      e_lsu_mem: [
+        "back_top.v:406-408 top outputs peripheral_req / lsu2dcache / lsu2mmu_io",
+        "back_top.v:823-825 lsu_top.lsu drives peripheral_req / lsu2dcache / lsu2mmu_io"
+      ],
+      e_pre_out: [
+        "back_top.v:470-471 selected top-output wires from preiduqueue_top",
+        "back_top.v:655-656 preiduqueue_top.pre drives pre2front_fire / pre2front_ready",
+        "back_top.v:833 assign fire = preiduqueue_out_pre2front_fire",
+        "back_top.v:839 assign stall = ~preiduqueue_out_pre2front_ready"
+      ],
+      e_idu_out: [
+        "back_top.v:474-475 selected top-output wires from idu_top",
+        "back_top.v:672-673 idu_top.idu drives dec_bcast_mispred / idu_br_latch_redirect_pc",
+        "back_top.v:838 assign mispred uses idu_out_dec_bcast_mispred when not flushing",
+        "back_top.v:851-854 assign redirect_pc falls back to idu_out_idu_br_latch_redirect_pc"
+      ],
+      e_rob_out: [
+        "back_top.v:777-783 rob_top.rob exposes flush / mret / sret / exception / fence / fence_i / pc",
+        "back_top.v:834-836 assign flush / fence_i / itlb_flush from ROB selected fields",
+        "back_top.v:838,844-852 mispred and redirect_pc flush path use ROB selected fields",
+        "back_top.v:562-579,866-881 commit_entry is unpacked from rob_commit and assembled for Back_out"
+      ],
+      e_csr_out: [
+        "back_top.v:798-803 csr_top.csr exposes csr2front and csr_status selected fields",
+        "back_top.v:846-848 redirect flush path uses csr_out_csr2front_epc / csr_out_csr2front_trap_pc",
+        "back_top.v:857-860 assign sstatus / mstatus / satp / privilege from CSR selected fields"
+      ],
+      e_lsu_out: [
+        "back_top.v:406-408 top outputs peripheral_req / lsu2dcache / lsu2mmu_io",
+        "back_top.v:823-825 lsu_top.lsu drives peripheral_req / lsu2dcache / lsu2mmu_io"
+      ]
+    };
+
+    const moduleSourceEvidence = {
+      external_front: [
+        "simulator-new/rv_simu_mmu_v2.cpp:688-712 copies front.out into back.in",
+        "simulator-new/back-end/BackTop.cpp:54 binds pre->in.front2pre = &in"
+      ],
+      preiduqueue_top: [
+        "simulator-new/back-end/BackTop.cpp:51-60 binds PreIduQueue IO pointers",
+        "simulator-new/back-end/BackTop.cpp:307 calls pre->comb_accept_front",
+        "simulator-new/back-end/BackTop.cpp:323 and 348 call FTQ lookup paths",
+        "simulator-new/back-end/BackTop.cpp:414 calls pre->comb_fire"
+      ],
+      idu_top: [
+        "simulator-new/back-end/BackTop.cpp:62-67 binds IDU IO pointers",
+        "simulator-new/back-end/BackTop.cpp:308 calls idu->comb_decode",
+        "simulator-new/back-end/BackTop.cpp:319 calls idu->comb_branch",
+        "simulator-new/back-end/BackTop.cpp:400 calls idu->comb_fire"
+      ],
+      ren_top: [
+        "simulator-new/back-end/BackTop.cpp:70-77 binds Rename IO pointers",
+        "simulator-new/back-end/BackTop.cpp:310 calls rename->comb_alloc",
+        "simulator-new/back-end/BackTop.cpp:357 calls rename->comb_rename",
+        "simulator-new/back-end/BackTop.cpp:399 and 418 call rename fire/pipeline"
+      ],
+      dispatch_top: [
+        "simulator-new/back-end/BackTop.cpp:81-90 binds Dispatch IO pointers",
+        "simulator-new/back-end/BackTop.cpp:327 calls dis->comb_alloc",
+        "simulator-new/back-end/BackTop.cpp:356 and 359 call dispatch wake/dispatch",
+        "simulator-new/back-end/BackTop.cpp:397 and 417 call dispatch fire/pipeline"
+      ],
+      isu_top: [
+        "simulator-new/back-end/BackTop.cpp:93-100 binds ISU IO pointers",
+        "simulator-new/back-end/BackTop.cpp:314 calls isu->comb_ready",
+        "simulator-new/back-end/BackTop.cpp:344 calls isu->comb_issue",
+        "simulator-new/back-end/BackTop.cpp:352-353 and 405 call ISU awake/enqueue logic"
+      ],
+      prf_top: [
+        "simulator-new/back-end/BackTop.cpp:103-111 binds PRF IO pointers",
+        "simulator-new/back-end/BackTop.cpp:311-313 call PRF complete/awake/write",
+        "simulator-new/back-end/BackTop.cpp:347-349 call FTQ request and PRF read",
+        "simulator-new/back-end/BackTop.cpp:415 calls prf->comb_pipeline"
+      ],
+      exu_top: [
+        "simulator-new/back-end/BackTop.cpp:113-126 binds EXU IO pointers",
+        "simulator-new/back-end/BackTop.cpp:337 calls exu->comb_to_csr",
+        "simulator-new/back-end/BackTop.cpp:340 calls exu->comb_exec",
+        "simulator-new/back-end/BackTop.cpp:343 and 416 call EXU ready/pipeline"
+      ],
+      rob_top: [
+        "simulator-new/back-end/BackTop.cpp:128-140 binds ROB IO pointers",
+        "simulator-new/back-end/BackTop.cpp:321-324 call ROB ready/FTQ/commit",
+        "simulator-new/back-end/BackTop.cpp:341 calls rob->comb_complete",
+        "simulator-new/back-end/BackTop.cpp:408-410 call ROB branch/fire/flush"
+      ],
+      csr_top: [
+        "simulator-new/back-end/BackTop.cpp:142-149 binds CSR IO pointers",
+        "simulator-new/back-end/BackTop.cpp:309 calls csr->comb_interrupt",
+        "simulator-new/back-end/BackTop.cpp:338 calls csr->comb_csr_read",
+        "simulator-new/back-end/BackTop.cpp:354-355 call CSR exception/write paths"
+      ],
+      lsu_top: [
+        "simulator-new/back-end/BackTop.cpp:151-166 binds LSU IO pointers",
+        "simulator-new/back-end/BackTop.cpp:315-316 call LSU calculate/backpressure outputs",
+        "simulator-new/back-end/BackTop.cpp:328-335 call MMIO/DCache/TLB/STLF/EXE paths",
+        "simulator-new/back-end/BackTop.cpp:398 and 401-404 call LSU fire and memory output paths"
+      ],
+      external_mem: [
+        "simulator-new/back-end/BackTop.cpp:157-166 binds peripheral/DCache/MMU boundary IO",
+        "simulator-new/rv_simu_mmu_v2.cpp:791-846 bridges backend memory-side IO with memory subsystem"
+      ],
+      external_out: [
+        "simulator-new/back-end/BackTop.cpp:363-393 assigns Back_out flush/redirect/commit fields",
+        "simulator-new/rv_simu_mmu_v2.cpp:714-720 feeds back.out into front control"
+      ]
+    };
+
+    edges.forEach((edge) => {
+      edge.evidence = [
+        ...(edgeEvidence[edge.id] || []),
+        ...(moduleSourceEvidence[edge.from] || []),
+        ...(moduleSourceEvidence[edge.to] || [])
+      ];
+    });
+
+    const paths = [
+      {
+        id: "mainline",
+        name: "主流水路径",
+        desc: "前端包进入 PreIduQueue，经 IDU、Rename、Dispatch、Issue、PRF 后进入 EXU。",
+        nodes: ["external_front", "preiduqueue_top", "idu_top", "ren_top", "dispatch_top", "isu_top", "prf_top", "exu_top"],
+        edges: ["e_front_pre", "e_pre_idu", "e_idu_ren", "e_ren_dispatch", "e_dispatch_isu", "e_isu_prf", "e_prf_exu"]
+      },
+      {
+        id: "commit",
+        name: "提交与恢复路径",
+        desc: "Dispatch/EXU/LSU 汇入 ROB，ROB 产生 commit、flush、fence 和全局 broadcast。",
+        nodes: ["dispatch_top", "exu_top", "lsu_top", "rob_top", "csr_top", "preiduqueue_top", "ren_top", "external_out"],
+        edges: ["e_dispatch_rob", "e_exu_rob", "e_lsu_rob", "e_rob_pre", "e_rob_ren", "e_rob_exu", "e_rob_lsu", "e_rob_csr", "e_rob_out"]
+      },
+      {
+        id: "memory",
+        name: "LSU 访存路径",
+        desc: "Dispatch 和 EXU 给 LSU 发请求，LSU 对接 DCache/MMU/Peripheral，并回传 EXU/ROB/Dispatch。",
+        nodes: ["dispatch_top", "exu_top", "lsu_top", "external_mem", "rob_top"],
+        edges: ["e_dispatch_lsu", "e_exu_lsu", "e_mem_lsu", "e_lsu_mem", "e_lsu_exu", "e_lsu_dispatch", "e_lsu_rob"]
+      },
+      {
+        id: "csr",
+        name: "CSR / 异常路径",
+        desc: "EXU 发起 CSR 访问，CSR 与 ROB 协同处理异常、返回地址和状态输出。",
+        nodes: ["exu_top", "csr_top", "rob_top", "lsu_top", "external_out"],
+        edges: ["e_exu_csr", "e_csr_exu", "e_csr_rob", "e_rob_csr", "e_csr_out"]
+      },
+      {
+        id: "ftq",
+        name: "FTQ PC 读路径",
+        desc: "PRF 和 ROB 通过 PreIduQueue/FTQ 查询 PC，PreIduQueue 返回对应响应。",
+        nodes: ["prf_top", "rob_top", "preiduqueue_top"],
+        edges: ["e_prf_ftq_pre", "e_pre_ftq_prf", "e_rob_ftq_pre", "e_pre_ftq_rob"]
+      },
+      {
+        id: "wakeup",
+        name: "广播与唤醒路径",
+        desc: "IDU/ROB/PRF/ISU 的 broadcast 与 awake 信号共同驱动分派、发射和错误路径清理。",
+        nodes: ["idu_top", "rob_top", "prf_top", "isu_top", "dispatch_top", "exu_top", "lsu_top"],
+        edges: ["e_idu_bcast", "e_rob_dispatch", "e_rob_isu", "e_rob_prf", "e_rob_exu", "e_rob_lsu", "e_prf_wake_dispatch", "e_isu_wake_dispatch"]
+      }
+    ];
+
+    const pathEvidence = {
+      mainline: [
+        "simulator-new/back-end/BackTop.cpp:307-308 accepts front input and decodes IDU input",
+        "simulator-new/back-end/BackTop.cpp:310 and 327 run rename allocation then dispatch allocation",
+        "simulator-new/back-end/BackTop.cpp:344 and 347-349 run issue, FTQ request and PRF read",
+        "simulator-new/back-end/BackTop.cpp:340 runs EXU execution on the PRF-fed path",
+        "back_top.v:644,664,681,695,714,719,729,744 wire the same wrapper chain"
+      ],
+      commit: [
+        "simulator-new/back-end/BackTop.cpp:321-324 runs ROB ready, FTQ request and commit",
+        "simulator-new/back-end/BackTop.cpp:341 and 408-410 run ROB complete, branch, fire and flush",
+        "simulator-new/back-end/BackTop.cpp:363-393 assigns Back_out flush, redirect_pc and commit_entry",
+        "simulator-new/rv_simu_mmu_v2.cpp:714-720 feeds back.out stall/mispred/flush back into front control",
+        "back_top.v:765,769,775,833-860,866-881 expose ROB commit/recovery outputs"
+      ],
+      memory: [
+        "simulator-new/back-end/BackTop.cpp:151-166 binds LSU input/output pointers",
+        "simulator-new/back-end/BackTop.cpp:315-316 runs LSU calculate and dispatch backpressure output",
+        "simulator-new/back-end/BackTop.cpp:328-335 runs MMIO, DCache, TLB, STLF and LSU-to-EXE paths",
+        "simulator-new/back-end/BackTop.cpp:398 and 401-404 fire LSU inputs and drive DCache/MMIO outputs",
+        "simulator-new/rv_simu_mmu_v2.cpp:791-846 bridges backend memory-side IO with the memory subsystem"
+      ],
+      csr: [
+        "simulator-new/back-end/BackTop.cpp:142-149 binds CSR IO pointers",
+        "simulator-new/back-end/BackTop.cpp:337-338 runs EXU-to-CSR and CSR read paths",
+        "simulator-new/back-end/BackTop.cpp:354-355 runs CSR exception and CSR write paths",
+        "simulator-new/back-end/BackTop.cpp:363-393 uses CSR/ROB state to assign Back_out redirect and status",
+        "back_top.v:791-803 and 846-860 expose CSR-to-EXU/ROB/front/status signals"
+      ],
+      ftq: [
+        "simulator-new/back-end/BackTop.cpp:59-60 binds PreIduQueue FTQ PRF/ROB request inputs",
+        "simulator-new/back-end/BackTop.cpp:105 and 140 bind PRF/ROB FTQ request outputs",
+        "simulator-new/back-end/BackTop.cpp:322-323 runs ROB FTQ PC request then PreIduQueue ROB lookup",
+        "simulator-new/back-end/BackTop.cpp:347-348 runs PRF FTQ request then PreIduQueue PRF lookup",
+        "back_top.v:649-654,736,776 wire FTQ request/response paths through preiduqueue_top"
+      ],
+      wakeup: [
+        "simulator-new/back-end/BackTop.cpp:319 runs IDU branch/broadcast generation",
+        "simulator-new/back-end/BackTop.cpp:311-314 runs PRF complete/awake/write and ISU ready",
+        "simulator-new/back-end/BackTop.cpp:321 and 324 generate ROB ready/commit broadcast context",
+        "simulator-new/back-end/BackTop.cpp:352-356 runs ISU awake, latency, CSR exception and dispatch wake",
+        "simulator-new/back-end/BackTop.cpp:405 and 411 continue ISU enqueue/flush handling"
+      ]
+    };
+
+    paths.forEach((path) => {
+      path.evidence = pathEvidence[path.id] || [];
+    });
+
+    function spreadLayout(xScale, yScale, originX, originY) {
+      modules.forEach((module) => {
+        module.x = Math.round(originX + (module.x - originX) * xScale);
+        module.y = Math.round(originY + (module.y - originY) * yScale);
+      });
+      clusters.forEach((cluster) => {
+        cluster.x = Math.round(originX + (cluster.x - originX) * xScale);
+        cluster.y = Math.round(originY + (cluster.y - originY) * yScale);
+        cluster.w = Math.round(cluster.w * xScale);
+        cluster.h = Math.round(cluster.h * yScale);
+      });
+    }
+
+    spreadLayout(1.25, 1.22, 25, 100);
+
+    const groupFill = (group) => groups[group]?.fill || "#ffffff";
+    const moduleById = new Map(modules.map((module) => [module.id, module]));
+    const edgeById = new Map(edges.map((edge) => [edge.id, edge]));
+    const viewport = document.getElementById("viewport");
+    const svg = document.getElementById("canvas");
+    const detailTitle = document.getElementById("detailTitle");
+    const detailSubtitle = document.getElementById("detailSubtitle");
+    const detailBody = document.getElementById("detailBody");
+    const pathList = document.getElementById("pathList");
+    const moduleList = document.getElementById("moduleList");
+    let activePath = null;
+    let selectedModule = null;
+    let selectedEdge = null;
+    let pan = { x: 0, y: 0 };
+    let scale = 1;
+    let dragStart = null;
+
+    function center(module) {
+      return {
+        x: module.x + module.w / 2,
+        y: module.y + module.h / 2
+      };
+    }
+
+    function edgePath(edge) {
+      const from = moduleById.get(edge.from);
+      const to = moduleById.get(edge.to);
+      const a = center(from);
+      const b = center(to);
+      const horizontal = Math.abs(b.x - a.x) >= Math.abs(b.y - a.y);
+      if (horizontal) {
+        const dx = Math.max(70, Math.abs(b.x - a.x) * 0.42);
+        const startX = b.x >= a.x ? from.x + from.w : from.x;
+        const startY = a.y;
+        const endX = b.x >= a.x ? to.x : to.x + to.w;
+        const endY = b.y;
+        const c1x = startX + (b.x >= a.x ? dx : -dx);
+        const c2x = endX - (b.x >= a.x ? dx : -dx);
+        return `M ${startX} ${startY} C ${c1x} ${startY}, ${c2x} ${endY}, ${endX} ${endY}`;
+      }
+      const dy = Math.max(55, Math.abs(b.y - a.y) * 0.42);
+      const startX = a.x;
+      const startY = b.y >= a.y ? from.y + from.h : from.y;
+      const endX = b.x;
+      const endY = b.y >= a.y ? to.y : to.y + to.h;
+      const c1y = startY + (b.y >= a.y ? dy : -dy);
+      const c2y = endY - (b.y >= a.y ? dy : -dy);
+      return `M ${startX} ${startY} C ${startX} ${c1y}, ${endX} ${c2y}, ${endX} ${endY}`;
+    }
+
+    function edgeLabelPos(edge) {
+      const from = moduleById.get(edge.from);
+      const to = moduleById.get(edge.to);
+      const a = center(from);
+      const b = center(to);
+      return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 - 8 };
+    }
+
+    function createSvg(tag, attrs = {}) {
+      const node = document.createElementNS("http://www.w3.org/2000/svg", tag);
+      Object.entries(attrs).forEach(([key, value]) => node.setAttribute(key, value));
+      return node;
+    }
+
+    function render() {
+      viewport.innerHTML = "";
+
+      clusters.forEach((cluster) => {
+        const g = createSvg("g", { class: "cluster-wrap" });
+        g.appendChild(createSvg("rect", {
+          class: "cluster",
+          x: cluster.x,
+          y: cluster.y,
+          width: cluster.w,
+          height: cluster.h
+        }));
+        const label = createSvg("text", {
+          class: "cluster-title",
+          x: cluster.x + 16,
+          y: cluster.y + 28
+        });
+        label.textContent = cluster.title;
+        g.appendChild(label);
+        viewport.appendChild(g);
+      });
+
+      const edgeLayer = createSvg("g", { id: "edgeLayer" });
+      const highlightLayer = createSvg("g", { id: "highlightLayer" });
+      const hitLayer = createSvg("g", { id: "hitLayer" });
+      const labelLayer = createSvg("g", { id: "labelLayer" });
+      edges.forEach((edge) => {
+        const path = createSvg("path", {
+          id: edge.id,
+          class: "edge",
+          d: edgePath(edge)
+        });
+        edgeLayer.appendChild(path);
+
+        const hitPath = createSvg("path", {
+          id: `${edge.id}_hit`,
+          class: "edge-hit",
+          d: edgePath(edge),
+          tabindex: "0",
+          role: "button",
+          "aria-label": `connection ${edge.label}`
+        });
+        hitPath.addEventListener("click", () => selectEdge(edge.id));
+        hitPath.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            selectEdge(edge.id);
+          }
+        });
+        hitLayer.appendChild(hitPath);
+
+        const pos = edgeLabelPos(edge);
+        const text = createSvg("text", {
+          id: `${edge.id}_label`,
+          class: "edge-label",
+          x: pos.x,
+          y: pos.y,
+          "text-anchor": "middle"
+        });
+        text.textContent = edge.label;
+        text.addEventListener("click", () => selectEdge(edge.id));
+        labelLayer.appendChild(text);
+      });
+      viewport.appendChild(edgeLayer);
+      viewport.appendChild(highlightLayer);
+      viewport.appendChild(hitLayer);
+
+      const moduleLayer = createSvg("g", { id: "moduleLayer" });
+      modules.forEach((module) => {
+        const g = createSvg("g", {
+          id: module.id,
+          class: "module",
+          tabindex: "0",
+          role: "button",
+          "aria-label": module.name
+        });
+        g.appendChild(createSvg("rect", {
+          x: module.x,
+          y: module.y,
+          width: module.w,
+          height: module.h,
+          fill: groupFill(module.group)
+        }));
+        const name = createSvg("text", {
+          class: "name",
+          x: module.x + 12,
+          y: module.y + 27
+        });
+        name.textContent = module.name;
+        g.appendChild(name);
+
+        const meta = createSvg("text", {
+          class: "meta",
+          x: module.x + 12,
+          y: module.y + 50
+        });
+        meta.textContent = `${module.kind} | ${module.bits}`;
+        g.appendChild(meta);
+
+        g.addEventListener("click", () => selectModule(module.id));
+        g.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            selectModule(module.id);
+          }
+        });
+        moduleLayer.appendChild(g);
+      });
+      viewport.appendChild(moduleLayer);
+      viewport.appendChild(labelLayer);
+      applyTransform();
+    }
+
+    function renderControls() {
+      paths.forEach((path) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.id = `path_${path.id}`;
+        button.textContent = path.name;
+        button.title = path.desc;
+        button.addEventListener("click", () => setActivePath(path.id));
+        pathList.appendChild(button);
+      });
+
+      modules
+        .filter((module) => module.group !== "external")
+        .forEach((module) => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.textContent = module.name;
+          button.title = module.desc;
+          button.addEventListener("click", () => selectModule(module.id));
+          moduleList.appendChild(button);
+        });
+
+      document.getElementById("resetView").addEventListener("click", resetView);
+      document.getElementById("clearPath").addEventListener("click", () => setActivePath(null));
+    }
+
+    function setActivePath(pathId) {
+      selectedEdge = null;
+      selectedModule = null;
+      activePath = pathId ? paths.find((path) => path.id === pathId) : null;
+      document.querySelectorAll(".module").forEach((node) => node.classList.remove("selected"));
+      syncPathButtons();
+      if (activePath) {
+        const evidence = activePath.evidence
+          .map((item) => `<code>${escapeHtml(item)}</code>`)
+          .join("");
+        detailTitle.textContent = activePath.name;
+        detailSubtitle.textContent = "路径高亮";
+        detailBody.innerHTML = `
+          <p>${activePath.desc}</p>
+          <div class="kv"><span>节点数</span><strong>${activePath.nodes.length}</strong></div>
+          <div class="kv"><span>连线数</span><strong>${activePath.edges.length}</strong></div>
+          <h2>源码依据</h2>
+          <div class="evidence-list">${evidence}</div>
+        `;
+      } else {
+        detailTitle.textContent = "选择一个模块";
+        detailSubtitle.textContent = "点击图中的模块或连线查看说明与代码依据。";
+        detailBody.innerHTML = "";
+      }
+      applyHighlight();
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, (char) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+      })[char]);
+    }
+
+    function relatedPathsForEdge(edgeId) {
+      return paths.filter((path) => path.edges.includes(edgeId));
+    }
+
+    function renderRelatedPaths(items) {
+      if (!items.length) {
+        return `<p>这条连线当前未归入路径高亮。</p>`;
+      }
+      return `
+        <div class="related-paths">
+          ${items.map((path) => `
+            <div class="path-card">
+              <div class="path-card-head">
+                <strong>${escapeHtml(path.name)}</strong>
+                <button class="path-chip" type="button" data-path-id="${path.id}">高亮路径</button>
+              </div>
+              <p>${escapeHtml(path.desc)}</p>
+              <div class="path-meta">${path.nodes.length} 个模块 / ${path.edges.length} 条连线</div>
+            </div>
+          `).join("")}
+        </div>
+      `;
+    }
+
+    function bindDetailPathButtons() {
+      detailBody.querySelectorAll("[data-path-id]").forEach((button) => {
+        button.addEventListener("click", () => setActivePath(button.dataset.pathId));
+      });
+    }
+
+    function renderHighlightEdge(edgeId, kind) {
+      const edge = edgeById.get(edgeId);
+      const layer = document.getElementById("highlightLayer");
+      if (!edge || !layer) return;
+      layer.appendChild(createSvg("path", {
+        class: `edge-highlight ${kind}`,
+        d: edgePath(edge)
+      }));
+    }
+
+    function renderEdgeHighlights(activeIds, relatedIds, selectedId) {
+      const layer = document.getElementById("highlightLayer");
+      if (!layer) return;
+      layer.innerHTML = "";
+      relatedIds
+        .filter((edgeId) => edgeId !== selectedId && !activeIds.includes(edgeId))
+        .forEach((edgeId) => renderHighlightEdge(edgeId, "related"));
+      activeIds
+        .filter((edgeId) => edgeId !== selectedId)
+        .forEach((edgeId) => renderHighlightEdge(edgeId, "active"));
+      if (selectedId) renderHighlightEdge(selectedId, "selected");
+    }
+
+    function syncPathButtons() {
+      document.querySelectorAll(".path-list button").forEach((button) => {
+        button.classList.remove("active", "related");
+      });
+      paths.forEach((path) => {
+        const button = document.getElementById(`path_${path.id}`);
+        if (!button) return;
+        if (activePath?.id === path.id) button.classList.add("active");
+        if (selectedEdge && path.edges.includes(selectedEdge)) button.classList.add("related");
+      });
+    }
+
+    function selectEdge(edgeId) {
+      selectedEdge = edgeId;
+      selectedModule = null;
+      activePath = null;
+      const edge = edgeById.get(edgeId);
+      const from = moduleById.get(edge.from);
+      const to = moduleById.get(edge.to);
+      const relatedPaths = relatedPathsForEdge(edgeId);
+      const evidence = edge.evidence
+        .map((item) => `<code>${escapeHtml(item)}</code>`)
+        .join("");
+
+      syncPathButtons();
+      detailTitle.textContent = `${from.name} -> ${to.name}`;
+      detailSubtitle.textContent = `连线依据 | ${edge.label}`;
+      detailBody.innerHTML = `
+        <h2>连接模块</h2>
+        <div class="edge-summary">
+          <div class="endpoint-card">
+            <span>源模块</span>
+            <strong>${escapeHtml(from.name)}</strong>
+            <code>${escapeHtml(from.kind)} | ${escapeHtml(from.file)}</code>
+          </div>
+          <div class="endpoint-card">
+            <span>目标模块</span>
+            <strong>${escapeHtml(to.name)}</strong>
+            <code>${escapeHtml(to.kind)} | ${escapeHtml(to.file)}</code>
+          </div>
+        </div>
+        <div class="kv"><span>信号名</span><code>${edge.label}</code></div>
+        <h2>作用路径</h2>
+        ${renderRelatedPaths(relatedPaths)}
+        <h2>代码依据</h2>
+        <div class="evidence-list">${evidence}</div>
+      `;
+      bindDetailPathButtons();
+
+      document.querySelectorAll(".module").forEach((node) => node.classList.remove("selected"));
+      applyHighlight();
+    }
+
+    function selectModule(moduleId) {
+      selectedEdge = null;
+      selectedModule = moduleId;
+      syncPathButtons();
+      const module = moduleById.get(moduleId);
+      const evidence = (moduleSourceEvidence[moduleId] || [])
+        .map((item) => `<code>${escapeHtml(item)}</code>`)
+        .join("");
+      detailTitle.textContent = module.name;
+      detailSubtitle.textContent = `${module.kind} | ${module.file}`;
+      detailBody.innerHTML = `
+        <div class="kv"><span>模块粒度</span><strong>${module.kind}</strong></div>
+        <div class="kv"><span>来源文件</span><code>${module.file}</code></div>
+        <div class="kv"><span>IO 位宽</span><strong>${module.bits}</strong></div>
+        <h2>说明</h2>
+        <p>${module.desc}</p>
+        <h2>源码依据</h2>
+        <div class="evidence-list">${evidence}</div>
+      `;
+      document.querySelectorAll(".module").forEach((node) => node.classList.remove("selected"));
+      document.getElementById(moduleId)?.classList.add("selected");
+      applyHighlight();
+    }
+
+    function applyHighlight() {
+      const nodeSet = new Set(activePath?.nodes || []);
+      const edgeSet = new Set(activePath?.edges || []);
+      const relatedPaths = selectedEdge ? relatedPathsForEdge(selectedEdge) : [];
+      const selectedEdgeInfo = selectedEdge ? edgeById.get(selectedEdge) : null;
+
+      document.querySelectorAll(".module").forEach((node) => {
+        node.classList.remove("active", "dim", "related", "edge-source", "edge-target");
+        if (activePath) {
+          if (nodeSet.has(node.id)) node.classList.add("active");
+          else node.classList.add("dim");
+        } else if (selectedEdge) {
+          if (selectedEdgeInfo && node.id === selectedEdgeInfo.from) node.classList.add("edge-source");
+          else if (selectedEdgeInfo && node.id === selectedEdgeInfo.to) node.classList.add("edge-target");
+          else node.classList.add("dim");
+        }
+      });
+
+      edges.forEach((edge) => {
+        const path = document.getElementById(edge.id);
+        const label = document.getElementById(`${edge.id}_label`);
+        if (!path || !label) return;
+        path.classList.remove("active", "dim", "related", "selected");
+        label.classList.remove("active", "dim", "related", "selected");
+        if (activePath) {
+          if (edgeSet.has(edge.id)) {
+            path.classList.add("active");
+            label.classList.add("active");
+          } else {
+            path.classList.add("dim");
+            label.classList.add("dim");
+          }
+        } else if (selectedEdge) {
+          path.classList.add("dim");
+          label.classList.add("dim");
+        }
+        if (selectedEdge === edge.id) {
+          path.classList.add("selected");
+          label.classList.add("selected");
+          path.classList.remove("dim");
+          label.classList.remove("dim");
+        }
+      });
+
+      renderEdgeHighlights(
+        activePath ? activePath.edges : [],
+        [],
+        selectedEdge
+      );
+
+      if (selectedModule) {
+        document.getElementById(selectedModule)?.classList.add("selected");
+      }
+    }
+
+    function applyTransform() {
+      viewport.setAttribute("transform", `translate(${pan.x} ${pan.y}) scale(${scale})`);
+    }
+
+    function resetView() {
+      pan = { x: 0, y: 0 };
+      scale = 1;
+      applyTransform();
+    }
+
+    svg.addEventListener("wheel", (event) => {
+      event.preventDefault();
+      const delta = event.deltaY > 0 ? 0.9 : 1.1;
+      scale = Math.max(0.42, Math.min(2.2, scale * delta));
+      applyTransform();
+    }, { passive: false });
+
+    function isInteractiveSvgTarget(event) {
+      return Boolean(event.target.closest(".module, .edge-hit, .edge-label"));
+    }
+
+    svg.addEventListener("pointerdown", (event) => {
+      if (isInteractiveSvgTarget(event)) return;
+      dragStart = { x: event.clientX - pan.x, y: event.clientY - pan.y };
+      svg.setPointerCapture(event.pointerId);
+      svg.classList.add("dragging");
+    });
+
+    svg.addEventListener("pointermove", (event) => {
+      if (!dragStart) return;
+      pan = { x: event.clientX - dragStart.x, y: event.clientY - dragStart.y };
+      applyTransform();
+    });
+
+    svg.addEventListener("pointerup", (event) => {
+      dragStart = null;
+      if (svg.hasPointerCapture(event.pointerId)) {
+        svg.releasePointerCapture(event.pointerId);
+      }
+      svg.classList.remove("dragging");
+    });
+
+    try {
+      renderControls();
+      render();
+      selectModule("preiduqueue_top");
+    } catch (error) {
+      console.error(error);
+      detailTitle.textContent = "交互初始化错误";
+      detailSubtitle.textContent = "请查看下面的错误信息。";
+      detailBody.innerHTML = `<pre>${escapeHtml(error.stack || error.message || error)}</pre>`;
+    }
+  </script>
+</body>
+</html>

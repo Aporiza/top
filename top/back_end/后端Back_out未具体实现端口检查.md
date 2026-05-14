@@ -17,10 +17,10 @@
 参考文件如下：
 
 ```text
-simulator-new-lsu-tmp/back-end/include/BackTop.h
-simulator-new-lsu-tmp/back-end/BackTop.cpp
-simulator-new-lsu-tmp/back-end/Lsu/include/RealLsu.h
-simulator-new-lsu-tmp/back-end/Lsu/RealLsu.cpp
+simulator-new/back-end/include/BackTop.h
+simulator-new/back-end/BackTop.cpp
+simulator-new/back-end/Lsu/include/RealLsu.h
+simulator-new/back-end/Lsu/RealLsu.cpp
 back_end/back_top.v
 ```
 

@@ -1,12 +1,24 @@
 // Frontend top connectivity view.
 // Canonical source:
-//   simulator-new-lsu-tmp/front-end/front_IO.h
-//   simulator-new-lsu-tmp/front-end/front_top.cpp
+//   simulator-new/front-end/front_IO.h
+//   simulator-new/front-end/front_top.cpp
 //
-// This file is a top-down connection skeleton. It shows top-level ports,
-// module-to-module wiring and selected glue logic. Module internals such as
-// predictor tables, FIFO storage, ICache RAMs and sequential state stay inside
-// each module wrapper or its future slices.
+// This file is a top-down connection skeleton for the training-expanded
+// frontend view:
+//   SimCpu::front_cycle() is the order reference.
+//   FrontTop::step_bpu() / front_top() is the synthesizable hardware path.
+//   FrontTop::step_oracle() is a simulator-only reference branch, kept as an
+//   explicit boundary but not driven into hardware output muxes.
+//
+// Training-expansion policy:
+//   CONFIG_BPU, Oracle, 2-Ahead/NLP, ICache slot1, fetch-to-ICache bypass,
+//   ICache-to-predecode bypass and front2back-output bypass are all named in
+//   this wrapper. Feature parameters below let the RTL package keep those
+//   branches visible even when the current C++ build disables them.
+//
+// It shows top-level ports, module-to-module wiring and selected glue logic.
+// Module internals such as predictor tables, FIFO storage, ICache RAMs and
+// sequential state stay inside each module wrapper or its future slices.
 
 module front_top #(
     // ---------------------------------------------------------------------
@@ -27,6 +39,20 @@ module front_top #(
     parameter integer pcpn_t_BITS              = 3,
     parameter integer br_type_t_BITS           = 3,
     parameter integer predecode_type_t_BITS    = 2,
+    parameter integer ICACHE_LINE_SIZE         = 64,
+
+    // ---------------------------------------------------------------------
+    // Training branch visibility switches. These default to expanded so the
+    // package covers every branch that must be trained. Hardware-only builds
+    // can override the simulator-only or unsupported branches to 0.
+    // ---------------------------------------------------------------------
+    parameter integer ENABLE_CONFIG_BPU_BRANCH = 1,
+    parameter integer ENABLE_ORACLE_BRANCH = 1,
+    parameter integer ENABLE_2AHEAD_BRANCH = 1,
+    parameter integer ENABLE_ICACHE_SLOT1_BRANCH = 1,
+    parameter integer ENABLE_FETCH_TO_ICACHE_BYPASS_BRANCH = 1,
+    parameter integer ENABLE_ICACHE_TO_PREDECODE_BYPASS_BRANCH = 1,
+    parameter integer ENABLE_FRONT2BACK_OUTPUT_BYPASS_BRANCH = 1,
 
     // ---------------------------------------------------------------------
     // Basic packet widths from front_IO.h.
@@ -197,6 +223,7 @@ module front_top #(
     wire [FETCH_WIDTH-1:0] bpu_out_predict_dir;
     wire [31:0] bpu_out_predict_base_pc;
     wire bpu_out_update_queue_full;
+    wire bpu_out_two_ahead_valid;
     wire bpu_out_mini_flush_req;
     wire bpu_out_mini_flush_correct;
     wire [31:0] bpu_out_two_ahead_target;
@@ -210,10 +237,16 @@ module front_top #(
 
     wire icache_out_read_ready;
     wire icache_out_read_complete;
+    wire icache_out_read_ready_2;
+    wire icache_out_read_complete_2;
     wire [(32 * FETCH_WIDTH)-1:0] icache_out_fetch_group;
     wire [(32 * FETCH_WIDTH)-1:0] icache_out_pc;
     wire [FETCH_WIDTH-1:0] icache_out_page_fault_inst;
     wire [FETCH_WIDTH-1:0] icache_out_inst_valid;
+    wire [(32 * FETCH_WIDTH)-1:0] icache_out_fetch_group_2;
+    wire [(32 * FETCH_WIDTH)-1:0] icache_out_pc_2;
+    wire [FETCH_WIDTH-1:0] icache_out_page_fault_inst_2;
+    wire [FETCH_WIDTH-1:0] icache_out_inst_valid_2;
 
     wire instruction_fifo_out_full;
     wire instruction_fifo_out_empty;
@@ -261,6 +294,10 @@ module front_top #(
     wire global_reset;
     wire global_refetch;
     wire [31:0] global_refetch_address;
+    wire predecode_refetch_snapshot;
+    wire [31:0] predecode_refetch_address_snapshot;
+    wire predecode_refetch_next;
+    wire [31:0] predecode_refetch_address_next;
 
     wire bpu_stall;
     wire bpu_can_run;
@@ -269,25 +306,103 @@ module front_top #(
     wire instruction_fifo_read_enable;
     wire ptab_read_enable;
     wire front2back_fifo_read_enable;
+    wire predecode_read_can_run;
     wire predecode_can_run;
     wire ptab_can_write;
     wire front2back_can_write;
 
     wire fetch_address_fifo_write_enable;
+    wire normal_fetch_address_fifo_write_enable;
+    wire can_bypass_fetch_to_icache;
     wire [31:0] fetch_address_fifo_write_address;
+    wire icache_normal_invalidate_req;
+    wire predecode_flush_icache_invalidate_req;
+    wire [W_IcacheIn-1:0] icache_flush_invalidate_bus;
+    wire icache_peek_read_ready;
+    wire fetch_address_fifo_read_enable_slot1_candidate;
+    wire fetch_address_fifo_read_enable_slot1;
+    wire fetch_address_fifo_write_enable_primary;
+    wire fetch_address_fifo_write_enable_2ahead;
     wire icache_read_valid;
+    wire icache_read_valid_2;
     wire [31:0] icache_fetch_address;
+    wire [31:0] icache_fetch_address_2;
+    wire icache_slot0_data_valid;
+    wire icache_slot1_data_valid;
     wire instruction_fifo_write_enable;
+    wire instruction_fifo_write_enable_slot0;
+    wire instruction_fifo_write_enable_slot1;
+    wire [(32 * FETCH_WIDTH)-1:0] icache_selected_fetch_group;
+    wire [(32 * FETCH_WIDTH)-1:0] icache_selected_pc_group;
+    wire [FETCH_WIDTH-1:0] icache_selected_page_fault_inst;
+    wire [FETCH_WIDTH-1:0] icache_selected_inst_valid;
+    wire [(32 * FETCH_WIDTH)-1:0] checker_input_instructions;
+    wire [FETCH_WIDTH-1:0] checker_input_page_fault_inst;
+    wire [FETCH_WIDTH-1:0] checker_input_inst_valid;
+    wire [(predecode_type_t_BITS * FETCH_WIDTH)-1:0] checker_input_type;
+    wire [(32 * FETCH_WIDTH)-1:0] checker_input_target_address;
+    wire [31:0] checker_input_seq_next_pc;
     wire [(32 * FETCH_WIDTH)-1:0] ptab_in_predict_base_pc_group;
+    wire [31:0] instruction_fifo_fetch_pc;
+    wire [31:0] instruction_fifo_seq_next_pc_raw;
     wire [31:0] instruction_fifo_seq_next_pc;
+    wire [31:0] icache_line_mask;
+    wire can_bypass_icache_to_predecode;
+    wire use_icache_to_predecode_bypass;
+    wire can_bypass_front2back_to_output;
+    wire front2back_fifo_write_enable;
+    wire oracle_branch_selected;
+
+    wire front_output_valid;
+    wire [(32 * FETCH_WIDTH)-1:0] front_output_fetch_group;
+    wire [FETCH_WIDTH-1:0] front_output_page_fault_inst;
+    wire [FETCH_WIDTH-1:0] front_output_inst_valid;
+    wire [FETCH_WIDTH-1:0] front_output_predict_dir;
+    wire [31:0] front_output_predict_next_fetch_address;
+    wire [(32 * FETCH_WIDTH)-1:0] front_output_predict_base_pc;
+    wire [W_FrontOutMeta-1:0] front_output_meta;
+
+    wire cfg_bpu_branch;
+    wire cfg_oracle_branch;
+    wire cfg_2ahead_branch;
+    wire cfg_icache_slot1_branch;
+    wire cfg_fetch_to_icache_bypass_branch;
+    wire cfg_icache_to_predecode_bypass_branch;
+    wire cfg_front2back_output_bypass_branch;
 
     genvar fetch_lane;
 
+    assign cfg_bpu_branch = (ENABLE_CONFIG_BPU_BRANCH != 0);
+    assign cfg_oracle_branch = (ENABLE_ORACLE_BRANCH != 0);
+    assign cfg_2ahead_branch = (ENABLE_2AHEAD_BRANCH != 0);
+    assign cfg_icache_slot1_branch = (ENABLE_ICACHE_SLOT1_BRANCH != 0);
+    assign cfg_fetch_to_icache_bypass_branch =
+        (ENABLE_FETCH_TO_ICACHE_BYPASS_BRANCH != 0);
+    assign cfg_icache_to_predecode_bypass_branch =
+        (ENABLE_ICACHE_TO_PREDECODE_BYPASS_BRANCH != 0);
+    assign cfg_front2back_output_bypass_branch =
+        (ENABLE_FRONT2BACK_OUTPUT_BYPASS_BRANCH != 0);
+
+    // Oracle lives outside front_top() in simulator-new. Keep the boundary
+    // visible for training and HTML cross-reference, but do not synthesize
+    // an oracle data source into this hardware wrapper.
+    assign oracle_branch_selected = cfg_oracle_branch && ~cfg_bpu_branch;
+
+    // front_seq_read() provides the previous cycle's checker-flush snapshot.
+    // This skeleton keeps it visible as a named cycle boundary; in the C++
+    // simulator it is written by front_seq_write() after checker execution.
+    assign predecode_refetch_snapshot = predecode_refetch_next;
+    assign predecode_refetch_address_snapshot =
+        predecode_refetch_address_next;
+    assign predecode_refetch_next = checker_out_predecode_flush_enable;
+    assign predecode_refetch_address_next =
+        checker_out_predict_next_fetch_address_corrected;
+
     assign global_reset = reset;
-    assign global_refetch = refetch || checker_out_predecode_flush_enable;
+    assign global_refetch = refetch || predecode_refetch_snapshot;
     assign global_refetch_address =
         refetch ? refetch_address :
-        checker_out_predict_next_fetch_address_corrected;
+        predecode_refetch_address_snapshot;
 
     assign bpu_stall =
         fetch_address_fifo_out_full || ptab_out_full;
@@ -296,21 +411,37 @@ module front_top #(
     assign bpu_icache_ready =
         ~fetch_address_fifo_out_full;
 
+    // In USE_TRUE_ICACHE mode front_top.cpp calls icache_peek_ready() before
+    // popping fetch_address_FIFO. The wrapper output is named separately here
+    // to show that this ready belongs to the peek stage, not the later request.
+    assign icache_peek_read_ready = icache_out_read_ready;
     assign fetch_address_fifo_read_enable =
-        icache_out_read_ready &&
+        icache_peek_read_ready &&
         ~fetch_address_fifo_out_empty &&
         ~global_reset &&
         ~global_refetch;
-    assign predecode_can_run =
+    assign fetch_address_fifo_read_enable_slot1_candidate =
+        cfg_icache_slot1_branch &&
+        icache_out_read_ready_2 &&
+        fetch_address_fifo_read_enable;
+    assign fetch_address_fifo_read_enable_slot1 =
+        fetch_address_fifo_read_enable_slot1_candidate &&
+        ~fetch_address_fifo_out_empty;
+    // front_read_enable_comb uses the old read-stage readiness check before
+    // PTAB data is popped, so dummy_entry is filtered later in the F2B stage.
+    assign predecode_read_can_run =
         ~instruction_fifo_out_empty &&
         ~ptab_out_empty &&
         ~front2back_fifo_out_full &&
         ~global_reset &&
-        ~global_refetch &&
-        ~ptab_out_dummy_entry;
-    assign instruction_fifo_read_enable = predecode_can_run;
-    assign ptab_read_enable = predecode_can_run;
+        ~global_refetch;
+    assign instruction_fifo_read_enable = predecode_read_can_run;
+    assign ptab_read_enable = predecode_read_can_run;
     assign front2back_fifo_read_enable = FIFO_read_enable;
+
+    assign predecode_can_run =
+        (predecode_read_can_run && ~ptab_out_dummy_entry) ||
+        use_icache_to_predecode_bypass;
 
     assign ptab_can_write =
         bpu_out_ptab_write_enable &&
@@ -322,22 +453,157 @@ module front_top #(
         ~front2back_fifo_out_full &&
         ~global_reset;
 
-    assign fetch_address_fifo_write_enable =
+    assign normal_fetch_address_fifo_write_enable =
         bpu_out_icache_read_valid &&
         bpu_can_run &&
+        ~global_reset;
+
+    assign can_bypass_fetch_to_icache =
+        cfg_fetch_to_icache_bypass_branch &&
+        ~fetch_address_fifo_out_read_valid &&
+        normal_fetch_address_fifo_write_enable &&
+        ~bpu_out_mini_flush_correct &&
+        icache_peek_read_ready &&
+        ~global_refetch;
+
+    assign fetch_address_fifo_write_enable_primary =
+        normal_fetch_address_fifo_write_enable &&
+        ~bpu_out_mini_flush_correct &&
+        ~can_bypass_fetch_to_icache;
+    assign fetch_address_fifo_write_enable_2ahead =
+        cfg_2ahead_branch &&
+        bpu_out_two_ahead_valid &&
+        normal_fetch_address_fifo_write_enable &&
         ~global_reset &&
-        ~bpu_out_mini_flush_correct;
+        ~global_refetch;
+    assign fetch_address_fifo_write_enable =
+        fetch_address_fifo_write_enable_primary ||
+        fetch_address_fifo_write_enable_2ahead;
     assign fetch_address_fifo_write_address =
-        fetch_address_fifo_write_enable ? bpu_out_fetch_address : 32'b0;
+        fetch_address_fifo_write_enable_primary ? bpu_out_fetch_address :
+        fetch_address_fifo_write_enable_2ahead ? bpu_out_two_ahead_target :
+        32'b0;
 
     assign icache_read_valid =
-        fetch_address_fifo_out_read_valid;
+        fetch_address_fifo_out_read_valid ||
+        can_bypass_fetch_to_icache;
     assign icache_fetch_address =
-        fetch_address_fifo_out_fetch_address;
+        fetch_address_fifo_out_read_valid ?
+            fetch_address_fifo_out_fetch_address :
+        can_bypass_fetch_to_icache ? bpu_out_fetch_address :
+        32'b0;
+    assign icache_read_valid_2 =
+        cfg_icache_slot1_branch &&
+        fetch_address_fifo_read_enable_slot1;
+    assign icache_fetch_address_2 =
+        icache_read_valid_2 ?
+            (fetch_address_fifo_out_fetch_address + (FETCH_WIDTH * 32'd4)) :
+            32'b0;
+
+    // Normal ICache stage uses invalidate_req = false. A checker flush issues
+    // a later invalidate-only ICache comb call in front_top.cpp after
+    // predecode_checker_comb has produced the flush.
+    assign icache_normal_invalidate_req = 1'b0;
+    assign predecode_flush_icache_invalidate_req =
+        checker_out_predecode_flush_enable;
+    assign icache_flush_invalidate_bus = {
+        1'b0,
+        1'b0,
+        1'b0,
+        1'b0,
+        predecode_flush_icache_invalidate_req,
+        1'b0,
+        32'b0,
+        1'b0,
+        32'b0,
+        csr_status,
+        1'b0
+    };
+
+    assign icache_slot0_data_valid =
+        icache_out_read_complete &&
+        icache_read_valid;
+    assign icache_slot1_data_valid =
+        cfg_icache_slot1_branch &&
+        icache_out_read_complete_2 &&
+        icache_read_valid_2;
+    assign instruction_fifo_write_enable_slot0 =
+        ~instruction_fifo_out_full &&
+        icache_slot0_data_valid &&
+        ~global_reset &&
+        ~global_refetch;
+    assign instruction_fifo_write_enable_slot1 =
+        cfg_icache_slot1_branch &&
+        ~instruction_fifo_out_full &&
+        icache_slot1_data_valid &&
+        ~global_reset &&
+        ~global_refetch;
     assign instruction_fifo_write_enable =
-        icache_out_read_complete && icache_read_valid;
+        instruction_fifo_write_enable_slot0 ||
+        instruction_fifo_write_enable_slot1;
+    assign icache_selected_fetch_group =
+        instruction_fifo_write_enable_slot0 ?
+            icache_out_fetch_group : icache_out_fetch_group_2;
+    assign icache_selected_pc_group =
+        instruction_fifo_write_enable_slot0 ?
+            icache_out_pc : icache_out_pc_2;
+    assign icache_selected_page_fault_inst =
+        instruction_fifo_write_enable_slot0 ?
+            icache_out_page_fault_inst : icache_out_page_fault_inst_2;
+    assign icache_selected_inst_valid =
+        instruction_fifo_write_enable_slot0 ?
+            icache_out_inst_valid : icache_out_inst_valid_2;
+    assign instruction_fifo_fetch_pc = icache_selected_pc_group[31:0];
+    assign instruction_fifo_seq_next_pc_raw =
+        instruction_fifo_fetch_pc + (FETCH_WIDTH * 32'd4);
+    assign icache_line_mask = ~(32'd0 + ICACHE_LINE_SIZE - 32'd1);
     assign instruction_fifo_seq_next_pc =
-        icache_fetch_address + (FETCH_WIDTH * 32'd4);
+        ((instruction_fifo_seq_next_pc_raw & icache_line_mask) !=
+         (instruction_fifo_fetch_pc & icache_line_mask)) ?
+            (instruction_fifo_seq_next_pc_raw & icache_line_mask) :
+            instruction_fifo_seq_next_pc_raw;
+
+    assign can_bypass_icache_to_predecode =
+        cfg_icache_to_predecode_bypass_branch &&
+        instruction_fifo_out_empty &&
+        ~ptab_out_empty &&
+        ~front2back_fifo_out_full &&
+        ~global_reset &&
+        ~global_refetch &&
+        icache_slot0_data_valid;
+    assign use_icache_to_predecode_bypass =
+        can_bypass_icache_to_predecode &&
+        ~ptab_out_dummy_entry;
+
+    assign checker_input_instructions =
+        use_icache_to_predecode_bypass ?
+            icache_selected_fetch_group : instruction_fifo_out_instructions;
+    assign checker_input_page_fault_inst =
+        use_icache_to_predecode_bypass ?
+            icache_selected_page_fault_inst :
+            instruction_fifo_out_page_fault_inst;
+    assign checker_input_inst_valid =
+        use_icache_to_predecode_bypass ?
+            icache_selected_inst_valid : instruction_fifo_out_inst_valid;
+    assign checker_input_type =
+        use_icache_to_predecode_bypass ?
+            predecode_out_type : instruction_fifo_out_predecode_type;
+    assign checker_input_target_address =
+        use_icache_to_predecode_bypass ?
+            predecode_out_target_address :
+            instruction_fifo_out_predecode_target_address;
+    assign checker_input_seq_next_pc =
+        use_icache_to_predecode_bypass ?
+            instruction_fifo_seq_next_pc : instruction_fifo_out_seq_next_pc;
+
+    assign can_bypass_front2back_to_output =
+        cfg_front2back_output_bypass_branch &&
+        front2back_fifo_read_enable &&
+        front2back_fifo_out_empty &&
+        ~front2back_fifo_out_valid &&
+        front2back_can_write;
+    assign front2back_fifo_write_enable =
+        front2back_can_write && ~can_bypass_front2back_to_output;
 
     generate
         for (fetch_lane = 0; fetch_lane < FETCH_WIDTH;
@@ -392,28 +658,28 @@ module front_top #(
         global_refetch,
         itlb_flush,
         fence_i,
-        1'b0,
+        icache_normal_invalidate_req,
         icache_read_valid,
         icache_fetch_address,
-        1'b0,
-        32'b0,
+        icache_read_valid_2,
+        icache_fetch_address_2,
         csr_status,
         1'b0
     };
 
     assign predecode_in_bus = {
-        icache_out_fetch_group,
-        icache_out_pc
+        icache_selected_fetch_group,
+        icache_selected_pc_group
     };
 
     assign instruction_fifo_in_bus = {
         global_reset,
         global_refetch,
         instruction_fifo_write_enable,
-        icache_out_fetch_group,
-        icache_out_pc,
-        icache_out_page_fault_inst,
-        icache_out_inst_valid,
+        icache_selected_fetch_group,
+        icache_selected_pc_group,
+        icache_selected_page_fault_inst,
+        icache_selected_inst_valid,
         instruction_fifo_read_enable,
         predecode_out_type,
         predecode_out_target_address,
@@ -435,19 +701,19 @@ module front_top #(
     assign predecode_checker_in_bus = {
         ptab_out_predict_dir,
         ptab_out_predict_next_fetch_address,
-        instruction_fifo_out_predecode_type,
-        instruction_fifo_out_predecode_target_address,
-        instruction_fifo_out_seq_next_pc
+        checker_input_type,
+        checker_input_target_address,
+        checker_input_seq_next_pc
     };
 
     assign front2back_fifo_in_bus = {
         global_reset,
         refetch,
-        front2back_can_write,
+        front2back_fifo_write_enable,
         front2back_fifo_read_enable,
-        instruction_fifo_out_instructions,
-        instruction_fifo_out_page_fault_inst,
-        instruction_fifo_out_inst_valid,
+        checker_input_instructions,
+        checker_input_page_fault_inst,
+        checker_input_inst_valid,
         checker_out_predict_dir_corrected,
         checker_out_predict_next_fetch_address_corrected,
         ptab_out_predict_base_pc,
@@ -481,6 +747,7 @@ module front_top #(
         .predict_dir(bpu_out_predict_dir),
         .predict_base_pc(bpu_out_predict_base_pc),
         .update_queue_full(bpu_out_update_queue_full),
+        .two_ahead_valid(bpu_out_two_ahead_valid),
         .mini_flush_req(bpu_out_mini_flush_req),
         .mini_flush_correct(bpu_out_mini_flush_correct),
         .two_ahead_target(bpu_out_two_ahead_target),
@@ -510,10 +777,16 @@ module front_top #(
         .icache_out(icache_out_bus),
         .icache_read_ready(icache_out_read_ready),
         .icache_read_complete(icache_out_read_complete),
+        .icache_read_ready_2(icache_out_read_ready_2),
+        .icache_read_complete_2(icache_out_read_complete_2),
         .fetch_group(icache_out_fetch_group),
         .fetch_pc_group(icache_out_pc),
         .page_fault_inst(icache_out_page_fault_inst),
-        .inst_valid(icache_out_inst_valid)
+        .inst_valid(icache_out_inst_valid),
+        .fetch_group_2(icache_out_fetch_group_2),
+        .fetch_pc_group_2(icache_out_pc_2),
+        .page_fault_inst_2(icache_out_page_fault_inst_2),
+        .inst_valid_2(icache_out_inst_valid_2)
     );
 
     predecode_top #(
@@ -619,15 +892,46 @@ module front_top #(
     // 6. External output assembly.
     // ---------------------------------------------------------------------
 
-    assign FIFO_valid = front2back_fifo_out_valid;
+    assign front_output_valid =
+        can_bypass_front2back_to_output ? 1'b1 : front2back_fifo_out_valid;
+    assign front_output_fetch_group =
+        can_bypass_front2back_to_output ?
+            checker_input_instructions :
+            front2back_fifo_out_fetch_group;
+    assign front_output_page_fault_inst =
+        can_bypass_front2back_to_output ?
+            checker_input_page_fault_inst :
+            front2back_fifo_out_page_fault_inst;
+    assign front_output_inst_valid =
+        can_bypass_front2back_to_output ?
+            checker_input_inst_valid :
+            front2back_fifo_out_inst_valid;
+    assign front_output_predict_dir =
+        can_bypass_front2back_to_output ?
+            checker_out_predict_dir_corrected :
+            front2back_fifo_out_predict_dir_corrected;
+    assign front_output_predict_next_fetch_address =
+        can_bypass_front2back_to_output ?
+            checker_out_predict_next_fetch_address_corrected :
+            front2back_fifo_out_predict_next_fetch_address_corrected;
+    assign front_output_predict_base_pc =
+        can_bypass_front2back_to_output ?
+            ptab_out_predict_base_pc :
+            front2back_fifo_out_predict_base_pc;
+    assign front_output_meta =
+        can_bypass_front2back_to_output ?
+            ptab_out_meta :
+            front2back_fifo_out_meta;
+
+    assign FIFO_valid = front_output_valid;
     assign commit_stall = bpu_out_update_queue_full;
-    assign pc = front2back_fifo_out_predict_base_pc;
-    assign instructions = front2back_fifo_out_fetch_group;
-    assign predict_dir_out = front2back_fifo_out_predict_dir_corrected;
+    assign pc = front_output_predict_base_pc;
+    assign instructions = front_output_fetch_group;
+    assign predict_dir_out = front_output_predict_dir;
     assign predict_next_fetch_address =
-        front2back_fifo_out_predict_next_fetch_address_corrected;
-    assign page_fault_inst = front2back_fifo_out_page_fault_inst;
-    assign inst_valid = front2back_fifo_out_inst_valid;
+        front_output_predict_next_fetch_address;
+    assign page_fault_inst = front_output_page_fault_inst;
+    assign inst_valid = front_output_inst_valid;
 
     assign {
         alt_pred_out,
@@ -644,6 +948,6 @@ module front_top #(
         loop_pred_out,
         loop_idx_out,
         loop_tag_out
-    } = front2back_fifo_out_meta;
+    } = front_output_meta;
 
 endmodule

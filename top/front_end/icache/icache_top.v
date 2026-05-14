@@ -19,10 +19,16 @@ module icache_top #(
     output wire [W_IcacheOut-1:0] icache_out,
     output wire icache_read_ready,
     output wire icache_read_complete,
+    output wire icache_read_ready_2,
+    output wire icache_read_complete_2,
     output wire [(32 * FETCH_WIDTH)-1:0] fetch_group,
     output wire [(32 * FETCH_WIDTH)-1:0] fetch_pc_group,
     output wire [FETCH_WIDTH-1:0] page_fault_inst,
-    output wire [FETCH_WIDTH-1:0] inst_valid
+    output wire [FETCH_WIDTH-1:0] inst_valid,
+    output wire [(32 * FETCH_WIDTH)-1:0] fetch_group_2,
+    output wire [(32 * FETCH_WIDTH)-1:0] fetch_pc_group_2,
+    output wire [FETCH_WIDTH-1:0] page_fault_inst_2,
+    output wire [FETCH_WIDTH-1:0] inst_valid_2
 );
 
     wire [W_IcacheIn-1:0]  pi;
@@ -53,12 +59,7 @@ module icache_top #(
         run_comb_only
     } = icache_in;
 
-    wire icache_read_ready_2;
-    wire icache_read_complete_2;
     wire [13:0] perf_flags;
-    wire [(32 * FETCH_WIDTH)-1:0] fetch_group_2;
-    wire [FETCH_WIDTH-1:0] page_fault_inst_2;
-    wire [FETCH_WIDTH-1:0] inst_valid_2;
     wire [31:0] fetch_pc;
     wire [31:0] fetch_pc_2;
 
@@ -90,6 +91,9 @@ module icache_top #(
             assign fetch_pc_group
                 [(32 * (fetch_lane + 1))-1:(32 * fetch_lane)] =
                     fetch_pc + (fetch_lane * 32'd4);
+            assign fetch_pc_group_2
+                [(32 * (fetch_lane + 1))-1:(32 * fetch_lane)] =
+                    fetch_pc_2 + (fetch_lane * 32'd4);
         end
     endgenerate
 

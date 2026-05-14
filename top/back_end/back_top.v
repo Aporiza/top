@@ -2,8 +2,8 @@
 // Canonical source: maintain this file under back_end/.
 //
 // Source reference:
-//   simulator-new-lsu-tmp/back-end/include/BackTop.h
-//   simulator-new-lsu-tmp/back-end/BackTop.cpp
+//   simulator-new/back-end/include/BackTop.h
+//   simulator-new/back-end/BackTop.cpp
 //
 // This file is a top-down connection skeleton, not the final RTL
 // implementation.  The top level shows module-to-module wiring; each module

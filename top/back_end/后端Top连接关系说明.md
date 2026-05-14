@@ -14,6 +14,14 @@
 | BSD 例化下放到模块内 | `back_top.v` 只做模块间连线；各模块自己的 `xxx_top.v` 内部再例化 `xxx_bsd_top`。 |
 | BSD 接口统一 | 各 `xxx_bsd_top` 对外接口统一使用 `pi/po`。 |
 
+交互式图文件：
+
+```text
+top/back_end/back_top_interactive.html
+```
+
+该 HTML 可以点击每条连线查看代码依据。依据分两层显示：一层是当前 `top/back_end/back_top.v` 的实际 Verilog 连线，另一层是 `simulator-new/back-end/BackTop.cpp` 或 `rv_simu_mmu_v2.cpp` 中对应的原始 C++ 指针绑定、运行顺序或外部桥接位置。
+
 ## 2. 目录结构
 
 ```text
