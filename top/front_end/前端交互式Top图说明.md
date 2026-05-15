@@ -20,9 +20,9 @@ top/front_end/front_top_interactive.html
 simulator-new/front-end/TRAINING_FUNCTION_LIST.md
 ```
 
-其中原正式列出的前端待训练 comb 单元为 27 个；按最新全分支训练口径，`bpu_nlp_comb`、Oracle、ICache slot1 和两个 bypass 也需要在图中展开说明。
+其中正式列出的前端待训练 comb 单元为 27 个。按最新要求，HTML 只把这 27 个正式 comb 作为模块框展示；`bpu_nlp_comb`、Oracle、ICache slot1、两个 bypass 和 helper/内部子函数只放在说明与源码依据中，不再单独展开为模块。
 
-当前 HTML 以 `SimCpu::front_cycle()` 为函数运行顺序标准：`CONFIG_BPU` 主路径、Oracle `step_oracle()`、`ENABLE_2AHEAD` / NLP、ICache slot1、fetch-to-ICache bypass、ICache-to-predecode bypass 和 front2back-output bypass 都保留路径高亮和源码依据。
+当前 HTML 以 `SimCpu::front_cycle()` 为函数运行顺序标准，保留 `CONFIG_BPU` 主路径和 27 个正式 comb 的路径高亮；默认关闭或不可综合参考分支不再占用图中的模块位置。
 
 ## 3. 与 8 个一级 wrapper 的关系
 
@@ -57,7 +57,7 @@ front_output_comb
 所以两种说法并不冲突：
 
 - 8 个是前端一级 wrapper 视角。
-- 27 个是原训练 IO / comb 单元视角；全分支图在此基础上增加宏控制分支和 Oracle 参考路径。
+- 27 个是训练 IO / comb 单元视角；子级/helper 函数和默认关闭分支只作为源码依据，不单独展开。
 
 ## 4. bpu_hist 的展开说明
 
@@ -76,7 +76,7 @@ bpu_hist_ras_step_comb
 bpu_hist_step_comb
 ```
 
-属于 `bpu_hist_comb` 的生成细分子块。HTML 图中将这些子块挂在 `bpu_hist_comb` 后面，用于表达截图中的层级展开关系。
+属于 `bpu_hist_comb` 的生成细分子块。HTML 图中不再将这些子块挂成独立模块，只在 `bpu_hist_comb` 的详情依据里说明它们的来源。
 
 ## 5. 使用方式
 
@@ -98,7 +98,7 @@ HTML 中提供以下路径高亮：
 - 预测信息 PTAB 路径
 - checker 修正路径
 - 前端输出路径
-- bpu_hist 展开路径
+- bpu_hist 正式边界路径
 
 ## 7. 结论
 

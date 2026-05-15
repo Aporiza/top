@@ -1,27 +1,27 @@
-// Source-facing BackTop connection:
+﻿// Source-facing BackTop connection:
 //   ExuIn  = {prf2exe, dec_bcast, rob_bcast, csr2exe, lsu2exe, csr_status}
 //   ExuOut = {exe2prf, exe2iss, exe2csr, exe2lsu, exu2id, exu2rob}
 // Fu2ExuIO/Exu2FuIO are self-connected inside Exu.cpp and are not expanded at
 // the backend top boundary.
 
 module exu_top #(
-    parameter integer ISSUE_WIDTH       = 24,
-    parameter integer TOTAL_FU_COUNT    = 30,
-    parameter integer PRF_IDX_WIDTH     = 11,
-    parameter integer ROB_IDX_WIDTH     = 11,
-    parameter integer STQ_IDX_WIDTH     = 9,
-    parameter integer LDQ_IDX_WIDTH     = 9,
+    parameter integer ISSUE_WIDTH            = 15,
+    parameter integer TOTAL_FU_COUNT         = 19,
+    parameter integer PRF_IDX_WIDTH       = 9,
+    parameter integer ROB_IDX_WIDTH       = 9,
+    parameter integer STQ_IDX_WIDTH       = 6,
+    parameter integer LDQ_IDX_WIDTH       = 6,
     parameter integer BR_TAG_WIDTH      = 6,
     parameter integer BR_MASK_WIDTH     = 64,
     parameter integer CSR_IDX_WIDTH     = 12,
-    parameter integer FTQ_IDX_WIDTH     = 8,
+    parameter integer FTQ_IDX_WIDTH       = 7,
     parameter integer FTQ_OFFSET_WIDTH  = 4,
     parameter integer UOP_TYPE_WIDTH    = 5,
     parameter integer MAX_UOP_TYPE      = 18,
-    parameter integer LSU_LOAD_WB_WIDTH = 4,
-    parameter integer LSU_STA_COUNT     = 4,
-    parameter integer LSU_AGU_COUNT     = 8,
-    parameter integer LSU_SDU_COUNT     = 4,
+    parameter integer LSU_LOAD_WB_WIDTH      = 3,
+    parameter integer LSU_STA_COUNT          = 2,
+    parameter integer LSU_AGU_COUNT          = 5,
+    parameter integer LSU_SDU_COUNT          = 2,
     parameter integer W_PrfExeUop       =
         32 + 1 + 1 + 32 + (3 * PRF_IDX_WIDTH) + 64 +
         FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 3 + 2 + 3 + 7 + 32 +

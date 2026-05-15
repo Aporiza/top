@@ -1,4 +1,4 @@
-// Source struct:
+﻿// Source struct:
 //   LsuIn  = {rob_commit, rob_bcast, dec_bcast, csr_status, dis2lsu,
 //             exe2lsu, peripheral_resp, dcache2lsu, mmu2lsu}
 //   LsuOut = {lsu2dis, lsu2rob, lsu2exe, peripheral_req, lsu2dcache, lsu2mmu}
@@ -9,27 +9,27 @@ module lsu_top #(
     parameter integer DECODE_WIDTH           = 8,
     parameter integer COMMIT_WIDTH           = DECODE_WIDTH,
     parameter integer AREG_IDX_WIDTH         = 6,
-    parameter integer PRF_IDX_WIDTH          = 11,
-    parameter integer ROB_IDX_WIDTH          = 11,
-    parameter integer STQ_IDX_WIDTH          = 9,
-    parameter integer LDQ_IDX_WIDTH          = 9,
+    parameter integer PRF_IDX_WIDTH       = 9,
+    parameter integer ROB_IDX_WIDTH       = 9,
+    parameter integer STQ_IDX_WIDTH       = 6,
+    parameter integer LDQ_IDX_WIDTH       = 6,
     parameter integer BR_TAG_WIDTH           = 6,
     parameter integer BR_MASK_WIDTH          = 64,
-    parameter integer FTQ_IDX_WIDTH          = 8,
+    parameter integer FTQ_IDX_WIDTH       = 7,
     parameter integer FTQ_OFFSET_WIDTH       = 4,
     parameter integer INST_TYPE_WIDTH        = 5,
     parameter integer UOP_TYPE_WIDTH         = 5,
-    parameter integer LSU_LDU_COUNT          = 4,
-    parameter integer LSU_STA_COUNT          = 4,
-    parameter integer LSU_AGU_COUNT          = 8,
-    parameter integer LSU_SDU_COUNT          = 4,
+    parameter integer LSU_LDU_COUNT          = 3,
+    parameter integer LSU_STA_COUNT          = 2,
+    parameter integer LSU_AGU_COUNT          = 5,
+    parameter integer LSU_SDU_COUNT          = 2,
     parameter integer LSU_LOAD_WB_WIDTH      = LSU_LDU_COUNT,
     parameter integer LSU_LDU_WIDTH          = 2,
     parameter integer MAX_STQ_DISPATCH_WIDTH = DECODE_WIDTH,
     parameter integer MAX_LDQ_DISPATCH_WIDTH = DECODE_WIDTH,
-    parameter integer ROB_NUM                = 2048,
-    parameter integer W_STQ_COUNT            = 10,
-    parameter integer W_LDQ_COUNT            = 10,
+    parameter integer ROB_NUM                = 512,
+    parameter integer W_STQ_COUNT            = 7,
+    parameter integer W_LDQ_COUNT            = 7,
     parameter integer W_RobCommitInst        =
         32 + AREG_IDX_WIDTH + (2 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH +
         FTQ_OFFSET_WIDTH + 1 + 2 + 1 + 7 + ROB_IDX_WIDTH + 1 +

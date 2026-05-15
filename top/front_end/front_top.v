@@ -10,11 +10,11 @@
 //   FrontTop::step_oracle() is a simulator-only reference branch, kept as an
 //   explicit boundary but not driven into hardware output muxes.
 //
-// Training-expansion policy:
-//   CONFIG_BPU, Oracle, 2-Ahead/NLP, ICache slot1, fetch-to-ICache bypass,
-//   ICache-to-predecode bypass and front2back-output bypass are all named in
-//   this wrapper. Feature parameters below let the RTL package keep those
-//   branches visible even when the current C++ build disables them.
+// Default-profile policy:
+//   Keep every branch named for review, but default each visibility switch to
+//   the current simulator-new frontend default. CONFIG_BPU and true ICache are
+//   on. Oracle, 2-Ahead/NLP, ideal ICache slot1, fetch-to-ICache bypass and
+//   ICache-to-predecode bypass are off unless the build enables them.
 //
 // It shows top-level ports, module-to-module wiring and selected glue logic.
 // Module internals such as predictor tables, FIFO storage, ICache RAMs and
@@ -42,16 +42,14 @@ module front_top #(
     parameter integer ICACHE_LINE_SIZE         = 64,
 
     // ---------------------------------------------------------------------
-    // Training branch visibility switches. These default to expanded so the
-    // package covers every branch that must be trained. Hardware-only builds
-    // can override the simulator-only or unsupported branches to 0.
+    // Branch visibility switches, aligned to simulator-new default config.
     // ---------------------------------------------------------------------
     parameter integer ENABLE_CONFIG_BPU_BRANCH = 1,
-    parameter integer ENABLE_ORACLE_BRANCH = 1,
-    parameter integer ENABLE_2AHEAD_BRANCH = 1,
-    parameter integer ENABLE_ICACHE_SLOT1_BRANCH = 1,
-    parameter integer ENABLE_FETCH_TO_ICACHE_BYPASS_BRANCH = 1,
-    parameter integer ENABLE_ICACHE_TO_PREDECODE_BYPASS_BRANCH = 1,
+    parameter integer ENABLE_ORACLE_BRANCH = 0,
+    parameter integer ENABLE_2AHEAD_BRANCH = 0,
+    parameter integer ENABLE_ICACHE_SLOT1_BRANCH = 0,
+    parameter integer ENABLE_FETCH_TO_ICACHE_BYPASS_BRANCH = 0,
+    parameter integer ENABLE_ICACHE_TO_PREDECODE_BYPASS_BRANCH = 0,
     parameter integer ENABLE_FRONT2BACK_OUTPUT_BYPASS_BRANCH = 1,
 
     // ---------------------------------------------------------------------

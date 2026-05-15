@@ -11,7 +11,7 @@
 | RTL wrapper 层 | `front_top.v` 中例化的一级 wrapper，例如 `bpu_top`、`ptab_top`、`front2back_fifo_top` | 表达顶层端口打包和一级模块边界 |
 | comb 训练单元层 | `TRAINING_FUNCTION_LIST.md` 中列出的 `*_comb` 函数，例如 `front_global_control_comb`、`bpu_predict_main_comb`、`PTAB_comb` | 表达老板截图中二十多个模块之间的细化连接关系 |
 
-因此，之前“前端 8 个模块”的说法只对应 wrapper 层；本次 HTML 与说明文档重点使用 comb 训练单元口径，并额外展开 Oracle、2-Ahead/NLP、ICache slot1 和两个 bypass 分支。
+因此，之前“前端 8 个模块”的说法只对应 wrapper 层；本次 HTML 与说明文档重点使用 27 个正式 comb 训练单元口径。Oracle、2-Ahead/NLP、ICache slot1 和两个 bypass 分支只保留源码依据，不再单独展开为模块。
 
 交互式图文件：
 
@@ -39,22 +39,22 @@ simulator-new/front-end/predecode.cpp
 simulator-new/front-end/predecode_checker.cpp
 ```
 
-其中 `TRAINING_FUNCTION_LIST.md` 已按全分支训练口径更新：原 27 个正式 comb 单元继续保留，`bpu_nlp_comb` 与宏控制分支重新纳入说明和路径依据。
+其中 `TRAINING_FUNCTION_LIST.md` 按 27 个正式 comb 单元作为训练边界；`bpu_nlp_comb` 与宏控制分支仅作为默认关闭/参考路径说明，不计入正式模块数。
 
-### 2.1 全分支训练口径
+### 2.1 27 个正式 comb 口径
 
-本前端包以 `SimCpu::front_cycle()` 的执行顺序作为函数运行顺序标准：`CONFIG_BPU` 打开时走 `FrontTop::step_bpu()` / `front_top()`；`CONFIG_BPU` 未走硬件 BPU 时走 Oracle `step_oracle()`。训练视角两条分支都要在 HTML 中标出源码依据。
+本前端包以 `SimCpu::front_cycle()` 的执行顺序作为函数运行顺序标准：`CONFIG_BPU` 打开时走 `FrontTop::step_bpu()` / `front_top()`；`CONFIG_BPU` 未走硬件 BPU 时走 Oracle `step_oracle()`。HTML 主图只展示 27 个正式 comb，默认关闭分支和 Oracle 只在说明/依据中保留。
 
-当前默认配置仍可能关闭部分宏，但前端包不再按默认配置裁剪路径：
+当前默认配置下的处理：
 
 | 分支 | 默认配置状态 | 前端包处理 |
 |---|---|---|
 | `CONFIG_BPU` 主路径 | 打开 | HTML 和 `.v` 主线保留真实 BPU/front_top 路径 |
-| Oracle `step_oracle()` | `CONFIG_BPU` 关闭时进入 | HTML 展开源码依据；RTL 只保留显式边界，因为 Oracle 不是可综合硬件 |
-| `ENABLE_2AHEAD` / NLP | 默认被 `FRONTEND_DISABLE_2AHEAD` 关闭 | HTML 展开 `bpu_nlp_comb`、two_ahead_target、mini-flush；`.v` 增加分支参数和显式连线 |
-| ICache slot1 | 默认 `FRONTEND_IDEAL_ICACHE_DUAL_REQ_ACTIVE=0` | HTML 展开 slot1 请求/返回/写 FIFO；`.v` 暴露 ICache slot1 输出并保留分支连线 |
-| fetch-to-ICache bypass | 默认未定义 | HTML 展开 bypass 条件和数据流；`.v` 参数化打开 |
-| ICache-to-predecode bypass | 默认未定义 | HTML 展开直接 predecode/checker 路径；`.v` 参数化打开 |
+| Oracle `step_oracle()` | `CONFIG_BPU` 关闭时进入 | 不进入 27 模块图；只作为模拟器参考分支说明 |
+| `ENABLE_2AHEAD` / NLP | 默认被 `FRONTEND_DISABLE_2AHEAD` 关闭 | `bpu_nlp_comb` 不计入 27 个正式模块；如后续打开需重新导出训练 IO |
+| ICache slot1 | 默认 `FRONTEND_IDEAL_ICACHE_DUAL_REQ_ACTIVE=0` | 不进入 27 模块图；如后续打开需确认 FIFO 双读/双写 RTL |
+| fetch-to-ICache bypass | 默认显式为 `0` | 不进入 27 模块图；只保留开关依据 |
+| ICache-to-predecode bypass | 默认显式为 `0` | 不进入 27 模块图；只保留开关依据 |
 
 ## 3. 前端 comb 单元清单
 
@@ -87,7 +87,6 @@ simulator-new/front-end/predecode_checker.cpp
 | 25 | `front_checker_input_comb` | `front_top` | 将 instruction FIFO 与 PTAB 输出整理为 checker 输入 |
 | 26 | `front_front2back_write_comb` | `front_top` | 汇总指令、预测、checker 结果并写入 front2back FIFO |
 | 27 | `front_output_comb` | `front_top` | 生成最终 `front_top_out` |
-| 28 | `bpu_nlp_comb` | `BPU_TOP` | 2-Ahead/NLP、two_ahead_target 与 mini-flush 分支 |
 
 ## 4. bpu_hist 展开说明
 
@@ -106,7 +105,7 @@ bpu_hist_ras_step_comb
 bpu_hist_step_comb
 ```
 
-属于 `bpu_hist_comb` 的生成细分子块。本次 HTML 图中将这些子块挂在 `bpu_hist_comb` 后面，用于表达生成目录里的展开层级。
+属于 `bpu_hist_comb` 的生成细分子块。本次 HTML 图中不再将这些子块挂成独立模块，只在 `bpu_hist_comb` 的源码依据里说明。
 
 ## 5. comb 连接主线
 

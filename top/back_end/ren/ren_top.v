@@ -1,4 +1,4 @@
-// Source struct:
+﻿// Source struct:
 //   RenIn  = {dec2ren, dec_bcast, dis2ren, rob_bcast, rob_commit}
 //   RenOut = {ren2dec, ren2dis}
 // RAT, free-list and checkpoint registers remain internal to rename.
@@ -6,14 +6,14 @@
 module ren_top #(
     parameter integer DECODE_WIDTH        = 8,
     parameter integer AREG_IDX_WIDTH      = 6,
-    parameter integer PRF_IDX_WIDTH       = 11,
-    parameter integer ROB_IDX_WIDTH       = 11,
-    parameter integer STQ_IDX_WIDTH       = 9,
-    parameter integer LDQ_IDX_WIDTH       = 9,
+    parameter integer PRF_IDX_WIDTH       = 9,
+    parameter integer ROB_IDX_WIDTH       = 9,
+    parameter integer STQ_IDX_WIDTH       = 6,
+    parameter integer LDQ_IDX_WIDTH       = 6,
     parameter integer BR_TAG_WIDTH        = 6,
     parameter integer BR_MASK_WIDTH       = 64,
     parameter integer CSR_IDX_WIDTH       = 12,
-    parameter integer FTQ_IDX_WIDTH       = 8,
+    parameter integer FTQ_IDX_WIDTH       = 7,
     parameter integer FTQ_OFFSET_WIDTH    = 4,
     parameter integer INST_TYPE_WIDTH     = 5,
     parameter integer ROB_CPLT_MASK_WIDTH = 3,

@@ -1,4 +1,4 @@
-// Source struct:
+﻿// Source struct:
 //   PreIduQueueIn  = {front2pre, idu_consume, rob_bcast, rob_commit,
 //                     idu_br_latch, ftq_prf_pc_req, ftq_rob_pc_req}
 //   PreIduQueueOut = {pre2front, issue, ftq_prf_pc_resp, ftq_rob_pc_resp}
@@ -9,14 +9,14 @@ module preiduqueue_top #(
     parameter integer DECODE_WIDTH             = 8,
     parameter integer COMMIT_WIDTH             = DECODE_WIDTH,
     parameter integer AREG_IDX_WIDTH           = 6,
-    parameter integer PRF_IDX_WIDTH            = 11,
-    parameter integer ROB_IDX_WIDTH            = 11,
-    parameter integer STQ_IDX_WIDTH            = 9,
-    parameter integer LDQ_IDX_WIDTH            = 9,
+    parameter integer PRF_IDX_WIDTH       = 9,
+    parameter integer ROB_IDX_WIDTH       = 9,
+    parameter integer STQ_IDX_WIDTH       = 6,
+    parameter integer LDQ_IDX_WIDTH       = 6,
     parameter integer BR_TAG_WIDTH             = 6,
     parameter integer BR_MASK_WIDTH            = 64,
     parameter integer CSR_IDX_WIDTH            = 12,
-    parameter integer FTQ_IDX_WIDTH            = 8,
+    parameter integer FTQ_IDX_WIDTH       = 7,
     parameter integer FTQ_OFFSET_WIDTH         = 4,
     parameter integer INST_TYPE_WIDTH          = 5,
     parameter integer ROB_CPLT_MASK_WIDTH      = 3,
@@ -29,7 +29,7 @@ module preiduqueue_top #(
     parameter integer TAGE_IDX_WIDTH           = 12,
     parameter integer TAGE_TAG_WIDTH           = 8,
     parameter integer pcpn_t_BITS              = 3,
-    parameter integer FTQ_PRF_PC_PORT_NUM      = 12,
+    parameter integer FTQ_PRF_PC_PORT_NUM    = 8,
     parameter integer FTQ_ROB_PC_PORT_NUM      = 1,
     parameter integer W_InstructionBufferEntry =
         1 + 32 + 32 + 1 + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1,

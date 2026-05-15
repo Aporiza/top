@@ -1,27 +1,27 @@
-// Source struct:
+﻿// Source struct:
 //   IsuIn  = {dis2iss, prf_awake, exe2iss, rob_bcast, dec_bcast}
 //   IsuOut = {iss2prf, iss2dis, iss_awake}
 // Issue queues and wakeup slots are private implementation state.
 
 module isu_top #(
     parameter integer DECODE_WIDTH          = 8,
-    parameter integer PRF_IDX_WIDTH         = 11,
-    parameter integer ROB_IDX_WIDTH         = 11,
-    parameter integer STQ_IDX_WIDTH         = 9,
-    parameter integer LDQ_IDX_WIDTH         = 9,
+    parameter integer PRF_IDX_WIDTH       = 9,
+    parameter integer ROB_IDX_WIDTH       = 9,
+    parameter integer STQ_IDX_WIDTH       = 6,
+    parameter integer LDQ_IDX_WIDTH       = 6,
     parameter integer BR_TAG_WIDTH          = 6,
     parameter integer BR_MASK_WIDTH         = 64,
     parameter integer CSR_IDX_WIDTH         = 12,
-    parameter integer FTQ_IDX_WIDTH         = 8,
+    parameter integer FTQ_IDX_WIDTH       = 7,
     parameter integer FTQ_OFFSET_WIDTH      = 4,
     parameter integer UOP_TYPE_WIDTH        = 5,
     parameter integer IQ_NUM                = 5,
     parameter integer MAX_UOP_TYPE          = 18,
-    parameter integer IQ_READY_NUM_WIDTH    = 11,
+    parameter integer IQ_READY_NUM_WIDTH     = 8,
     parameter integer MAX_IQ_DISPATCH_WIDTH = DECODE_WIDTH,
-    parameter integer LSU_LOAD_WB_WIDTH     = 4,
-    parameter integer MAX_WAKEUP_PORTS      = 16,
-    parameter integer ISSUE_WIDTH           = 24,
+    parameter integer LSU_LOAD_WB_WIDTH      = 3,
+    parameter integer MAX_WAKEUP_PORTS       = 11,
+    parameter integer ISSUE_WIDTH            = 15,
     parameter integer W_DisIssUop           =
         (3 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 +
         3 + 2 + 2 + 3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH +

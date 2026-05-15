@@ -1,10 +1,10 @@
-// Source struct:
+﻿// Source struct:
 //   CsrIn  = {exe2csr, rob2csr, rob_bcast}
 //   CsrOut = {csr2exe, csr2rob, csr2front, csr_status}
 // CSR_RegFile, privilege register and CSR write-back staging are internal.
 
 module csr_top #(
-    parameter integer ROB_IDX_WIDTH    = 11,
+    parameter integer ROB_IDX_WIDTH       = 9,
     parameter integer BR_MASK_WIDTH    = 64,
     parameter integer W_ExeCsrIO       = 1 + 1 + 12 + 32 + 32,
     parameter integer W_RobCsrIO       = 2,

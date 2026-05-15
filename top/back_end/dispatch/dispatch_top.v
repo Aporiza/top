@@ -1,4 +1,4 @@
-// Source struct:
+﻿// Source struct:
 //   DisIn  = {ren2dis, rob2dis, iss2dis, lsu2dis, prf_awake, iss_awake,
 //             rob_bcast, dec_bcast}
 //   DisOut = {dis2ren, dis2rob, dis2iss, dis2lsu}
@@ -7,27 +7,27 @@
 module dispatch_top #(
     parameter integer DECODE_WIDTH           = 8,
     parameter integer AREG_IDX_WIDTH         = 6,
-    parameter integer PRF_IDX_WIDTH          = 11,
-    parameter integer ROB_IDX_WIDTH          = 11,
-    parameter integer STQ_IDX_WIDTH          = 9,
-    parameter integer LDQ_IDX_WIDTH          = 9,
+    parameter integer PRF_IDX_WIDTH       = 9,
+    parameter integer ROB_IDX_WIDTH       = 9,
+    parameter integer STQ_IDX_WIDTH       = 6,
+    parameter integer LDQ_IDX_WIDTH       = 6,
     parameter integer BR_TAG_WIDTH           = 6,
     parameter integer BR_MASK_WIDTH          = 64,
     parameter integer CSR_IDX_WIDTH          = 12,
-    parameter integer FTQ_IDX_WIDTH          = 8,
+    parameter integer FTQ_IDX_WIDTH       = 7,
     parameter integer FTQ_OFFSET_WIDTH       = 4,
     parameter integer INST_TYPE_WIDTH        = 5,
     parameter integer UOP_TYPE_WIDTH         = 5,
     parameter integer ROB_CPLT_MASK_WIDTH    = 3,
     parameter integer IQ_NUM                 = 5,
-    parameter integer IQ_READY_NUM_WIDTH     = 11,
+    parameter integer IQ_READY_NUM_WIDTH     = 8,
     parameter integer MAX_IQ_DISPATCH_WIDTH  = DECODE_WIDTH,
     parameter integer MAX_STQ_DISPATCH_WIDTH = DECODE_WIDTH,
     parameter integer MAX_LDQ_DISPATCH_WIDTH = DECODE_WIDTH,
-    parameter integer LSU_LOAD_WB_WIDTH      = 4,
-    parameter integer MAX_WAKEUP_PORTS       = 16,
-    parameter integer W_STQ_COUNT            = 10,
-    parameter integer W_LDQ_COUNT            = 10,
+    parameter integer LSU_LOAD_WB_WIDTH      = 3,
+    parameter integer MAX_WAKEUP_PORTS       = 11,
+    parameter integer W_STQ_COUNT            = 7,
+    parameter integer W_LDQ_COUNT            = 7,
     parameter integer W_RenDisInst           =
         32 + (3 * AREG_IDX_WIDTH) + (4 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH +
         FTQ_OFFSET_WIDTH + 1 + INST_TYPE_WIDTH + 3 + 1 + 2 + 2 + 3 + 7 +

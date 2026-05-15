@@ -1,24 +1,24 @@
-// Source struct:
+﻿// Source struct:
 //   PrfIn  = {iss2prf, exe2prf, dec_bcast, rob_bcast, ftq_prf_pc_resp}
 //   PrfOut = {prf2exe, prf_awake, ftq_prf_pc_req}
 // reg_file[PRF_NUM], bypass/equal logic and read/write slices are internal.
 
 module prf_top #(
-    parameter integer ISSUE_WIDTH         = 24,
-    parameter integer TOTAL_FU_COUNT      = 30,
-    parameter integer LSU_LOAD_WB_WIDTH   = 4,
-    parameter integer PRF_IDX_WIDTH       = 11,
-    parameter integer ROB_IDX_WIDTH       = 11,
-    parameter integer STQ_IDX_WIDTH       = 9,
-    parameter integer LDQ_IDX_WIDTH       = 9,
+    parameter integer ISSUE_WIDTH            = 15,
+    parameter integer TOTAL_FU_COUNT         = 19,
+    parameter integer LSU_LOAD_WB_WIDTH      = 3,
+    parameter integer PRF_IDX_WIDTH       = 9,
+    parameter integer ROB_IDX_WIDTH       = 9,
+    parameter integer STQ_IDX_WIDTH       = 6,
+    parameter integer LDQ_IDX_WIDTH       = 6,
     parameter integer BR_TAG_WIDTH        = 6,
     parameter integer BR_MASK_WIDTH       = 64,
     parameter integer CSR_IDX_WIDTH       = 12,
-    parameter integer FTQ_IDX_WIDTH       = 8,
+    parameter integer FTQ_IDX_WIDTH       = 7,
     parameter integer FTQ_OFFSET_WIDTH    = 4,
     parameter integer UOP_TYPE_WIDTH      = 5,
     parameter integer MAX_UOP_TYPE        = 18,
-    parameter integer FTQ_PRF_PC_PORT_NUM = 12,
+    parameter integer FTQ_PRF_PC_PORT_NUM    = 8,
     parameter integer W_IssPrfUop         =
         (3 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 +
         3 + 2 + 3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH +

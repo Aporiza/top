@@ -20,6 +20,8 @@
       --predict: #fff7d7;
       --check: #e7f3ff;
       --branch: #fff0ec;
+      --default-off: #e7ecee;
+      --default-off-ink: #8c989b;
       --active: #e64b3c;
       --active-soft: #fff2ef;
       --shadow: 0 16px 40px rgba(40, 60, 64, 0.14);
@@ -219,6 +221,17 @@
       opacity: 0.26;
     }
 
+    .module.default-off rect {
+      fill: #f7f7f7;
+      stroke: #cbd4d6;
+      stroke-dasharray: 6 5;
+      filter: none;
+    }
+
+    .module.default-off text {
+      fill: var(--default-off-ink);
+    }
+
     .module.active rect {
       stroke: var(--active);
       stroke-width: 2.6;
@@ -298,6 +311,12 @@
       opacity: 0.26;
     }
 
+    .edge.default-off {
+      stroke: #cbd4d6;
+      stroke-dasharray: 8 7;
+      opacity: 0.22;
+    }
+
     .edge.active {
       stroke: var(--active);
       stroke-width: 2.2;
@@ -331,6 +350,10 @@
       opacity: 0;
       pointer-events: none;
       transition: opacity 0.15s ease, fill 0.15s ease;
+    }
+
+    .edge-label.default-off {
+      fill: var(--default-off-ink);
     }
 
     .edge-label.dim {
@@ -506,9 +529,9 @@
   <div class="app">
     <aside>
       <h1>Frontend Top</h1>
-      <h2>Active Config</h2>
-      <p>训练视角按 <code>SimCpu::front_cycle()</code> 顺序展开：<code>CONFIG_BPU</code>、Oracle、2-Ahead/NLP、ICache slot1、fetch-to-ICache bypass、ICache-to-predecode bypass、front2back-output bypass 都在图中保留。</p>
-      <p>基于新版 <code>simulator-new</code> 的前端 comb 训练单元与可选分支绘制。支持缩放、拖拽、点击模块、连线和路径高亮。</p>
+      <h2>Default Config</h2>
+      <p>按 27 个正式 comb 训练边界显示；helper、内部子函数和默认关闭分支只写入源码依据，不再单独铺成模块框。</p>
+      <p>点击模块、连线或路径时，右侧会展开对应路径说明、源码依据和边界口径；图中连线按正式模块之间的调用/数据关系高亮。</p>
 
       <h2>路径高亮</h2>
       <div class="path-list" id="pathList"></div>
@@ -526,11 +549,9 @@
       <div class="legend">
         <div class="legend-item"><span class="swatch" style="background: var(--front);"></span>front_top 胶水逻辑</div>
         <div class="legend-item"><span class="swatch" style="background: var(--bpu);"></span>BPU 组合逻辑</div>
-        <div class="legend-item"><span class="swatch" style="background: var(--predict);"></span>预测子模块</div>
+        <div class="legend-item"><span class="swatch" style="background: var(--predict);"></span>预测器 comb</div>
         <div class="legend-item"><span class="swatch" style="background: var(--fifo);"></span>FIFO / PTAB</div>
         <div class="legend-item"><span class="swatch" style="background: var(--check);"></span>predecode / checker</div>
-        <div class="legend-item"><span class="swatch" style="background: var(--branch);"></span>展开训练分支</div>
-        <div class="legend-item"><span class="swatch" style="background: var(--external);"></span>外部边界</div>
       </div>
     </aside>
 
@@ -539,7 +560,7 @@
         <strong>Interactive Frontend Top</strong>
         <span>滚轮缩放，拖拽平移，点击模块、连线或路径查看源码依据</span>
       </div>
-      <svg id="canvas" viewBox="0 0 2050 1300" role="img" aria-label="Frontend top interactive diagram">
+      <svg id="canvas" viewBox="0 0 2350 1460" role="img" aria-label="Frontend top interactive diagram">
         <defs>
           <marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto" markerUnits="strokeWidth">
             <path d="M0,0 L10,4 L0,8 Z" fill="#9aabb0"></path>
@@ -563,19 +584,6 @@
     "use strict";
 
     const modules = [
-      {
-        id: "external_in",
-        name: "front_top_in",
-        group: "external",
-        x: 40,
-        y: 430,
-        w: 170,
-        h: 74,
-        kind: "外部输入",
-        file: "front-end/front_IO.h",
-        bits: "front_top_in",
-        desc: "后端反馈、CSR 状态、refetch、flush、训练元信息等前端总输入。"
-      },
       {
         id: "front_global_control_comb",
         name: "front_global_control_comb",
@@ -612,7 +620,7 @@
         h: 76,
         kind: "front_top glue",
         file: "front-end/front_top.cpp",
-        bits: "7 -> 2897",
+        bits: "7 -> 12",
         desc: "把全局控制和读使能拆给 fetch address FIFO、instruction FIFO、PTAB、front2back FIFO。"
       },
       {
@@ -638,7 +646,7 @@
         h: 76,
         kind: "BPU_TOP",
         file: "front-end/BPU/BPU.h",
-        bits: "26296 -> 324",
+        bits: "369 -> 875",
         desc: "BPU 预读请求阶段，产生 TypePredictor/TAGE/BTB 等子模块的读取请求。"
       },
       {
@@ -690,7 +698,7 @@
         h: 76,
         kind: "BPU_TOP",
         file: "front-end/BPU/BPU.h",
-        bits: "26296 -> 5565",
+        bits: "7332 -> 22509",
         desc: "BPU 后读请求阶段，将读出的状态整理成子模块组合计算输入。"
       },
       {
@@ -749,117 +757,52 @@
         id: "bpu_submodule_bind_comb",
         name: "bpu_submodule_bind_comb",
         group: "bpu",
-        x: 1125,
-        y: 250,
+        x: 1220,
+        y: 230,
         w: 235,
         h: 76,
         kind: "BPU_TOP",
         file: "front-end/BPU/BPU.h",
-        bits: "31219 -> 420",
+        bits: "1856 -> 1680",
         desc: "把 TypePredictor/TAGE/BTB 等子模块结果绑定成 BPU 主预测输入。"
       },
       {
         id: "bpu_predict_main_comb",
         name: "bpu_predict_main_comb",
         group: "bpu",
-        x: 1125,
-        y: 370,
+        x: 1220,
+        y: 360,
         w: 235,
         h: 76,
         kind: "BPU_TOP",
         file: "front-end/BPU/BPU.h",
-        bits: "27448 -> 1606",
+        bits: "5798 -> 6502",
         desc: "BPU 主预测组合逻辑，生成 fetch_address、predict_dir、target 和 metadata。"
-      },
-      {
-        id: "bpu_nlp_comb",
-        name: "bpu_nlp_comb",
-        group: "branch",
-        x: 1125,
-        y: 610,
-        w: 235,
-        h: 76,
-        kind: "2-Ahead / NLP",
-        file: "front-end/BPU/BPU.h",
-        bits: "ifdef ENABLE_2AHEAD",
-        desc: "2-Ahead/NLP 分支，基于 stage1/stage2 NLP 结果生成 two_ahead_target、mini_flush_req/correct 等信号；训练视角需要展开。"
       },
       {
         id: "bpu_hist_comb",
         name: "bpu_hist_comb",
         group: "bpu",
-        x: 1125,
+        x: 1220,
         y: 500,
         w: 235,
         h: 84,
         kind: "BPU_TOP",
         file: "front-end/BPU/BPU.h",
-        bits: "26320 -> 2859",
-        desc: "BPU 历史更新组合逻辑。生成目录中常进一步拆成 pred/commit/RAS/step 等子块。"
-      },
-      {
-        id: "bpu_hist_pred_ctrl_comb",
-        name: "bpu_hist_pred_ctrl_comb",
-        group: "hist",
-        x: 1395,
-        y: 442,
-        w: 205,
-        h: 56,
-        kind: "generated child",
-        file: "training_io/generated",
-        bits: "bpu_hist_comb 子块",
-        desc: "截图中的 bpu_hist 细分子块，用于预测路径历史控制。"
-      },
-      {
-        id: "bpu_hist_commit_ctrl_comb",
-        name: "bpu_hist_commit_ctrl_comb",
-        group: "hist",
-        x: 1395,
-        y: 508,
-        w: 205,
-        h: 56,
-        kind: "generated child",
-        file: "training_io/generated",
-        bits: "bpu_hist_comb 子块",
-        desc: "截图中的 bpu_hist 细分子块，用于提交反馈历史控制。"
-      },
-      {
-        id: "bpu_hist_ras_step_comb",
-        name: "bpu_hist_ras_step_comb",
-        group: "hist",
-        x: 1395,
-        y: 574,
-        w: 205,
-        h: 56,
-        kind: "generated child",
-        file: "training_io/generated",
-        bits: "bpu_hist_comb 子块",
-        desc: "截图中的 bpu_hist 细分子块，用于 RAS 相关历史推进。"
-      },
-      {
-        id: "bpu_hist_step_comb",
-        name: "bpu_hist_step_comb",
-        group: "hist",
-        x: 1395,
-        y: 640,
-        w: 205,
-        h: 56,
-        kind: "generated child",
-        file: "training_io/generated",
-        bits: "bpu_hist_comb 子块",
-        desc: "截图中的 bpu_hist 细分子块，用于历史状态最终 step。"
+        bits: "6944 -> 5935",
+        desc: "BPU 历史更新正式训练边界。bpu_hist_* 生成子函数只作为源码依据，不再单独展开为模块。"
       },
       {
         id: "bpu_queue_comb",
         name: "bpu_queue_comb",
         group: "bpu",
-        x: 1125,
-        y: 710,
+        x: 1220,
+        y: 800,
         w: 235,
         h: 76,
         kind: "BPU_TOP",
         file: "front-end/BPU/BPU.h",
-        bits: "26296 -> 769",
+        bits: "3152 -> 3281",
         desc: "BPU 更新队列组合逻辑，处理后端训练更新和队列 full/stall。"
       },
       {
@@ -874,19 +817,6 @@
         file: "front-end/fifo/fetch_address_FIFO.cpp",
         bits: "296 -> 70",
         desc: "缓存 BPU 产生的取指地址；训练视角同时展开普通写入、2-Ahead 第二次写入和 fetch-to-ICache bypass 旁路。"
-      },
-      {
-        id: "fetch_to_icache_bypass_path",
-        name: "fetch-to-ICache bypass",
-        group: "branch",
-        x: 570,
-        y: 720,
-        w: 220,
-        h: 72,
-        kind: "optional branch",
-        file: "front-end/front_top.cpp",
-        bits: "1388 -> 1450",
-        desc: "当 fetch address FIFO 没有可读项且 BPU 新地址可直接送 ICache 时，绕过 FIFO 读出阶段。"
       },
       {
         id: "predecode_comb",
@@ -913,32 +843,6 @@
         file: "front-end/fifo/instruction_FIFO.cpp",
         bits: "3896 -> 870",
         desc: "缓存 ICache 指令组、PC、有效位、异常位和 predecode 结果。"
-      },
-      {
-        id: "icache_slot1_path",
-        name: "ICache slot1 path",
-        group: "branch",
-        x: 570,
-        y: 1045,
-        w: 220,
-        h: 72,
-        kind: "optional branch",
-        file: "front-end/front_top.cpp",
-        bits: "1227 -> 1680",
-        desc: "理想 ICache 双请求分支：第二次读取 fetch address FIFO，发出 icache_read_valid_2，并把 slot1 返回写入 instruction FIFO。"
-      },
-      {
-        id: "icache_to_predecode_bypass_path",
-        name: "ICache-to-predecode bypass",
-        group: "branch",
-        x: 850,
-        y: 1045,
-        w: 250,
-        h: 72,
-        kind: "optional branch",
-        file: "front-end/front_top.cpp",
-        bits: "1529 -> 1575",
-        desc: "当 instruction FIFO 为空且 ICache slot0 已返回时，直接组合 predecode 并与 PTAB 输入 checker，减少一级 FIFO 等待。"
       },
       {
         id: "front_ptab_write_comb",
@@ -1009,8 +913,8 @@
         id: "front2back_FIFO_comb",
         name: "front2back_FIFO_comb",
         group: "fifo",
-        x: 1120,
-        y: 930,
+        x: 1200,
+        y: 950,
         w: 225,
         h: 76,
         kind: "front2back_FIFO",
@@ -1022,121 +926,310 @@
         id: "front_output_comb",
         name: "front_output_comb",
         group: "front",
-        x: 1390,
-        y: 930,
+        x: 1510,
+        y: 950,
         w: 210,
         h: 76,
         kind: "front_top glue",
         file: "front-end/front_top.cpp",
         bits: "2559 -> 1277",
         desc: "从 front2back FIFO 或 front2back 输出 bypass 中选择最终 front_top_out；该 bypass 在当前路径中保留。"
-      },
-      {
-        id: "external_out",
-        name: "front_top_out",
-        group: "external",
-        x: 1390,
-        y: 805,
-        w: 190,
-        h: 74,
-        kind: "外部输出",
-        file: "front-end/front_IO.h",
-        bits: "front_top_out",
-        desc: "送往后端的 PC、指令、有效位、预测方向、下一取指地址和训练元信息。"
-      },
-      {
-        id: "oracle_frontend_path",
-        name: "Oracle step_oracle path",
-        group: "branch",
-        x: 1660,
-        y: 805,
-        w: 250,
-        h: 74,
-        kind: "simulator branch",
-        file: "rv_simu_mmu_v2.cpp / FrontTop.cpp",
-        bits: "727 -> 790",
-        desc: "CONFIG_BPU 未走硬件 BPU 时的模拟器 oracle 分支，使用 step_oracle()/get_oracle() 生成前端输出；不应伪装成可综合硬件。"
       }
     ];
 
     const groups = {
-      front: { fill: "var(--front)", label: "front_top glue" },
-      bpu: { fill: "var(--bpu)", label: "BPU_TOP" },
-      hist: { fill: "#f2edff", label: "bpu_hist generated children" },
-      predict: { fill: "var(--predict)", label: "Predictor submodules" },
-      fifo: { fill: "var(--fifo)", label: "FIFO / PTAB" },
-      check: { fill: "var(--check)", label: "predecode / checker" },
-      branch: { fill: "var(--branch)", label: "Expanded training branches" },
-      external: { fill: "var(--external)", label: "External boundary" }
+      front: {
+        fill: "var(--front)",
+        label: "front_top glue"
+      },
+      bpu: {
+        fill: "var(--bpu)",
+        label: "BPU_TOP"
+      },
+      predict: {
+        fill: "var(--predict)",
+        label: "Predictor submodules"
+      },
+      fifo: {
+        fill: "var(--fifo)",
+        label: "FIFO / PTAB"
+      },
+      check: {
+        fill: "var(--check)",
+        label: "predecode / checker"
+      }
     };
 
     const clusters = [
-      { id: "frontCluster", title: "front_top glue comb", x: 240, y: 82, w: 285, h: 930 },
-      { id: "bpuCluster", title: "BPU_TOP comb", x: 540, y: 82, w: 840, h: 735 },
-      { id: "predictCluster", title: "Predictor submodules", x: 820, y: 18, w: 280, h: 680 },
-      { id: "dataCluster", title: "Instruction / prediction queues", x: 540, y: 805, w: 835, h: 225 },
-      { id: "branchCluster", title: "Expanded branch paths", x: 540, y: 1028, w: 600, h: 120 }
+      {
+        id: "frontCluster",
+        title: "front_top glue comb",
+        x: 240,
+        y: 82,
+        w: 285,
+        h: 930
+      },
+      {
+        id: "bpuCluster",
+        title: "BPU_TOP comb",
+        x: 540,
+        y: 82,
+        w: 1045,
+        h: 800
+      },
+      {
+        id: "predictCluster",
+        title: "Predictor submodules",
+        x: 820,
+        y: 18,
+        w: 320,
+        h: 700
+      },
+      {
+        id: "dataCluster",
+        title: "Instruction / prediction queues",
+        x: 540,
+        y: 805,
+        w: 1200,
+        h: 245
+      }
     ];
 
     const edges = [
-      { id: "e_in_global", from: "external_in", to: "front_global_control_comb", label: "reset/refetch" },
-      { id: "e_in_bpu_ctrl", from: "external_in", to: "front_bpu_control_comb", label: "back2front + meta" },
-      { id: "e_global_read", from: "front_global_control_comb", to: "front_read_enable_comb", label: "global_refetch" },
-      { id: "e_read_stage", from: "front_read_enable_comb", to: "front_read_stage_input_comb", label: "read enables" },
-      { id: "e_global_bpu", from: "front_global_control_comb", to: "front_bpu_control_comb", label: "refetch addr" },
-      { id: "e_bpu_ctrl_pre", from: "front_bpu_control_comb", to: "bpu_pre_read_req_comb", label: "BPU input" },
-      { id: "e_pre_type_pre", from: "bpu_pre_read_req_comb", to: "type_predictor_pre_read_comb", label: "type read req" },
-      { id: "e_pre_tage_pre", from: "bpu_pre_read_req_comb", to: "tage_pre_read_comb", label: "tage read req" },
-      { id: "e_pre_btb_pre", from: "bpu_pre_read_req_comb", to: "btb_pre_read_comb", label: "btb read req" },
-      { id: "e_pre_post", from: "bpu_pre_read_req_comb", to: "bpu_post_read_req_comb", label: "read data" },
-      { id: "e_type_pre_type", from: "type_predictor_pre_read_comb", to: "type_pred_comb", label: "type rd" },
-      { id: "e_tage_pre_tage", from: "tage_pre_read_comb", to: "tage_comb", label: "tage rd" },
-      { id: "e_btb_pre_post", from: "btb_pre_read_comb", to: "btb_post_read_req_comb", label: "btb rd" },
-      { id: "e_btb_post_btb", from: "btb_post_read_req_comb", to: "btb_comb", label: "btb state" },
-      { id: "e_post_type", from: "bpu_post_read_req_comb", to: "type_pred_comb", label: "type in" },
-      { id: "e_post_tage", from: "bpu_post_read_req_comb", to: "tage_comb", label: "tage in" },
-      { id: "e_post_btb", from: "bpu_post_read_req_comb", to: "btb_comb", label: "btb in" },
-      { id: "e_type_bind", from: "type_pred_comb", to: "bpu_submodule_bind_comb", label: "type out" },
-      { id: "e_tage_bind", from: "tage_comb", to: "bpu_submodule_bind_comb", label: "dir out" },
-      { id: "e_btb_bind", from: "btb_comb", to: "bpu_submodule_bind_comb", label: "target out" },
-      { id: "e_bind_predict", from: "bpu_submodule_bind_comb", to: "bpu_predict_main_comb", label: "predict bundle" },
-      { id: "e_predict_hist", from: "bpu_predict_main_comb", to: "bpu_hist_comb", label: "prediction result" },
-      { id: "e_predict_queue", from: "bpu_predict_main_comb", to: "bpu_queue_comb", label: "update queue" },
-      { id: "e_predict_nlp", from: "bpu_predict_main_comb", to: "bpu_nlp_comb", label: "2-ahead seed", optional: true },
-      { id: "e_post_nlp", from: "bpu_post_read_req_comb", to: "bpu_nlp_comb", label: "NLP read data", optional: true },
-      { id: "e_hist_child1", from: "bpu_hist_comb", to: "bpu_hist_pred_ctrl_comb", label: "pred ctrl" },
-      { id: "e_hist_child2", from: "bpu_hist_comb", to: "bpu_hist_commit_ctrl_comb", label: "commit ctrl" },
-      { id: "e_hist_child3", from: "bpu_hist_comb", to: "bpu_hist_ras_step_comb", label: "RAS step" },
-      { id: "e_hist_child4", from: "bpu_hist_comb", to: "bpu_hist_step_comb", label: "hist step" },
-      { id: "e_predict_fetch_fifo", from: "bpu_predict_main_comb", to: "fetch_address_FIFO_comb", label: "fetch_address" },
-      { id: "e_nlp_fetch_fifo", from: "bpu_nlp_comb", to: "fetch_address_FIFO_comb", label: "two_ahead_target", optional: true },
-      { id: "e_predict_fetch_bypass", from: "bpu_predict_main_comb", to: "fetch_to_icache_bypass_path", label: "direct fetch addr", optional: true },
-      { id: "e_bypass_predecode", from: "fetch_to_icache_bypass_path", to: "predecode_comb", label: "ICache slot0 req", optional: true },
-      { id: "e_read_fetch_fifo", from: "front_read_stage_input_comb", to: "fetch_address_FIFO_comb", label: "read/write en" },
-      { id: "e_fetch_predecode", from: "fetch_address_FIFO_comb", to: "predecode_comb", label: "ICache fetch group" },
-      { id: "e_fetch_instfifo", from: "fetch_address_FIFO_comb", to: "instruction_FIFO_comb", label: "fetch group" },
-      { id: "e_predecode_instfifo", from: "predecode_comb", to: "instruction_FIFO_comb", label: "predecode result" },
-      { id: "e_fetch_slot1", from: "fetch_address_FIFO_comb", to: "icache_slot1_path", label: "slot1 req", optional: true },
-      { id: "e_slot1_predecode", from: "icache_slot1_path", to: "predecode_comb", label: "slot1 fetch group", optional: true },
-      { id: "e_slot1_instfifo", from: "icache_slot1_path", to: "instruction_FIFO_comb", label: "slot1 write", optional: true },
-      { id: "e_icache_bypass_predecode", from: "predecode_comb", to: "icache_to_predecode_bypass_path", label: "predecode now", optional: true },
-      { id: "e_icache_bypass_checker", from: "icache_to_predecode_bypass_path", to: "front_checker_input_comb", label: "bypass FIFO", optional: true },
-      { id: "e_predict_ptab_write", from: "bpu_predict_main_comb", to: "front_ptab_write_comb", label: "predict meta" },
-      { id: "e_ptab_write_ptab", from: "front_ptab_write_comb", to: "PTAB_comb", label: "PTAB in" },
-      { id: "e_read_ptab", from: "front_read_stage_input_comb", to: "PTAB_comb", label: "read en" },
-      { id: "e_inst_checker_input", from: "instruction_FIFO_comb", to: "front_checker_input_comb", label: "predecode side" },
-      { id: "e_ptab_checker_input", from: "PTAB_comb", to: "front_checker_input_comb", label: "predict side" },
-      { id: "e_checker_input_checker", from: "front_checker_input_comb", to: "predecode_checker_comb", label: "checker in" },
-      { id: "e_checker_global", from: "predecode_checker_comb", to: "front_global_control_comb", label: "flush" },
-      { id: "e_checker_f2b_write", from: "predecode_checker_comb", to: "front_front2back_write_comb", label: "corrected pred" },
-      { id: "e_inst_f2b_write", from: "instruction_FIFO_comb", to: "front_front2back_write_comb", label: "instructions" },
-      { id: "e_ptab_f2b_write", from: "PTAB_comb", to: "front_front2back_write_comb", label: "predict meta" },
-      { id: "e_write_f2b", from: "front_front2back_write_comb", to: "front2back_FIFO_comb", label: "front2back in" },
-      { id: "e_read_f2b", from: "front_read_stage_input_comb", to: "front2back_FIFO_comb", label: "read en" },
-      { id: "e_f2b_output", from: "front2back_FIFO_comb", to: "front_output_comb", label: "front2back out" },
-      { id: "e_output_external", from: "front_output_comb", to: "external_out", label: "front_top_out" },
-      { id: "e_oracle_in", from: "external_in", to: "oracle_frontend_path", label: "oracle input", optional: true },
-      { id: "e_oracle_out", from: "oracle_frontend_path", to: "external_out", label: "oracle out", optional: true }
+      {
+        id: "e_global_read",
+        from: "front_global_control_comb",
+        to: "front_read_enable_comb",
+        label: "global_refetch"
+      },
+      {
+        id: "e_read_stage",
+        from: "front_read_enable_comb",
+        to: "front_read_stage_input_comb",
+        label: "read enables"
+      },
+      {
+        id: "e_global_bpu",
+        from: "front_global_control_comb",
+        to: "front_bpu_control_comb",
+        label: "refetch addr"
+      },
+      {
+        id: "e_bpu_ctrl_pre",
+        from: "front_bpu_control_comb",
+        to: "bpu_pre_read_req_comb",
+        label: "BPU input"
+      },
+      {
+        id: "e_pre_type_pre",
+        from: "bpu_pre_read_req_comb",
+        to: "type_predictor_pre_read_comb",
+        label: "type read req"
+      },
+      {
+        id: "e_pre_tage_pre",
+        from: "bpu_pre_read_req_comb",
+        to: "tage_pre_read_comb",
+        label: "tage read req"
+      },
+      {
+        id: "e_pre_btb_pre",
+        from: "bpu_pre_read_req_comb",
+        to: "btb_pre_read_comb",
+        label: "btb read req"
+      },
+      {
+        id: "e_pre_post",
+        from: "bpu_pre_read_req_comb",
+        to: "bpu_post_read_req_comb",
+        label: "read data"
+      },
+      {
+        id: "e_type_pre_type",
+        from: "type_predictor_pre_read_comb",
+        to: "type_pred_comb",
+        label: "type rd"
+      },
+      {
+        id: "e_tage_pre_tage",
+        from: "tage_pre_read_comb",
+        to: "tage_comb",
+        label: "tage rd"
+      },
+      {
+        id: "e_btb_pre_post",
+        from: "btb_pre_read_comb",
+        to: "btb_post_read_req_comb",
+        label: "btb rd"
+      },
+      {
+        id: "e_btb_post_btb",
+        from: "btb_post_read_req_comb",
+        to: "btb_comb",
+        label: "btb state"
+      },
+      {
+        id: "e_post_type",
+        from: "bpu_post_read_req_comb",
+        to: "type_pred_comb",
+        label: "type in"
+      },
+      {
+        id: "e_post_tage",
+        from: "bpu_post_read_req_comb",
+        to: "tage_comb",
+        label: "tage in"
+      },
+      {
+        id: "e_post_btb",
+        from: "bpu_post_read_req_comb",
+        to: "btb_comb",
+        label: "btb in"
+      },
+      {
+        id: "e_type_bind",
+        from: "type_pred_comb",
+        to: "bpu_submodule_bind_comb",
+        label: "type out"
+      },
+      {
+        id: "e_tage_bind",
+        from: "tage_comb",
+        to: "bpu_submodule_bind_comb",
+        label: "dir out"
+      },
+      {
+        id: "e_btb_bind",
+        from: "btb_comb",
+        to: "bpu_submodule_bind_comb",
+        label: "target out"
+      },
+      {
+        id: "e_bind_predict",
+        from: "bpu_submodule_bind_comb",
+        to: "bpu_predict_main_comb",
+        label: "predict bundle"
+      },
+      {
+        id: "e_predict_hist",
+        from: "bpu_predict_main_comb",
+        to: "bpu_hist_comb",
+        label: "prediction result"
+      },
+      {
+        id: "e_predict_queue",
+        from: "bpu_predict_main_comb",
+        to: "bpu_queue_comb",
+        label: "update queue"
+      },
+      {
+        id: "e_predict_fetch_fifo",
+        from: "bpu_predict_main_comb",
+        to: "fetch_address_FIFO_comb",
+        label: "fetch_address"
+      },
+      {
+        id: "e_read_fetch_fifo",
+        from: "front_read_stage_input_comb",
+        to: "fetch_address_FIFO_comb",
+        label: "read/write en"
+      },
+      {
+        id: "e_fetch_predecode",
+        from: "fetch_address_FIFO_comb",
+        to: "predecode_comb",
+        label: "ICache fetch group"
+      },
+      {
+        id: "e_fetch_instfifo",
+        from: "fetch_address_FIFO_comb",
+        to: "instruction_FIFO_comb",
+        label: "fetch group"
+      },
+      {
+        id: "e_predecode_instfifo",
+        from: "predecode_comb",
+        to: "instruction_FIFO_comb",
+        label: "predecode result"
+      },
+      {
+        id: "e_predict_ptab_write",
+        from: "bpu_predict_main_comb",
+        to: "front_ptab_write_comb",
+        label: "predict meta"
+      },
+      {
+        id: "e_ptab_write_ptab",
+        from: "front_ptab_write_comb",
+        to: "PTAB_comb",
+        label: "PTAB in"
+      },
+      {
+        id: "e_read_ptab",
+        from: "front_read_stage_input_comb",
+        to: "PTAB_comb",
+        label: "read en"
+      },
+      {
+        id: "e_inst_checker_input",
+        from: "instruction_FIFO_comb",
+        to: "front_checker_input_comb",
+        label: "predecode side"
+      },
+      {
+        id: "e_ptab_checker_input",
+        from: "PTAB_comb",
+        to: "front_checker_input_comb",
+        label: "predict side"
+      },
+      {
+        id: "e_checker_input_checker",
+        from: "front_checker_input_comb",
+        to: "predecode_checker_comb",
+        label: "checker in"
+      },
+      {
+        id: "e_checker_global",
+        from: "predecode_checker_comb",
+        to: "front_global_control_comb",
+        label: "flush"
+      },
+      {
+        id: "e_checker_f2b_write",
+        from: "predecode_checker_comb",
+        to: "front_front2back_write_comb",
+        label: "corrected pred"
+      },
+      {
+        id: "e_inst_f2b_write",
+        from: "instruction_FIFO_comb",
+        to: "front_front2back_write_comb",
+        label: "instructions"
+      },
+      {
+        id: "e_ptab_f2b_write",
+        from: "PTAB_comb",
+        to: "front_front2back_write_comb",
+        label: "predict meta"
+      },
+      {
+        id: "e_write_f2b",
+        from: "front_front2back_write_comb",
+        to: "front2back_FIFO_comb",
+        label: "front2back in"
+      },
+      {
+        id: "e_read_f2b",
+        from: "front_read_stage_input_comb",
+        to: "front2back_FIFO_comb",
+        label: "read en"
+      },
+      {
+        id: "e_f2b_output",
+        from: "front2back_FIFO_comb",
+        to: "front_output_comb",
+        label: "front2back out"
+      }
     ];
 
     const paths = [
@@ -1241,140 +1334,40 @@
       {
         id: "front2back",
         name: "前端输出路径",
-        desc: "指令流、预测上下文和 checker 修正结果汇总到 front2back FIFO，再形成 front_top_out。",
+        desc: "instruction FIFO, PTAB and checker correction write front2back FIFO; front_output_comb forms the front-end output boundary.",
         nodes: [
           "instruction_FIFO_comb",
           "PTAB_comb",
           "predecode_checker_comb",
           "front_front2back_write_comb",
           "front2back_FIFO_comb",
-          "front_output_comb",
-          "external_out"
+          "front_output_comb"
         ],
         edges: [
           "e_inst_f2b_write",
           "e_ptab_f2b_write",
           "e_checker_f2b_write",
           "e_write_f2b",
-          "e_f2b_output",
-          "e_output_external"
+          "e_f2b_output"
         ]
       },
       {
         id: "hist",
-        name: "bpu_hist 展开路径",
-        desc: "对应学长截图中 bpu_hist 进一步拆出的几个 generated 子块。",
+        name: "bpu_hist 正式边界路径",
+        desc: "历史更新只按 bpu_hist_comb 一个正式模块展示；bpu_hist_* 生成子函数只保留在源码依据里。",
         nodes: [
           "bpu_predict_main_comb",
           "bpu_hist_comb",
-          "bpu_hist_pred_ctrl_comb",
-          "bpu_hist_commit_ctrl_comb",
-          "bpu_hist_ras_step_comb",
-          "bpu_hist_step_comb"
+          "bpu_queue_comb"
         ],
         edges: [
           "e_predict_hist",
-          "e_hist_child1",
-          "e_hist_child2",
-          "e_hist_child3",
-          "e_hist_child4"
-        ]
-      },
-      {
-        id: "twoahead",
-        name: "2-Ahead / NLP 路径",
-        desc: "展开 ENABLE_2AHEAD 下的 NLP stage1/stage2、two_ahead_target 和 mini-flush 相关写入。",
-        nodes: [
-          "bpu_post_read_req_comb",
-          "bpu_predict_main_comb",
-          "bpu_nlp_comb",
-          "fetch_address_FIFO_comb",
-          "PTAB_comb"
-        ],
-        edges: [
-          "e_post_nlp",
-          "e_predict_nlp",
-          "e_nlp_fetch_fifo",
-          "e_predict_ptab_write",
-          "e_ptab_write_ptab"
-        ]
-      },
-      {
-        id: "slot1",
-        name: "ICache slot1 双请求路径",
-        desc: "展开 FRONTEND_IDEAL_ICACHE_DUAL_REQ_ACTIVE 下第二路取指请求与第二次 instruction FIFO 写入。",
-        nodes: [
-          "front_read_enable_comb",
-          "front_read_stage_input_comb",
-          "fetch_address_FIFO_comb",
-          "icache_slot1_path",
-          "predecode_comb",
-          "instruction_FIFO_comb"
-        ],
-        edges: [
-          "e_read_stage",
-          "e_read_fetch_fifo",
-          "e_fetch_slot1",
-          "e_slot1_predecode",
-          "e_slot1_instfifo",
-          "e_predecode_instfifo"
-        ]
-      },
-      {
-        id: "fetch_bypass",
-        name: "fetch-to-ICache bypass",
-        desc: "展开 BPU 新取指地址绕过 fetch address FIFO、直接驱动 ICache slot0 的路径。",
-        nodes: [
-          "bpu_predict_main_comb",
-          "fetch_to_icache_bypass_path",
-          "predecode_comb",
-          "instruction_FIFO_comb"
-        ],
-        edges: [
-          "e_predict_fetch_bypass",
-          "e_bypass_predecode",
-          "e_predecode_instfifo"
-        ]
-      },
-      {
-        id: "icache_bypass",
-        name: "ICache-to-predecode bypass",
-        desc: "展开 ICache slot0 返回后绕过 instruction FIFO、直接进入 predecode/checker 的路径。",
-        nodes: [
-          "predecode_comb",
-          "icache_to_predecode_bypass_path",
-          "front_checker_input_comb",
-          "predecode_checker_comb",
-          "front_front2back_write_comb"
-        ],
-        edges: [
-          "e_icache_bypass_predecode",
-          "e_icache_bypass_checker",
-          "e_checker_input_checker",
-          "e_checker_f2b_write"
-        ]
-      },
-      {
-        id: "oracle",
-        name: "Oracle step_oracle 路径",
-        desc: "展开 CONFIG_BPU 关闭时的模拟器 oracle 分支；该分支用于参考/训练对齐，不是可综合前端硬件。",
-        nodes: [
-          "external_in",
-          "oracle_frontend_path",
-          "external_out"
-        ],
-        edges: [
-          "e_oracle_in",
-          "e_oracle_out"
+          "e_predict_queue"
         ]
       }
     ];
 
     const moduleEvidence = {
-      external_in: [
-        "simulator-new/rv_simu_mmu_v2.cpp:673-681 writes front.in fields in the active CONFIG_BPU path",
-        "simulator-new/front-end/front_top.cpp:1290-1326 copies front_top_in fields into BPU control input"
-      ],
       front_global_control_comb: [
         "simulator-new/front-end/front_top.cpp:613-621 defines front_global_control_comb",
         "simulator-new/front-end/front_top.cpp:1092-1102 calls it before other front stages"
@@ -1435,29 +1428,10 @@
         "simulator-new/front-end/BPU/BPU.h:1070 defines bpu_predict_main_comb",
         "simulator-new/front-end/BPU/BPU.h:1641 calls it to produce the main BPU prediction output"
       ],
-      bpu_nlp_comb: [
-        "simulator-new/front-end/BPU/BPU.h:1185-1258 defines bpu_nlp_comb under ENABLE_2AHEAD",
-        "simulator-new/front-end/BPU/BPU.h:1677-1681 consumes nlp_out to update two-ahead and mini-flush state"
-      ],
       bpu_hist_comb: [
-        "simulator-new/front-end/BPU/BPU.h:1261 defines bpu_hist_comb",
-        "simulator-new/front-end/BPU/BPU.h:1726 calls it during BPU core comb calculation"
-      ],
-      bpu_hist_pred_ctrl_comb: [
-        "simulator-new/front-end/BPU/BPU.h:1261 bpu_hist_comb is the source wrapper for generated hist children",
-        "simulator-new/front-end/TRAINING_FUNCTION_LIST.md:86 keeps bpu_hist_comb as the formal training unit"
-      ],
-      bpu_hist_commit_ctrl_comb: [
-        "simulator-new/front-end/BPU/BPU.h:1261 bpu_hist_comb is the source wrapper for generated hist children",
-        "simulator-new/front-end/TRAINING_FUNCTION_LIST.md:86 keeps bpu_hist_comb as the formal training unit"
-      ],
-      bpu_hist_ras_step_comb: [
-        "simulator-new/front-end/BPU/BPU.h:1261 bpu_hist_comb is the source wrapper for generated hist children",
-        "simulator-new/front-end/TRAINING_FUNCTION_LIST.md:86 keeps bpu_hist_comb as the formal training unit"
-      ],
-      bpu_hist_step_comb: [
-        "simulator-new/front-end/BPU/BPU.h:1261 bpu_hist_comb is the source wrapper for generated hist children",
-        "simulator-new/front-end/TRAINING_FUNCTION_LIST.md:86 keeps bpu_hist_comb as the formal training unit"
+        "simulator-new/front-end/BPU/BPU.h:26320-29179 defines bpu_hist_comb as the formal history-update training boundary",
+        "training_io/generated/bpu_hist_* are generated/internal child functions of bpu_hist_comb; the 27-module view does not expand them as separate modules",
+        "simulator-new/front-end/BPU/BPU.h:1671 calls bpu_hist_comb from BPU_TOP step_bpu flow"
       ],
       bpu_queue_comb: [
         "simulator-new/front-end/BPU/BPU.h:1407 defines bpu_queue_comb",
@@ -1466,11 +1440,7 @@
       fetch_address_FIFO_comb: [
         "simulator-new/front-end/fifo/fetch_address_FIFO.cpp:165 defines fetch_address_FIFO_comb_calc",
         "simulator-new/front-end/front_top.cpp:1219 and 1403 call it for read and write phases",
-        "simulator-new/front-end/front_top.cpp:1411-1424 adds the ENABLE_2AHEAD second write branch"
-      ],
-      fetch_to_icache_bypass_path: [
-        "simulator-new/front-end/front_top.cpp:1388-1395 computes can_bypass_fetch_to_icache",
-        "simulator-new/front-end/front_top.cpp:1445-1450 drives ICache from bpu_output.fetch_address when the bypass fires"
+        "simulator-new/front-end/front_top.cpp:1411-1424 adds the ENABLE_2AHEAD second write branch; default ENABLE_2AHEAD is off"
       ],
       predecode_comb: [
         "simulator-new/front-end/predecode.cpp:16 defines predecode_comb",
@@ -1480,15 +1450,6 @@
         "simulator-new/front-end/fifo/instruction_FIFO.cpp:189 defines instruction_FIFO_comb_calc",
         "simulator-new/front-end/front_top.cpp:1250 and 1634 call it for read and write phases",
         "simulator-new/front-end/front_top.cpp:1641-1680 writes the ICache slot1 response when dual-request mode is active"
-      ],
-      icache_slot1_path: [
-        "simulator-new/front-end/front_top.cpp:1227-1247 reads a second fetch-address FIFO entry under FRONTEND_IDEAL_ICACHE_DUAL_REQ_ACTIVE",
-        "simulator-new/front-end/front_top.cpp:1453-1473 drives icache_read_valid_2/fetch_address_2 and tracks slot1 request stats",
-        "simulator-new/front-end/front_top.cpp:1511-1516 checks icache_read_complete_2 and marks slot1 data valid"
-      ],
-      icache_to_predecode_bypass_path: [
-        "simulator-new/front-end/front_top.cpp:1529-1536 computes can_bypass_icache_to_predecode",
-        "simulator-new/front-end/front_top.cpp:1541-1575 builds bypass_fifo_out and calls predecode_comb directly"
       ],
       front_ptab_write_comb: [
         "simulator-new/front-end/front_top.cpp:725 defines front_ptab_write_comb",
@@ -1517,26 +1478,10 @@
       front_output_comb: [
         "simulator-new/front-end/front_top.cpp:858 defines front_output_comb",
         "simulator-new/front-end/front_top.cpp:1838 calls it before writing front_top_out"
-      ],
-      external_out: [
-        "simulator-new/front-end/front_top.cpp:1838-1841 assigns final_output_out to out_ptr",
-        "simulator-new/rv_simu_mmu_v2.cpp:688-712 copies front.out into back.in in the active CONFIG_BPU path"
-      ],
-      oracle_frontend_path: [
-        "simulator-new/rv_simu_mmu_v2.cpp:727-790 implements the non-CONFIG_BPU Oracle branch in SimCpu::front_cycle",
-        "simulator-new/front-end/FrontTop.cpp:41-43 calls get_oracle(in, out) from FrontTop::step_oracle"
       ]
     };
 
     const edgeEvidence = {
-      e_in_global: [
-        "simulator-new/rv_simu_mmu_v2.cpp:673-681 writes front.in refetch/fence/flush fields before step_bpu",
-        "simulator-new/front-end/front_top.cpp:1092-1102 sends front_top_in fields into front_global_control_comb"
-      ],
-      e_in_bpu_ctrl: [
-        "simulator-new/front-end/front_top.cpp:1290-1319 builds bpu_in_seed from front_top_in",
-        "simulator-new/front-end/front_top.cpp:1320-1326 calls front_bpu_control_comb"
-      ],
       e_global_read: [
         "simulator-new/front-end/front_top.cpp:1158-1162 passes global_reset/global_refetch into front_read_enable_comb",
         "simulator-new/front-end/front_top.cpp:624-644 defines read-enable behavior"
@@ -1621,45 +1566,9 @@
         "simulator-new/front-end/BPU/BPU.h:1641 produces predict_main_out",
         "simulator-new/front-end/BPU/BPU.h:1774 calls bpu_queue_comb"
       ],
-      e_predict_nlp: [
-        "simulator-new/front-end/BPU/BPU.h:1641 produces predict_main_out before NLP adjustment",
-        "simulator-new/front-end/BPU/BPU.h:1677 calls bpu_nlp_comb when ENABLE_2AHEAD is compiled"
-      ],
-      e_post_nlp: [
-        "simulator-new/front-end/BPU/BPU.h:959-977 prepares NLP stage1 request in bpu_post_read_req_comb",
-        "simulator-new/front-end/BPU/BPU.h:1185-1258 consumes NLP state inside bpu_nlp_comb"
-      ],
-      e_hist_child1: [
-        "simulator-new/front-end/BPU/BPU.h:1261 defines bpu_hist_comb",
-        "simulator-new/front-end/TRAINING_FUNCTION_LIST.md:86 treats bpu_hist_comb as the formal source unit"
-      ],
-      e_hist_child2: [
-        "simulator-new/front-end/BPU/BPU.h:1261 defines bpu_hist_comb",
-        "simulator-new/front-end/TRAINING_FUNCTION_LIST.md:86 treats bpu_hist_comb as the formal source unit"
-      ],
-      e_hist_child3: [
-        "simulator-new/front-end/BPU/BPU.h:1261 defines bpu_hist_comb",
-        "simulator-new/front-end/TRAINING_FUNCTION_LIST.md:86 treats bpu_hist_comb as the formal source unit"
-      ],
-      e_hist_child4: [
-        "simulator-new/front-end/BPU/BPU.h:1261 defines bpu_hist_comb",
-        "simulator-new/front-end/TRAINING_FUNCTION_LIST.md:86 treats bpu_hist_comb as the formal source unit"
-      ],
       e_predict_fetch_fifo: [
         "simulator-new/front-end/BPU/BPU.h:1070 defines bpu_predict_main_comb output generation",
         "simulator-new/front-end/front_top.cpp:1383-1403 writes bpu_output.fetch_address into fetch_address_FIFO"
-      ],
-      e_nlp_fetch_fifo: [
-        "simulator-new/front-end/BPU/BPU.h:1212-1225 computes two_ahead_target and saved mini-flush state in bpu_nlp_comb",
-        "simulator-new/front-end/front_top.cpp:1411-1424 writes bpu_output.two_ahead_target into fetch_address_FIFO under ENABLE_2AHEAD"
-      ],
-      e_predict_fetch_bypass: [
-        "simulator-new/front-end/BPU/BPU.h:1076-1084 emits bpu_output.fetch_address and icache_read_valid",
-        "simulator-new/front-end/front_top.cpp:1388-1395 lets that fresh address bypass fetch_address_FIFO when the guarded condition is true"
-      ],
-      e_bypass_predecode: [
-        "simulator-new/front-end/front_top.cpp:1445-1450 drives icache_in.fetch_address from bpu_output.fetch_address on the bypass path",
-        "simulator-new/front-end/front_top.cpp:1601-1617 then handles the returned slot0 fetch group through predecode_comb"
       ],
       e_read_fetch_fifo: [
         "simulator-new/front-end/front_top.cpp:1162-1166 produces fetch_addr_fifo_read_enable_slot0",
@@ -1676,26 +1585,6 @@
       e_predecode_instfifo: [
         "simulator-new/front-end/predecode.cpp:16 defines predecode_comb",
         "simulator-new/front-end/front_top.cpp:1617-1634 stores predecode result into instruction_FIFO input"
-      ],
-      e_fetch_slot1: [
-        "simulator-new/front-end/front_top.cpp:1227-1247 optionally reads a second fetch_address_FIFO entry for slot1",
-        "simulator-new/front-end/front_top.cpp:1453-1473 drives icache_read_valid_2/fetch_address_2"
-      ],
-      e_slot1_predecode: [
-        "simulator-new/front-end/front_top.cpp:1511-1516 checks icache_out.icache_read_complete_2 and icache_in.icache_read_valid_2",
-        "simulator-new/front-end/front_top.cpp:1641-1665 predecodes the slot1 fetch group"
-      ],
-      e_slot1_instfifo: [
-        "simulator-new/front-end/front_top.cpp:1641-1680 builds and writes instruction_FIFO input from icache_out.fetch_group_2/fetch_pc_2",
-        "simulator-new/front-end/fifo/instruction_FIFO.cpp:189 defines instruction_FIFO_comb_calc"
-      ],
-      e_icache_bypass_predecode: [
-        "simulator-new/front-end/front_top.cpp:1529-1536 computes can_bypass_icache_to_predecode",
-        "simulator-new/front-end/front_top.cpp:1541-1564 builds bypass_fifo_out from ICache slot0 data and predecode output"
-      ],
-      e_icache_bypass_checker: [
-        "simulator-new/front-end/front_top.cpp:1565-1575 reads PTAB and marks use_icache_to_predecode_bypass",
-        "simulator-new/front-end/front_top.cpp:1728-1730 feeds the selected FIFO/PTAB pair into front_checker_input_comb"
       ],
       e_predict_ptab_write: [
         "simulator-new/front-end/BPU/BPU.h:1641 produces bpu_output prediction metadata",
@@ -1748,18 +1637,6 @@
       e_f2b_output: [
         "simulator-new/front-end/front_top.cpp:1271 saves front2back FIFO output",
         "simulator-new/front-end/front_top.cpp:1833-1838 passes it to front_output_comb"
-      ],
-      e_output_external: [
-        "simulator-new/front-end/front_top.cpp:1838-1841 writes final_output_out.out to out_ptr",
-        "simulator-new/rv_simu_mmu_v2.cpp:688-712 copies front.out fields into back.in"
-      ],
-      e_oracle_in: [
-        "simulator-new/rv_simu_mmu_v2.cpp:727-747 handles the Oracle branch pending/front stall handshake",
-        "simulator-new/front-end/FrontTop.cpp:41-43 defines FrontTop::step_oracle"
-      ],
-      e_oracle_out: [
-        "simulator-new/front-end/FrontTop.cpp:41-43 calls get_oracle(in, out)",
-        "simulator-new/rv_simu_mmu_v2.cpp:752-790 copies oracle pending/front.out data into back.in"
       ]
     };
 
@@ -1821,50 +1698,9 @@
         "步骤 8 - CPU 顶层送后端：simulator-new/rv_simu_mmu_v2.cpp:688-712 根据 front.out.FIFO_valid 和 lane valid 把 front.out 写入 back.in"
       ],
       hist: [
-        "步骤 1 - 正式训练单元口径：simulator-new/front-end/TRAINING_FUNCTION_LIST.md:86 将 bpu_hist_comb 列为正式 comb 单元，生成目录里的 bpu_hist_* 是它的展开子块",
-        "步骤 2 - hist 输入来自预测主路径：simulator-new/front-end/BPU/BPU.h:1641 先由 bpu_predict_main_comb 产生 final prediction，再进入历史更新逻辑",
-        "步骤 3 - hist 函数定义：simulator-new/front-end/BPU/BPU.h:1261 定义 bpu_hist_comb，内部同时处理 Spec/Arch GHR、FH、PATH 和 RAS 相关 next-state",
-        "步骤 4 - 预测历史更新：simulator-new/front-end/BPU/BPU.h:1277-1320 在 going_to_do_pred 且非 refetch 时更新 speculative GHR/FH/PATH",
-        "步骤 5 - RAS speculative 更新：simulator-new/front-end/BPU/BPU.h:1322-1352 在 ENABLE_BPU_RAS 下根据 CALL/RET 预测更新 speculative RAS",
-        "步骤 6 - commit 方向修正历史：simulator-new/front-end/BPU/BPU.h:1355-1395 根据 COMMIT_WIDTH 内实际方向更新 architectural GHR/FH/PATH，错误预测时同步修正 speculative history",
-        "步骤 7 - RAS architectural 更新：simulator-new/front-end/BPU/BPU.h:1398-1417 在 ENABLE_BPU_RAS 下根据提交的 CALL/RET 更新 architectural RAS",
-        "步骤 8 - BPU core 调用点：simulator-new/front-end/BPU/BPU.h:1726 在 bpu_core_comb_calc 中调用 bpu_hist_comb，之后 simulator-new/front-end/BPU/BPU.h:1774 调 bpu_queue_comb"
-      ],
-      twoahead: [
-        "步骤 1 - 配置分支来源：simulator-new/front-end/config/frontend_feature_config.h:285-288 通过 FRONTEND_DISABLE_2AHEAD / ENABLE_2AHEAD 控制该分支",
-        "步骤 2 - NLP 读请求：simulator-new/front-end/BPU/BPU.h:959-977 在 bpu_post_read_req_comb 中准备 NLP stage1 相关请求",
-        "步骤 3 - NLP 组合定义：simulator-new/front-end/BPU/BPU.h:1185-1258 定义 bpu_nlp_comb，ENABLE_2AHEAD 打开时计算 stage1/stage2 命中和 mini-flush",
-        "步骤 4 - BPU core 调用：simulator-new/front-end/BPU/BPU.h:1677-1681 消费 nlp_out 更新 two-ahead 与 mini-flush 状态",
-        "步骤 5 - second fetch-address 写入：simulator-new/front-end/front_top.cpp:1411-1424 在 ENABLE_2AHEAD 下将 bpu_output.two_ahead_target 写入 fetch_address_FIFO",
-        "步骤 6 - PTAB dummy/miniflush 对齐：simulator-new/front-end/fifo/PTAB.cpp:271 的 PTAB_comb_calc 接收 need_mini_flush，和 front_top.cpp:1700-1707 的 PTAB 写入口对齐"
-      ],
-      slot1: [
-        "步骤 1 - slot1 读使能候选：simulator-new/front-end/front_top.cpp:1158-1168 从 front_read_enable_comb 取得 fetch_addr_fifo_read_enable_slot1_candidate",
-        "步骤 2 - 第二次 FIFO 读取：simulator-new/front-end/front_top.cpp:1227-1247 在 FRONTEND_IDEAL_ICACHE_DUAL_REQ_ACTIVE 下读取第二个 fetch-address FIFO 输出",
-        "步骤 3 - 第二路 ICache 请求：simulator-new/front-end/front_top.cpp:1453-1473 设置 icache_read_valid_2/fetch_address_2",
-        "步骤 4 - 第二路返回判定：simulator-new/front-end/front_top.cpp:1511-1516 由 icache_out.icache_read_complete_2 和 icache_in.icache_read_valid_2 生成 slot1 data valid",
-        "步骤 5 - slot1 预解码：simulator-new/front-end/front_top.cpp:1641-1665 对 icache_out.fetch_group_2 / fetch_pc_2 调 predecode_comb",
-        "步骤 6 - slot1 写 instruction FIFO：simulator-new/front-end/front_top.cpp:1666-1680 将 slot1 指令、PC、异常和预解码结果写入 instruction_FIFO"
-      ],
-      fetch_bypass: [
-        "步骤 1 - bypass 条件：simulator-new/front-end/front_top.cpp:1388-1395 计算 can_bypass_fetch_to_icache，覆盖 FIFO 没有读出但 BPU 新地址可直接送 ICache 的情况",
-        "步骤 2 - 普通 FIFO 写入互斥：simulator-new/front-end/front_top.cpp:1398-1403 在 bypass 未发生时才把 bpu_output.fetch_address 写入 fetch_address_FIFO",
-        "步骤 3 - ICache 直接请求：simulator-new/front-end/front_top.cpp:1445-1450 在 bypass 时用 bpu_output.fetch_address 驱动 icache_in.fetch_address",
-        "步骤 4 - 后续 slot0 返回：simulator-new/front-end/front_top.cpp:1601-1634 slot0 返回后仍进入 predecode_comb 与 instruction_FIFO_comb"
-      ],
-      icache_bypass: [
-        "步骤 1 - bypass 条件：simulator-new/front-end/front_top.cpp:1529-1536 计算 can_bypass_icache_to_predecode，要求 instruction FIFO 空、PTAB 非空、front2back 非满且 slot0 已返回",
-        "步骤 2 - 直接 predecode：simulator-new/front-end/front_top.cpp:1541-1564 用 ICache slot0 数据构造 bypass_fifo_out，并调用 predecode_comb",
-        "步骤 3 - PTAB 直接配对：simulator-new/front-end/front_top.cpp:1565-1575 读取 PTAB 并置 use_icache_to_predecode_bypass",
-        "步骤 4 - checker 输入选择：simulator-new/front-end/front_top.cpp:1728-1730 将 selected fifo/ptab 输出送入 front_checker_input_comb",
-        "步骤 5 - 输出写入沿用主路径：simulator-new/front-end/front_top.cpp:1773-1797 进入 front_front2back_write_comb 和 front2back_FIFO_comb"
-      ],
-      oracle: [
-        "步骤 1 - CPU 分支入口：simulator-new/rv_simu_mmu_v2.cpp:727-790 是 CONFIG_BPU 未使用时的 Oracle 分支",
-        "步骤 2 - pending 握手：simulator-new/rv_simu_mmu_v2.cpp:727-746 使用 oracle_pending_valid/out 处理前端输出与后端 stall 的握手",
-        "步骤 3 - Oracle 执行：simulator-new/rv_simu_mmu_v2.cpp:747 调 front.step_oracle()；simulator-new/front-end/FrontTop.cpp:41-43 调 get_oracle(in, out)",
-        "步骤 4 - 输出复制：simulator-new/rv_simu_mmu_v2.cpp:752-790 将 oracle/front.out 转成 back.in，并维护 pending 状态",
-        "步骤 5 - RTL 边界：Oracle 是模拟器参考路径，不是可综合前端硬件；front_top.v 中只保留显式分支边界，不把 oracle 数据源混入硬件 mux"
+        "Step 1 - formal training boundary: TRAINING_FUNCTION_LIST.md keeps bpu_hist_comb as the only history-update comb module",
+        "Step 2 - call site: simulator-new/front-end/BPU/BPU.h:1671 calls bpu_hist_comb in the BPU_TOP flow",
+        "Step 3 - child handling: training_io/generated/bpu_hist_* belong to bpu_hist_comb and are not expanded as separate modules"
       ]
     };
 
@@ -1891,7 +1727,7 @@
       });
     }
 
-    spreadLayout(1.25, 1.22, 40, 18);
+    spreadLayout(1.30, 1.24, 40, 18);
 
     const groupFill = (group) => groups[group]?.fill || "#ffffff";
     const moduleById = new Map(modules.map((module) => [module.id, module]));
@@ -1917,19 +1753,36 @@
       };
     }
 
+    function defaultEnabled(item) {
+      return item.defaultEnabled !== false;
+    }
+
+    function defaultStatus(item) {
+      return defaultEnabled(item) ? "默认打开" : "默认关闭";
+    }
+
+    function defaultReason(item) {
+      if (defaultEnabled(item)) return item.defaultReason || "当前默认配置会进入该路径。";
+      return item.defaultReason || "当前默认配置不会进入该路径，仅保留源码依据。";
+    }
+
     function edgePath(edge) {
       const from = moduleById.get(edge.from);
       const to = moduleById.get(edge.to);
       const a = center(from);
       const b = center(to);
-      const dx = Math.max(70, Math.abs(b.x - a.x) * 0.42);
       const startX = b.x >= a.x ? from.x + from.w : from.x;
       const startY = a.y;
       const endX = b.x >= a.x ? to.x : to.x + to.w;
       const endY = b.y;
-      const c1x = startX + (b.x >= a.x ? dx : -dx);
-      const c2x = endX - (b.x >= a.x ? dx : -dx);
-      return `M ${startX} ${startY} C ${c1x} ${startY}, ${c2x} ${endY}, ${endX} ${endY}`;
+      if (Math.abs(startY - endY) < 6) {
+        return `M ${startX} ${startY} L ${endX} ${endY}`;
+      }
+      const dir = b.x >= a.x ? 1 : -1;
+      const minGap = 42;
+      const midX = Math.round((startX + endX) / 2);
+      const elbowX = Math.abs(endX - startX) > minGap ? midX : startX + (dir * minGap);
+      return `M ${startX} ${startY} L ${elbowX} ${startY} L ${elbowX} ${endY} L ${endX} ${endY}`;
     }
 
     function edgeLabelPos(edge) {
@@ -2062,7 +1915,7 @@
       edges.forEach((edge) => {
         const path = createSvg("path", {
           id: edge.id,
-          class: `edge${edge.optional ? " optional" : ""}`,
+          class: `edge${edge.optional ? " optional" : ""}${defaultEnabled(edge) ? "" : " default-off"}`,
           d: edgePath(edge)
         });
         edgeLayer.appendChild(path);
@@ -2087,7 +1940,7 @@
         const pos = edgeLabelPos(edge);
         const text = createSvg("text", {
           id: `${edge.id}_label`,
-          class: "edge-label",
+          class: `edge-label${defaultEnabled(edge) ? "" : " default-off"}`,
           x: pos.x,
           y: pos.y,
           "text-anchor": "middle"
@@ -2104,7 +1957,7 @@
       modules.forEach((module) => {
         const g = createSvg("g", {
           id: module.id,
-          class: "module",
+          class: `module${defaultEnabled(module) ? "" : " default-off"}`,
           tabindex: "0",
           role: "button",
           "aria-label": module.name
@@ -2114,7 +1967,7 @@
           y: module.y,
           width: module.w,
           height: module.h,
-          fill: groupFill(module.group)
+          fill: defaultEnabled(module) ? groupFill(module.group) : "#f7f7f7"
         }));
         const name = createSvg("text", {
           class: "name",
@@ -2151,8 +2004,8 @@
         const button = document.createElement("button");
         button.type = "button";
         button.id = `path_${path.id}`;
-        button.textContent = path.name;
-        button.title = path.desc;
+        button.textContent = defaultEnabled(path) ? path.name : `${path.name}（默认关）`;
+        button.title = `${defaultStatus(path)}：${path.desc}`;
         button.addEventListener("click", () => setActivePath(path.id));
         pathList.appendChild(button);
       });
@@ -2162,8 +2015,8 @@
         .forEach((module) => {
           const button = document.createElement("button");
           button.type = "button";
-          button.textContent = shortName(module.name);
-          button.title = module.desc;
+          button.textContent = defaultEnabled(module) ? shortName(module.name) : `${shortName(module.name)}（默认关）`;
+          button.title = `${defaultStatus(module)}：${module.desc}`;
           button.addEventListener("click", () => selectModule(module.id));
           moduleList.appendChild(button);
         });
@@ -2183,6 +2036,8 @@
         detailSubtitle.textContent = "路径高亮";
         detailBody.innerHTML = `
           <p>${activePath.desc}</p>
+          <div class="kv"><span>默认状态</span><strong>${defaultStatus(activePath)}</strong></div>
+          <div class="kv"><span>开关依据</span><code>${escapeHtml(defaultReason(activePath))}</code></div>
           <div class="kv"><span>节点数</span><strong>${activePath.nodes.length}</strong></div>
           <div class="kv"><span>连线数</span><strong>${activePath.edges.length}</strong></div>
           <h2>源码依据</h2>
@@ -2205,6 +2060,8 @@
       detailSubtitle.textContent = `${module.kind} | ${module.file}`;
       detailBody.innerHTML = `
         <div class="kv"><span>模块粒度</span><strong>${module.kind}</strong></div>
+        <div class="kv"><span>默认状态</span><strong>${defaultStatus(module)}</strong></div>
+        <div class="kv"><span>开关依据</span><code>${escapeHtml(defaultReason(module))}</code></div>
         <div class="kv"><span>来源文件</span><code>${module.file}</code></div>
         <div class="kv"><span>IO 位宽</span><strong>${module.bits}</strong></div>
         <h2>说明</h2>
@@ -2243,6 +2100,8 @@
           </div>
         </div>
         <div class="kv"><span>语义</span><strong>${edge.label}</strong></div>
+        <div class="kv"><span>默认状态</span><strong>${defaultStatus(edge)}</strong></div>
+        <div class="kv"><span>开关依据</span><code>${escapeHtml(defaultReason(edge))}</code></div>
         <h2>作用路径</h2>
         ${renderRelatedPaths(relatedPaths)}
         <h2>说明</h2>

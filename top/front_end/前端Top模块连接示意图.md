@@ -4,7 +4,7 @@
 
 本文档只画 `front_top.v` 中 **一级 top wrapper 模块之间** 的连接关系，不展开各模块内部 `bsd_top / slices` 的实现细节。
 
-当前示意图按全分支训练口径绘制：真实 BPU 路径和 ICache slot0 是主线；Oracle、2-Ahead/NLP、ICache slot1、fetch-to-ICache bypass 和 ICache-to-predecode bypass 需要在 HTML 与 `.v` 中保留展开依据。Oracle 是模拟器参考分支，不作为可综合硬件数据源。
+当前示意图按默认配置与 27 个正式 comb 训练边界口径整理：真实 BPU 路径和 ICache slot0 是主线；Oracle、2-Ahead/NLP、ICache slot1、fetch-to-ICache bypass 和 ICache-to-predecode bypass 只保留为源码依据/开关说明，不作为正式模块单独展开。Oracle 是模拟器参考分支，不作为可综合硬件数据源。
 
 当前前端一级模块共 8 个：
 

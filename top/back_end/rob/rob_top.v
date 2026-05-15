@@ -1,4 +1,4 @@
-// Source struct:
+﻿// Source struct:
 //   RobIn  = {dis2rob, csr2rob, lsu2rob, dec_bcast, exu2rob, ftq_pc_resp,
 //             front_stall}
 //   RobOut = {rob2dis, rob2csr, rob_commit, rob_bcast, ftq_pc_req}
@@ -8,20 +8,20 @@ module rob_top #(
     parameter integer DECODE_WIDTH        = 8,
     parameter integer COMMIT_WIDTH        = DECODE_WIDTH,
     parameter integer AREG_IDX_WIDTH      = 6,
-    parameter integer PRF_IDX_WIDTH       = 11,
-    parameter integer ROB_IDX_WIDTH       = 11,
-    parameter integer STQ_IDX_WIDTH       = 9,
-    parameter integer LDQ_IDX_WIDTH       = 9,
+    parameter integer PRF_IDX_WIDTH       = 9,
+    parameter integer ROB_IDX_WIDTH       = 9,
+    parameter integer STQ_IDX_WIDTH       = 6,
+    parameter integer LDQ_IDX_WIDTH       = 6,
     parameter integer BR_TAG_WIDTH        = 6,
     parameter integer BR_MASK_WIDTH       = 64,
     parameter integer CSR_IDX_WIDTH       = 12,
-    parameter integer FTQ_IDX_WIDTH       = 8,
+    parameter integer FTQ_IDX_WIDTH       = 7,
     parameter integer FTQ_OFFSET_WIDTH    = 4,
     parameter integer INST_TYPE_WIDTH     = 5,
     parameter integer UOP_TYPE_WIDTH      = 5,
     parameter integer ROB_CPLT_MASK_WIDTH = 3,
-    parameter integer ISSUE_WIDTH         = 24,
-    parameter integer ROB_NUM             = 2048,
+    parameter integer ISSUE_WIDTH            = 15,
+    parameter integer ROB_NUM                = 512,
     parameter integer FTQ_ROB_PC_PORT_NUM = 1,
     parameter integer W_InstInfo          =
         32 + (3 * AREG_IDX_WIDTH) + (4 * PRF_IDX_WIDTH) +
