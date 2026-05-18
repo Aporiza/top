@@ -1,0 +1,897 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>front_top 一拍执行顺序</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f7f8;
+      --panel: #ffffff;
+      --ink: #1d2527;
+      --muted: #637174;
+      --line: #d8e1e3;
+      --soft: #eef5f6;
+      --read: #e7f5ee;
+      --comb: #fff5dc;
+      --write: #eef0ff;
+      --state: #f4f0ff;
+      --active: #c94134;
+      --active-soft: #fff0ec;
+      --radius: 8px;
+      --shadow: 0 14px 34px rgba(31, 50, 55, 0.12);
+      font-family: "Segoe UI", "Microsoft YaHei", Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background: var(--bg);
+    }
+
+    .page {
+      display: grid;
+      grid-template-columns: minmax(260px, 330px) minmax(560px, 1fr) minmax(300px, 390px);
+      gap: 14px;
+      min-height: 100vh;
+      padding: 14px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      min-width: 0;
+    }
+
+    .nav,
+    .detail {
+      overflow: auto;
+      padding: 16px;
+    }
+
+    .canvas {
+      overflow: auto;
+      padding: 18px;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      margin-bottom: 8px;
+      font-size: 22px;
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      margin: 20px 0 10px;
+      font-size: 15px;
+      line-height: 1.35;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      margin: 0 0 8px;
+      font-size: 14px;
+      line-height: 1.35;
+    }
+
+    p,
+    li {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    a {
+      color: #175f8f;
+      text-decoration: none;
+      font-weight: 650;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .summary {
+      border: 1px solid #cfdee1;
+      border-radius: var(--radius);
+      background: #f9fcfc;
+      padding: 12px;
+      margin: 12px 0;
+    }
+
+    .summary strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 13px;
+    }
+
+    .steps {
+      display: grid;
+      gap: 7px;
+      margin-top: 10px;
+    }
+
+    button.step-tab {
+      width: 100%;
+      min-height: 44px;
+      border: 1px solid #d3dee0;
+      border-radius: 7px;
+      background: #fff;
+      color: var(--ink);
+      cursor: pointer;
+      padding: 8px 10px;
+      text-align: left;
+      transition: border-color 0.15s ease, background 0.15s ease;
+    }
+
+    button.step-tab:hover {
+      border-color: #94aeb4;
+      background: #f4fafb;
+    }
+
+    button.step-tab.active {
+      border-color: var(--active);
+      background: var(--active-soft);
+    }
+
+    .step-tab span {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.35;
+    }
+
+    .step-tab strong {
+      display: block;
+      margin-bottom: 3px;
+      font-size: 13px;
+      line-height: 1.25;
+    }
+
+    .flow {
+      display: grid;
+      gap: 10px;
+      max-width: 980px;
+      margin: 0 auto;
+    }
+
+    .flow-row {
+      display: grid;
+      grid-template-columns: 76px 1fr;
+      gap: 12px;
+      align-items: stretch;
+    }
+
+    .phase-label {
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfdfd;
+      color: #526368;
+      font-size: 12px;
+      font-weight: 700;
+      text-align: center;
+      padding: 8px;
+    }
+
+    .cards {
+      display: grid;
+      gap: 9px;
+    }
+
+    .cards.two {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .cards.three {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .flow-card {
+      position: relative;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      cursor: pointer;
+      padding: 12px 13px;
+      min-height: 84px;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+    }
+
+    .flow-card:hover {
+      border-color: #9bb3b8;
+      box-shadow: 0 8px 18px rgba(31, 50, 55, 0.08);
+      transform: translateY(-1px);
+    }
+
+    .flow-card.active {
+      border-color: var(--active);
+      box-shadow: 0 0 0 2px rgba(201, 65, 52, 0.12), 0 12px 24px rgba(201, 65, 52, 0.12);
+    }
+
+    .flow-card.read {
+      background: var(--read);
+    }
+
+    .flow-card.comb {
+      background: var(--comb);
+    }
+
+    .flow-card.write {
+      background: var(--write);
+    }
+
+    .flow-card.state {
+      background: var(--state);
+    }
+
+    .flow-card small {
+      display: block;
+      margin-bottom: 6px;
+      color: #6b7a7e;
+      font-size: 11px;
+      font-weight: 650;
+    }
+
+    .flow-card strong {
+      display: block;
+      margin-bottom: 6px;
+      color: #1f2b2e;
+      font-size: 14px;
+      line-height: 1.25;
+    }
+
+    .flow-card p {
+      margin: 0;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .arrow {
+      display: grid;
+      grid-template-columns: 76px 1fr;
+      gap: 12px;
+      align-items: center;
+      color: #7c8e93;
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .arrow div:last-child {
+      height: 22px;
+      border-left: 2px solid #c8d7da;
+      margin-left: 18px;
+    }
+
+    .detail-title {
+      margin: 0 0 6px;
+      font-size: 19px;
+      line-height: 1.25;
+    }
+
+    .detail-subtitle {
+      margin-bottom: 14px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .kv {
+      display: grid;
+      grid-template-columns: 84px 1fr;
+      gap: 8px;
+      margin: 9px 0;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .kv span:first-child {
+      color: var(--muted);
+    }
+
+    code {
+      border: 1px solid #dce6e8;
+      border-radius: 4px;
+      background: #f5f8f9;
+      padding: 1px 5px;
+      font-family: Consolas, "Cascadia Mono", monospace;
+      font-size: 12px;
+      overflow-wrap: anywhere;
+    }
+
+    .code-list,
+    .bullet-list {
+      display: grid;
+      gap: 7px;
+      margin: 8px 0 14px;
+    }
+
+    .code-list code {
+      display: block;
+      padding: 7px 8px;
+      line-height: 1.45;
+    }
+
+    .bullet-list div {
+      border: 1px solid #dce6e8;
+      border-radius: 6px;
+      background: #fbfdfd;
+      padding: 8px 9px;
+      color: #52666b;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .storage-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .storage-card {
+      border: 1px dashed #aebdc1;
+      border-radius: var(--radius);
+      background: #fbfdfd;
+      padding: 10px;
+    }
+
+    .storage-card strong {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 13px;
+    }
+
+    .storage-card p {
+      margin: 0;
+      font-size: 12px;
+    }
+
+    @media (max-width: 1180px) {
+      .page {
+        grid-template-columns: 260px 1fr;
+      }
+
+      .detail {
+        grid-column: 1 / -1;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .page,
+      .flow-row,
+      .arrow {
+        grid-template-columns: 1fr;
+      }
+
+      .cards.two,
+      .cards.three,
+      .storage-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <aside class="panel nav">
+      <h1>front_top 一拍执行顺序</h1>
+      <p>这版图按第一次读代码的顺序组织：先看 CPU 怎么进入 <code>front_top()</code>，再看本拍组合逻辑按什么顺序执行，最后看状态在哪里统一写回。</p>
+
+      <div class="summary">
+        <strong>一句话主线</strong>
+        <p><code>front_top()</code> 内先 <code>front_seq_read()</code> 读旧状态，再 <code>front_comb_calc()</code> 顺序计算 next 请求，最后 <code>front_seq_write()</code> 统一提交寄存器、FIFO、RAM 和表项状态。</p>
+      </div>
+
+      <h2>步骤导航</h2>
+      <div class="steps" id="stepTabs"></div>
+
+      <h2>参考文件</h2>
+      <p>旧拓扑高亮图保留为参考：<a href="front_top_interactive.html">front_top_interactive.html</a></p>
+    </aside>
+
+    <main class="panel canvas">
+      <div class="flow" id="flow"></div>
+
+      <h2>状态到底放在哪里</h2>
+      <div class="storage-grid" id="storageGrid"></div>
+    </main>
+
+    <section class="panel detail">
+      <h2 class="detail-title" id="detailTitle"></h2>
+      <div class="detail-subtitle" id="detailSubtitle"></div>
+      <div id="detailBody"></div>
+    </section>
+  </div>
+
+  <script>
+    "use strict";
+
+    const steps = [
+      {
+        id: "cpu_entry",
+        group: "入口",
+        phase: "CPU 周期入口",
+        title: "SimCpu::front_cycle",
+        type: "entry",
+        file: "simulator-new/rv_simu_mmu_v2.cpp",
+        lines: "652-684",
+        summary: "CPU 每拍进入前端，写入 front.in 的后端反馈和读使能，然后调用 front.step_bpu()。",
+        reads: ["back.out.stall", "back.out.mispred", "back.out.flush", "back.out.redirect_pc"],
+        writes: ["front.in.FIFO_read_enable", "front.in.refetch", "front.in.refetch_address", "front.in.itlb_flush", "front.in.fence_i"],
+        evidence: [
+          "simulator-new/rv_simu_mmu_v2.cpp:652 定义 SimCpu::front_cycle()",
+          "simulator-new/rv_simu_mmu_v2.cpp:670-684 在 CONFIG_BPU 下写 front.in 并调用 front.step_bpu()"
+        ]
+      },
+      {
+        id: "step_bpu",
+        group: "入口",
+        phase: "FrontTop 包装层",
+        title: "FrontTop::step_bpu",
+        type: "entry",
+        file: "simulator-new/front-end/FrontTop.cpp",
+        lines: "36-38",
+        summary: "包装层同步 ICache/PTW 运行时端口后，真正进入 front_top(&in, &out)。",
+        reads: ["FrontTop::in", "ICache/PTW runtime ports"],
+        writes: ["FrontTop::out"],
+        evidence: [
+          "simulator-new/front-end/FrontTop.cpp:36 定义 FrontTop::step_bpu()",
+          "simulator-new/front-end/FrontTop.cpp:37 调 sync_icache_ptw_ports(*this)",
+          "simulator-new/front-end/FrontTop.cpp:38 调 front_top(&in, &out)"
+        ]
+      },
+      {
+        id: "front_top",
+        group: "入口",
+        phase: "front_top 总入口",
+        title: "front_top 三段式",
+        type: "entry",
+        file: "simulator-new/front-end/front_top.cpp",
+        lines: "2068-2077",
+        summary: "front_top 创建 FrontReadData 和 FrontUpdateRequest，然后固定按 seq_read -> comb_calc -> seq_write 执行。",
+        reads: ["front_top_in *in"],
+        writes: ["front_top_out *out", "FrontUpdateRequest req"],
+        evidence: [
+          "simulator-new/front-end/front_top.cpp:2073 创建 FrontReadData rd",
+          "simulator-new/front-end/front_top.cpp:2074 创建 FrontUpdateRequest req",
+          "simulator-new/front-end/front_top.cpp:2075 调 front_seq_read(*in, rd)",
+          "simulator-new/front-end/front_top.cpp:2076 调 front_comb_calc(*in, rd, *out, req)",
+          "simulator-new/front-end/front_top.cpp:2077 调 front_seq_write(*in, req, in->reset)"
+        ]
+      },
+      {
+        id: "seq_read",
+        group: "读旧状态",
+        phase: "本拍开始",
+        title: "front_seq_read",
+        type: "read",
+        file: "simulator-new/front-end/front_top.cpp",
+        lines: "1997-2030",
+        summary: "读取上一拍 front_top 本地状态、FIFO/PTAB 快照和 ICache 快照。这里读到的是旧值。",
+        reads: ["predecode_refetch", "FIFO full/empty 状态位", "fetch_address_FIFO", "instruction_FIFO", "PTAB", "front2back_FIFO", "ICache"],
+        writes: ["FrontReadData rd"],
+        evidence: [
+          "simulator-new/front-end/front_top.cpp:1999-2010 复制 front_top 本地状态到 rd.*_snapshot",
+          "simulator-new/front-end/front_top.cpp:2026 调 fetch_address_FIFO_seq_read()",
+          "simulator-new/front-end/front_top.cpp:2027 调 instruction_FIFO_seq_read()",
+          "simulator-new/front-end/front_top.cpp:2028 调 PTAB_seq_read()",
+          "simulator-new/front-end/front_top.cpp:2029 调 front2back_FIFO_seq_read()",
+          "simulator-new/front-end/front_top.cpp:2030 调 icache_seq_read()"
+        ]
+      },
+      {
+        id: "comb_init",
+        group: "组合逻辑",
+        phase: "阶段 0",
+        title: "初始化本拍临时结构",
+        type: "comb",
+        file: "simulator-new/front-end/front_top.cpp",
+        lines: "1029-1084",
+        summary: "清空本拍临时输入输出结构，把 seq_read 得到的 FIFO/PTAB read snapshot 拷贝到本拍组合计算使用的变量。",
+        reads: ["FrontReadData rd"],
+        writes: ["front_state_req.valid=false", "本拍各模块临时 input/output"],
+        evidence: [
+          "simulator-new/front-end/front_top.cpp:1002 定义 front_comb_calc()",
+          "simulator-new/front-end/front_top.cpp:1028 设置 front_state_req.valid = false",
+          "simulator-new/front-end/front_top.cpp:1029-1084 初始化本拍临时结构"
+        ]
+      },
+      {
+        id: "global_control",
+        group: "组合逻辑",
+        phase: "阶段 1",
+        title: "front_global_control_comb",
+        type: "comb",
+        file: "simulator-new/front-end/front_top.cpp",
+        lines: "1092-1102",
+        summary: "合并 reset、后端 refetch、上一拍 checker refetch，得到本拍全局 refetch 和 refetch_address。",
+        reads: ["in.reset", "in.refetch", "in.refetch_address", "rd.predecode_refetch_snapshot"],
+        writes: ["global_refetch", "global_refetch_address"],
+        evidence: [
+          "simulator-new/front-end/front_top.cpp:613-621 定义 front_global_control_comb()",
+          "simulator-new/front-end/front_top.cpp:1092-1102 在 front_comb_calc() 中调用"
+        ]
+      },
+      {
+        id: "read_enable",
+        group: "组合逻辑",
+        phase: "阶段 2",
+        title: "icache_peek_ready + front_read_enable_comb",
+        type: "comb",
+        file: "simulator-new/front-end/front_top.cpp",
+        lines: "1139-1162",
+        summary: "先窥探 ICache 是否 ready，再根据 FIFO/PTAB/front2back 状态和全局控制生成读使能。",
+        reads: ["ICache ready", "fetch FIFO empty", "instruction FIFO empty", "PTAB empty", "front2back FIFO full"],
+        writes: ["fetch_addr_fifo_read_enable_slot0", "fifo_read_enable", "ptab_read_enable", "front2back_read_enable"],
+        evidence: [
+          "simulator-new/front-end/front_top.cpp:1139-1140 读取 ICache ready",
+          "simulator-new/front-end/front_top.cpp:1152-1162 调 front_read_enable_comb()"
+        ]
+      },
+      {
+        id: "read_stage",
+        group: "组合逻辑",
+        phase: "阶段 3",
+        title: "front_read_stage_input_comb + FIFO/PTAB 读",
+        type: "comb",
+        file: "simulator-new/front-end/front_top.cpp",
+        lines: "1187-1263",
+        summary: "把读使能下发到 fetch FIFO、instruction FIFO、PTAB、front2back FIFO，并拿到本拍读出的包。",
+        reads: ["read_enable 输出", "四个 FIFO/PTAB 的 rd snapshot"],
+        writes: ["saved_fetch_addr_fifo_out", "saved_fifo_out", "saved_ptab_out", "saved_front2back_fifo_out"],
+        evidence: [
+          "simulator-new/front-end/front_top.cpp:1197 调 front_read_stage_input_comb()",
+          "simulator-new/front-end/front_top.cpp:1219 调 fetch_address_FIFO_comb_calc() 读 slot0",
+          "simulator-new/front-end/front_top.cpp:1250 调 instruction_FIFO_comb_calc()",
+          "simulator-new/front-end/front_top.cpp:1255 调 PTAB_comb_calc()",
+          "simulator-new/front-end/front_top.cpp:1259 调 front2back_FIFO_comb_calc()"
+        ]
+      },
+      {
+        id: "bpu",
+        group: "组合逻辑",
+        phase: "阶段 4",
+        title: "front_bpu_control_comb + bpu_comb_calc",
+        type: "comb",
+        file: "simulator-new/front-end/front_top.cpp",
+        lines: "1290-1357",
+        summary: "生成 BPU 输入，读取 BPU 内部状态，然后执行 BPU 预测组合逻辑。",
+        reads: ["front_top_in", "global_refetch", "fetch FIFO/PTAB full 状态", "BPU 内部状态"],
+        writes: ["bpu_output", "bpu_req", "bpu_seq_txn"],
+        evidence: [
+          "simulator-new/front-end/front_top.cpp:1326 调 front_bpu_control_comb()",
+          "simulator-new/front-end/front_top.cpp:1356 调 bpu_instance.bpu_seq_read()",
+          "simulator-new/front-end/front_top.cpp:1357 调 bpu_instance.bpu_comb_calc()",
+          "simulator-new/front-end/BPU/BPU.h:2017 定义 bpu_comb_calc()"
+        ]
+      },
+      {
+        id: "fetch_fifo_write",
+        group: "组合逻辑",
+        phase: "阶段 5",
+        title: "fetch_address_FIFO_comb_calc 写",
+        type: "comb",
+        file: "simulator-new/front-end/front_top.cpp",
+        lines: "1383-1424",
+        summary: "把 BPU 产生的 fetch address 写入 fetch address FIFO。默认配置下 2-Ahead 分支不作为主线展开。",
+        reads: ["bpu_output.fetch_address", "bpu_output.fetch_valid"],
+        writes: ["fetch_addr_fifo_req"],
+        evidence: [
+          "simulator-new/front-end/front_top.cpp:1383-1403 写入 BPU fetch address",
+          "simulator-new/front-end/front_top.cpp:1417-1424 是 2-Ahead 相关第二次写入分支",
+          "simulator-new/front-end/fifo/fetch_address_FIFO.cpp:165 定义 fetch_address_FIFO_comb_calc()"
+        ]
+      },
+      {
+        id: "icache",
+        group: "组合逻辑",
+        phase: "阶段 6",
+        title: "icache_comb_calc",
+        type: "comb",
+        file: "simulator-new/front-end/front_top.cpp",
+        lines: "1434-1476",
+        summary: "使用 fetch address FIFO 读出的地址发起 ICache 请求，得到本拍 ICache 输出。",
+        reads: ["saved_fetch_addr_fifo_out", "csr_status", "global_reset"],
+        writes: ["icache_out"],
+        evidence: [
+          "simulator-new/front-end/front_top.cpp:1434-1450 组装 ICache slot0 请求",
+          "simulator-new/front-end/front_top.cpp:1476 调 icache_comb_calc()"
+        ]
+      },
+      {
+        id: "predecode",
+        group: "组合逻辑",
+        phase: "阶段 7",
+        title: "predecode_comb + instruction_FIFO_comb_calc",
+        type: "comb",
+        file: "simulator-new/front-end/front_top.cpp",
+        lines: "1528-1680",
+        summary: "ICache 返回后执行预解码，并把指令、PC、异常位、预解码结果写入 instruction FIFO。",
+        reads: ["icache_out", "saved_fetch_addr_fifo_out", "PTAB bypass 条件"],
+        writes: ["fifo_req", "instruction FIFO next state request"],
+        evidence: [
+          "simulator-new/front-end/front_top.cpp:1562-1563 是 ICache-to-predecode bypass 分支",
+          "simulator-new/front-end/front_top.cpp:1616-1617 调 predecode_seq_read/predecode_comb",
+          "simulator-new/front-end/front_top.cpp:1634 调 instruction_FIFO_comb_calc() 写 slot0",
+          "simulator-new/front-end/front_top.cpp:1657-1676 是 slot1 相关分支",
+          "simulator-new/front-end/predecode.cpp:16 定义 predecode_comb()"
+        ]
+      },
+      {
+        id: "ptab_write",
+        group: "组合逻辑",
+        phase: "阶段 8",
+        title: "front_ptab_write_comb + PTAB_comb_calc",
+        type: "comb",
+        file: "simulator-new/front-end/front_top.cpp",
+        lines: "1697-1707",
+        summary: "把 BPU 预测方向、下一取指地址、base PC 和训练元信息整理后写入 PTAB。",
+        reads: ["bpu_output"],
+        writes: ["ptab_req"],
+        evidence: [
+          "simulator-new/front-end/front_top.cpp:725 定义 front_ptab_write_comb()",
+          "simulator-new/front-end/front_top.cpp:1697-1700 调 front_ptab_write_comb()",
+          "simulator-new/front-end/front_top.cpp:1707 调 PTAB_comb_calc() 写 PTAB",
+          "simulator-new/front-end/fifo/PTAB.cpp:271 定义 PTAB_comb_calc()"
+        ]
+      },
+      {
+        id: "checker",
+        group: "组合逻辑",
+        phase: "阶段 9",
+        title: "front_checker_input_comb + predecode_checker_comb",
+        type: "comb",
+        file: "simulator-new/front-end/front_top.cpp",
+        lines: "1719-1744",
+        summary: "将 instruction FIFO 和 PTAB 输出对齐，检查预测是否需要修正或 flush。",
+        reads: ["saved_fifo_out", "saved_ptab_out"],
+        writes: ["checker_out", "do_predecode_flush", "predecode_flush_address"],
+        evidence: [
+          "simulator-new/front-end/front_top.cpp:765 定义 front_checker_input_comb()",
+          "simulator-new/front-end/front_top.cpp:1728-1730 调 front_checker_input_comb()",
+          "simulator-new/front-end/front_top.cpp:1732 调 predecode_checker_seq_read()",
+          "simulator-new/front-end/front_top.cpp:1733 调 predecode_checker_comb()",
+          "simulator-new/front-end/predecode_checker.cpp:16 定义 predecode_checker_comb()"
+        ]
+      },
+      {
+        id: "front2back_write",
+        group: "组合逻辑",
+        phase: "阶段 10",
+        title: "front_front2back_write_comb + front2back_FIFO_comb_calc",
+        type: "comb",
+        file: "simulator-new/front-end/front_top.cpp",
+        lines: "1749-1797",
+        summary: "把指令、预测上下文、checker 修正结果打包，写入 front2back FIFO。",
+        reads: ["saved_fifo_out", "saved_ptab_out", "checker_out", "front2back_can_write"],
+        writes: ["front2back_fifo_req", "bypass_front2back_fifo_out"],
+        evidence: [
+          "simulator-new/front-end/front_top.cpp:780 定义 front_front2back_write_comb()",
+          "simulator-new/front-end/front_top.cpp:1749-1756 计算 front2back_can_write",
+          "simulator-new/front-end/front_top.cpp:1773-1780 调 front_front2back_write_comb()",
+          "simulator-new/front-end/front_top.cpp:1792-1797 调 front2back_FIFO_comb_calc()"
+        ]
+      },
+      {
+        id: "flush_state",
+        group: "组合逻辑",
+        phase: "阶段 11",
+        title: "flush 状态请求生成",
+        type: "comb",
+        file: "simulator-new/front-end/front_top.cpp",
+        lines: "1802-1816",
+        summary: "发生 checker flush 时发 ICache invalidate-only 请求，并把下一拍要使用的 predecode_refetch 状态写入 req。",
+        reads: ["do_predecode_flush", "predecode_flush_address"],
+        writes: ["front_state_req.next_predecode_refetch", "front_state_req.next_predecode_refetch_address"],
+        evidence: [
+          "simulator-new/front-end/front_top.cpp:1802 设置 front_state_req.valid = true",
+          "simulator-new/front-end/front_top.cpp:1803-1808 flush 时调 icache_comb_calc() invalidate 分支",
+          "simulator-new/front-end/front_top.cpp:1810-1816 写 next_predecode_refetch 和 next_predecode_refetch_address"
+        ]
+      },
+      {
+        id: "front_output",
+        group: "组合逻辑",
+        phase: "阶段 12",
+        title: "front_output_comb",
+        type: "comb",
+        file: "simulator-new/front-end/front_top.cpp",
+        lines: "1822-1841",
+        summary: "刷新 FIFO full/empty next 状态，选择 front2back FIFO 输出或 bypass 输出，生成最终 front_top_out。",
+        reads: ["front2back FIFO 输出", "bypass_front2back_fifo_out", "各 FIFO/PTAB size"],
+        writes: ["front_state_req.next_*_full/empty", "front_top_out"],
+        evidence: [
+          "simulator-new/front-end/front_top.cpp:1822-1831 计算下一拍 FIFO/PTAB full/empty 状态",
+          "simulator-new/front-end/front_top.cpp:1833-1838 调 front_output_comb()",
+          "simulator-new/front-end/front_top.cpp:1839 写 *out_ptr",
+          "simulator-new/front-end/front_top.cpp:858 定义 front_output_comb()"
+        ]
+      },
+      {
+        id: "seq_write",
+        group: "统一写回",
+        phase: "本拍结束",
+        title: "front_seq_write",
+        type: "write",
+        file: "simulator-new/front-end/front_top.cpp",
+        lines: "2034-2062",
+        summary: "本拍所有组合逻辑只产生请求，真正改变寄存器、FIFO、RAM、预测表状态集中在这里。",
+        reads: ["FrontUpdateRequest req", "req.front_state"],
+        writes: ["BPU 状态", "四个 FIFO/PTAB 状态", "ICache 状态", "front_top 本地状态寄存器"],
+        evidence: [
+          "simulator-new/front-end/front_top.cpp:2034 定义 front_seq_write()",
+          "simulator-new/front-end/front_top.cpp:2040-2042 调 bpu_instance.bpu_seq_write()",
+          "simulator-new/front-end/front_top.cpp:2043-2046 依次写 fetch FIFO、instruction FIFO、PTAB、front2back FIFO",
+          "simulator-new/front-end/front_top.cpp:2047 调 predecode_checker_seq_write()",
+          "simulator-new/front-end/front_top.cpp:2048 调 icache_seq_write()",
+          "simulator-new/front-end/front_top.cpp:2050-2062 统一写回 front_top 本地状态"
+        ]
+      }
+    ];
+
+    const storage = [
+      {
+        name: "front_top 本地状态寄存器",
+        text: "保存 predecode_refetch、predecode_refetch_address、统计状态、FIFO full/empty 状态位。源码变量名里的 latch 按上一拍状态位理解。",
+        source: "simulator-new/front-end/front_top.cpp:25-37, 1999-2010, 2050-2062"
+      },
+      {
+        name: "BPU 寄存器、队列、预测表",
+        text: "pc_reg/state、RAS、update_queue、NLP、TypePredictor、TAGE、BTB/BHT/TC 都在 BPU 子模块内部。",
+        source: "simulator-new/front-end/BPU/BPU.h:638-691, 740-947, 1827-1927"
+      },
+      {
+        name: "四个前端 FIFO/PTAB",
+        text: "fetch_address_FIFO、instruction_FIFO、PTAB、front2back_FIFO 的 entries_ 和 size_ 在各自模型内部。",
+        source: "simulator-new/front-end/fifo/*.cpp"
+      },
+      {
+        name: "ICache 寄存器/RAM",
+        text: "ICache 控制状态在 icache_module.h，data/tag/valid 表由 GenericTable 和 icache.cpp 实例管理。",
+        source: "simulator-new/front-end/icache/include/icache_module.h:119-144, icache.cpp:256-258"
+      }
+    ];
+
+    const groups = [
+      { name: "入口", ids: ["cpu_entry", "step_bpu", "front_top"] },
+      { name: "读旧状态", ids: ["seq_read"] },
+      { name: "组合逻辑", ids: ["comb_init", "global_control", "read_enable", "read_stage", "bpu", "fetch_fifo_write", "icache", "predecode", "ptab_write", "checker", "front2back_write", "flush_state", "front_output"] },
+      { name: "统一写回", ids: ["seq_write"] }
+    ];
+
+    const stepById = new Map(steps.map((step) => [step.id, step]));
+    const stepTabs = document.getElementById("stepTabs");
+    const flow = document.getElementById("flow");
+    const storageGrid = document.getElementById("storageGrid");
+    const detailTitle = document.getElementById("detailTitle");
+    const detailSubtitle = document.getElementById("detailSubtitle");
+    const detailBody = document.getElementById("detailBody");
+    let activeId = "front_top";
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function stepClass(step) {
+      if (step.type === "read") return "read";
+      if (step.type === "write") return "write";
+      if (step.type === "comb") return "comb";
+      return "";
+    }
+
+    function renderList(items) {
+      return `<div class="bullet-list">${items.map((item) => `<div>${escapeHtml(item)}</div>`).join("")}</div>`;
+    }
+
+    function renderEvidence(items) {
+      return `<div class="code-list">${items.map((item) => `<code>${escapeHtml(item)}</code>`).join("")}</div>`;
+    }
+
+    function renderTabs() {
+      stepTabs.innerHTML = "";
+      steps.forEach((step) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = `step-tab${step.id === activeId ? " active" : ""}`;
+        button.dataset.stepId = step.id;
+        button.innerHTML = `<strong>${escapeHtml(step.phase)} ${escapeHtml(step.title)}</strong><span>${escapeHtml(step.file)}:${escapeHtml(step.lines)}</span>`;
+        button.addEventListener("click", () => selectStep(step.id));
+        stepTabs.appendChild(button);
+      });
+    }
+
+    function renderFlow() {
+      flow.innerHTML = "";
+      groups.forEach((group, index) => {
+        if (index > 0) {
+          const arrow = document.createElement("div");
+          arrow.className = "arrow";
+          arrow.innerHTML = `<span></span><div></div>`;
+          flow.appendChild(arrow);
+        }
+
+        const row = document.createElement("section");
+        row.className = "flow-row";
+        row.innerHTML = `<div class="phase-label">${escapeHtml(group.name)}</div>`;
+        const cards = document.createElement("div");
+        cards.className = `cards ${group.ids.length > 7 ? "three" : group.ids.length > 1 ? "two" : ""}`;
+        group.ids.forEach((id) => {
+          const step = stepById.get(id);
+          const card = document.createElement("article");
+          card.className = `flow-card ${stepClass(step)}${step.id === activeId ? " active" : ""}`;
+          card.dataset.stepId = step.id;
+          card.innerHTML = `
+            <small>${escapeHtml(step.phase)} | ${escapeHtml(step.file)}:${escapeHtml(step.lines)}</small>
+            <strong>${escapeHtml(step.title)}</strong>
+            <p>${escapeHtml(step.summary)}</p>
+          `;
+          card.addEventListener("click", () => selectStep(step.id));
+          cards.appendChild(card);
+        });
+        row.appendChild(cards);
+        flow.appendChild(row);
+      });
+    }
+
+    function renderStorage() {
+      storageGrid.innerHTML = storage.map((item) => `
+        <article class="storage-card">
+          <strong>${escapeHtml(item.name)}</strong>
+          <p>${escapeHtml(item.text)}</p>
+          <p><code>${escapeHtml(item.source)}</code></p>
+        </article>
+      `).join("");
+    }
+
+    function renderDetail() {
+      const step = stepById.get(activeId);
+      detailTitle.textContent = step.title;
+      detailSubtitle.textContent = `${step.phase} | ${step.file}:${step.lines}`;
+      detailBody.innerHTML = `
+        <p>${escapeHtml(step.summary)}</p>
+        <div class="kv"><span>阶段</span><strong>${escapeHtml(step.group)}</strong></div>
+        <div class="kv"><span>源码</span><code>${escapeHtml(step.file)}:${escapeHtml(step.lines)}</code></div>
+        <h2>这一阶段读取</h2>
+        ${renderList(step.reads)}
+        <h2>这一阶段产生</h2>
+        ${renderList(step.writes)}
+        <h2>源码依据</h2>
+        ${renderEvidence(step.evidence)}
+      `;
+    }
+
+    function selectStep(id) {
+      activeId = id;
+      renderTabs();
+      renderFlow();
+      renderDetail();
+    }
+
+    renderTabs();
+    renderFlow();
+    renderStorage();
+    renderDetail();
+  </script>
+</body>
+</html>

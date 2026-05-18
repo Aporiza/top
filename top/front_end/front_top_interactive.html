@@ -254,6 +254,42 @@
       filter: drop-shadow(0 0 5px rgba(230, 75, 60, 0.24));
     }
 
+    .state-title {
+      fill: #4d4038;
+      font-size: 18px;
+      font-weight: 760;
+    }
+
+    .state-store rect {
+      fill: #f9fbf7;
+      stroke: #8ca08d;
+      stroke-width: 1.5;
+      stroke-dasharray: 6 4;
+      rx: 6;
+      filter: drop-shadow(0 8px 16px rgba(28, 48, 41, 0.08));
+    }
+
+    .state-store text {
+      pointer-events: none;
+    }
+
+    .state-store .name {
+      fill: #1f3028;
+      font-size: 13px;
+      font-weight: 760;
+    }
+
+    .state-store .meta {
+      fill: #66776f;
+      font-size: 11px;
+    }
+
+    .state-store.selected rect {
+      stroke: #23845f;
+      stroke-width: 3;
+      filter: drop-shadow(0 0 12px rgba(35, 132, 95, 0.28));
+    }
+
     .edge {
       fill: none;
       stroke: #9aabb0;
@@ -428,6 +464,33 @@
       overflow-wrap: anywhere;
     }
 
+    .state-list {
+      display: grid;
+      gap: 8px;
+      margin: 10px 0 14px;
+    }
+
+    .state-item {
+      border: 1px solid #dce8e8;
+      border-radius: 6px;
+      background: #fbfefe;
+      padding: 8px 10px;
+    }
+
+    .state-item strong {
+      display: block;
+      margin-bottom: 4px;
+      color: #213438;
+      font-size: 13px;
+    }
+
+    .state-item p {
+      margin: 0 0 6px;
+      color: #52676c;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
     .related-paths {
       display: grid;
       gap: 10px;
@@ -530,7 +593,7 @@
     <aside>
       <h1>Frontend Top</h1>
       <h2>Default Config</h2>
-      <p>按 27 个正式 comb 训练边界显示；helper、内部子函数和默认关闭分支只写入源码依据，不再单独铺成模块框。</p>
+      <p>按 27 个正式 comb 训练边界显示；RTL 目录已改为 27 个同名子文件夹，由 front_top.v 直接串联。</p>
       <p>点击模块、连线或路径时，右侧会展开对应路径说明、源码依据和边界口径；图中连线按正式模块之间的调用/数据关系高亮。</p>
 
       <h2>路径高亮</h2>
@@ -552,6 +615,7 @@
         <div class="legend-item"><span class="swatch" style="background: var(--predict);"></span>预测器 comb</div>
         <div class="legend-item"><span class="swatch" style="background: var(--fifo);"></span>FIFO / PTAB</div>
         <div class="legend-item"><span class="swatch" style="background: var(--check);"></span>predecode / checker</div>
+        <div class="legend-item"><span class="swatch" style="background: #f9fbf7; border-style: dashed;"></span>寄存器 / RAM / FIFO 展开层</div>
       </div>
     </aside>
 
@@ -790,7 +854,7 @@
         kind: "BPU_TOP",
         file: "front-end/BPU/BPU.h",
         bits: "6944 -> 5935",
-        desc: "BPU 历史更新正式训练边界。bpu_hist_* 生成子函数只作为源码依据，不再单独展开为模块。"
+        desc: "BPU 历史更新正式训练边界。RTL 链接中 bpu_hist_* 生成子函数挂在 bpu_hist_comb 内部，但正式计数仍按 bpu_hist_comb 一个模块。"
       },
       {
         id: "bpu_queue_comb",
@@ -1354,7 +1418,7 @@
       {
         id: "hist",
         name: "bpu_hist 正式边界路径",
-        desc: "历史更新只按 bpu_hist_comb 一个正式模块展示；bpu_hist_* 生成子函数只保留在源码依据里。",
+        desc: "历史更新按 bpu_hist_comb 一个正式模块展示；bpu_hist_* 只作为内部 helper 说明，不单独展开为正式目录。",
         nodes: [
           "bpu_predict_main_comb",
           "bpu_hist_comb",
@@ -1430,7 +1494,7 @@
       ],
       bpu_hist_comb: [
         "simulator-new/front-end/BPU/BPU.h:26320-29179 defines bpu_hist_comb as the formal history-update training boundary",
-        "training_io/generated/bpu_hist_* are generated/internal child functions of bpu_hist_comb; the 27-module view does not expand them as separate modules",
+        "training_io/generated/bpu_hist_* are generated/internal child functions of bpu_hist_comb; the RTL package keeps only bpu_hist_comb as the formal folder/module",
         "simulator-new/front-end/BPU/BPU.h:1671 calls bpu_hist_comb from BPU_TOP step_bpu flow"
       ],
       bpu_queue_comb: [
@@ -1700,9 +1764,28 @@
       hist: [
         "Step 1 - formal training boundary: TRAINING_FUNCTION_LIST.md keeps bpu_hist_comb as the only history-update comb module",
         "Step 2 - call site: simulator-new/front-end/BPU/BPU.h:1671 calls bpu_hist_comb in the BPU_TOP flow",
-        "Step 3 - child handling: training_io/generated/bpu_hist_* belong to bpu_hist_comb and are not expanded as separate modules"
+        "Step 3 - child handling: training_io/generated/bpu_hist_* belong to bpu_hist_comb and are not separate formal RTL folders"
       ]
     };
+
+    const cycleEvidence = [
+      "总入口：simulator-new/front-end/front_top.cpp:2068-2077 front_top() 按 front_seq_read -> front_comb_calc -> front_seq_write 顺序执行",
+      "先读寄存器/FIFO/RAM：simulator-new/front-end/front_top.cpp:1997-2030 front_seq_read() 读取 front_top 本地状态、四个 FIFO/PTAB 和 ICache 快照",
+      "组合阶段 0：simulator-new/front-end/front_top.cpp:1029-1084 初始化本拍临时结构，复制 FIFO/PTAB read snapshot",
+      "组合阶段 1：simulator-new/front-end/front_top.cpp:1092-1102 执行 front_global_control_comb，合并 reset、后端 refetch、上一拍 checker refetch",
+      "组合阶段 2：simulator-new/front-end/front_top.cpp:1139-1162 执行 icache_peek_ready 和 front_read_enable_comb，决定各 FIFO/PTAB 读使能",
+      "组合阶段 3：simulator-new/front-end/front_top.cpp:1187-1263 执行 front_read_stage_input_comb，并调用 fetch_address_FIFO/instruction_FIFO/PTAB/front2back_FIFO 的读 comb",
+      "组合阶段 4：simulator-new/front-end/front_top.cpp:1290-1357 执行 front_bpu_control_comb、bpu_seq_read、bpu_comb_calc，产生本拍 BPU 预测和 next 请求",
+      "组合阶段 5：simulator-new/front-end/front_top.cpp:1383-1424 调 fetch_address_FIFO_comb_calc，将 BPU fetch address 写入 fetch address FIFO",
+      "组合阶段 6：simulator-new/front-end/front_top.cpp:1434-1476 调 icache_comb_calc，用 fetch FIFO 输出或 bypass 地址访问 ICache",
+      "组合阶段 7：simulator-new/front-end/front_top.cpp:1528-1680 调 predecode_comb 和 instruction_FIFO_comb_calc，把 ICache 返回写入 instruction FIFO",
+      "组合阶段 8：simulator-new/front-end/front_top.cpp:1697-1707 调 front_ptab_write_comb 和 PTAB_comb_calc，将 BPU 预测信息写入 PTAB",
+      "组合阶段 9：simulator-new/front-end/front_top.cpp:1719-1744 调 front_checker_input_comb 和 predecode_checker_comb，对齐 instruction FIFO 与 PTAB 并判断 flush",
+      "组合阶段 10：simulator-new/front-end/front_top.cpp:1749-1797 调 front_front2back_write_comb 和 front2back_FIFO_comb_calc，写 front2back FIFO",
+      "组合阶段 11：simulator-new/front-end/front_top.cpp:1802-1816 checker flush 时调 icache_comb_calc invalidate 分支，并写 next_predecode_refetch",
+      "组合阶段 12：simulator-new/front-end/front_top.cpp:1822-1841 调 front_output_comb，生成最终 front_top_out",
+      "最后写回状态：simulator-new/front-end/front_top.cpp:2034-2062 front_seq_write() 统一提交 BPU、FIFO、PTAB、ICache 和 front_top 本地状态"
+    ];
 
     modules.forEach((module) => {
       module.evidence = moduleEvidence[module.id] || [];
@@ -1729,9 +1812,126 @@
 
     spreadLayout(1.30, 1.24, 40, 18);
 
+    const stateStores = [
+      {
+        id: "front_top_state",
+        name: "front_top 状态寄存器",
+        kind: "REG",
+        file: "front-end/front_top.cpp",
+        x: 105,
+        y: 1260,
+        w: 245,
+        h: 78,
+        desc: "front_top 自身保留 delayed refetch、FIFO full/empty 状态位、统计和死锁快照；源码变量名带 latch，但这里按上一拍状态寄存器理解。seq_read 取旧值，seq_write 周期末写回。",
+        evidence: [
+          "simulator-new/front-end/front_top.cpp:25-37 defines predecode_refetch and FIFO full/empty state bits; *_latch is the C++ model name",
+          "simulator-new/front-end/front_top.cpp:1997-2030 front_seq_read snapshots these state values and submodule read data",
+          "simulator-new/front-end/front_top.cpp:2034-2062 front_seq_write commits next front_top state"
+        ]
+      },
+      {
+        id: "bpu_state",
+        name: "BPU 寄存器/队列",
+        kind: "REG/FIFO",
+        file: "front-end/BPU/BPU.h",
+        x: 370,
+        y: 1260,
+        w: 245,
+        h: 78,
+        desc: "BPU_TOP 内部保存 pc_reg、state、RAS、update_queue、queue 指针和 NLP 表；bpu_*_comb 只计算 next 状态请求。",
+        evidence: [
+          "simulator-new/front-end/BPU/BPU.h:638-691 defines RAS stacks, pc_reg/state, update_queue, queue pointers and nlp_table",
+          "simulator-new/front-end/BPU/BPU.h:740-947 bpu_seq_read snapshots BPU state and table data",
+          "simulator-new/front-end/BPU/BPU.h:1827-1927 bpu_seq_write commits BPU next state, queues and NLP entries"
+        ]
+      },
+      {
+        id: "type_pred_table",
+        name: "TypePredictor 表",
+        kind: "RAM",
+        file: "BPU/type_predictor/TypePredictor.h",
+        x: 635,
+        y: 1260,
+        w: 245,
+        h: 78,
+        desc: "TypePredictor 的预测类型表，pre_read/type_pred 读旧表项，seq_write 写回训练更新。",
+        evidence: [
+          "simulator-new/front-end/BPU/type_predictor/TypePredictor.h:142 defines table[BPU_BANK_NUM][TYPE_PRED_SET_NUM][TYPE_PRED_WAY_NUM]",
+          "simulator-new/front-end/BPU/type_predictor/TypePredictor.h:326-341 reads prediction/update entries",
+          "simulator-new/front-end/BPU/type_predictor/TypePredictor.h:419-429 writes updated entries"
+        ]
+      },
+      {
+        id: "tage_tables",
+        name: "TAGE 表/RAM",
+        kind: "RAM/REG",
+        file: "BPU/dir_predictor/TAGE_top.h",
+        x: 900,
+        y: 1260,
+        w: 245,
+        h: 78,
+        desc: "TAGE 保存 base counter、tag/cnt/useful 表、loop table、state 和 SRAM PRNG 状态。",
+        evidence: [
+          "simulator-new/front-end/BPU/dir_predictor/TAGE_top.h:681-705 defines base_counter, tag/cnt/useful tables and loop_table",
+          "simulator-new/front-end/BPU/dir_predictor/TAGE_top.h:1324-1467 reads TAGE table and loop state",
+          "simulator-new/front-end/BPU/dir_predictor/TAGE_top.h:1502-1593 writes table updates and next state"
+        ]
+      },
+      {
+        id: "btb_tables",
+        name: "BTB/BHT/TC 表",
+        kind: "RAM/REG",
+        file: "BPU/target_predictor/BTB_top.h",
+        x: 1165,
+        y: 1260,
+        w: 245,
+        h: 78,
+        desc: "BTB_TOP 保存 BTB、BHT、TC 表和内部状态位，用于目标预测与更新；源码里部分变量名带 latch，按周期状态寄存器口径说明。",
+        evidence: [
+          "simulator-new/front-end/BPU/target_predictor/BTB_top.h:454-463 defines BTB/BHT/TC tables",
+          "simulator-new/front-end/BPU/target_predictor/BTB_top.h:812-917 reads BTB/BHT/TC state",
+          "simulator-new/front-end/BPU/target_predictor/BTB_top.h:945-990 writes table updates and next state"
+        ]
+      },
+      {
+        id: "frontend_fifos",
+        name: "四个前端 FIFO/PTAB",
+        kind: "FIFO",
+        file: "front-end/fifo/*.cpp",
+        x: 1430,
+        y: 1260,
+        w: 265,
+        h: 78,
+        desc: "fetch_address_FIFO、instruction_FIFO、PTAB、front2back_FIFO 的 entries_ 和 size_ 都在各自模型内部。",
+        evidence: [
+          "simulator-new/front-end/fifo/fetch_address_FIFO.cpp:150-151 defines fetch address FIFO entries_ and size_",
+          "simulator-new/front-end/fifo/instruction_FIFO.cpp:174-175 defines instruction FIFO entries_ and size_",
+          "simulator-new/front-end/fifo/PTAB.cpp:257-258 defines PTAB entries_ and size_",
+          "simulator-new/front-end/fifo/front2bank_FIFO.cpp:222-223 defines front2back FIFO entries_ and size_"
+        ]
+      },
+      {
+        id: "icache_state_tables",
+        name: "ICache 寄存器/RAM",
+        kind: "REG/RAM",
+        file: "front-end/icache/*",
+        x: 1715,
+        y: 1260,
+        w: 265,
+        h: 78,
+        desc: "ICache 的控制寄存器在 icache_module.h，data/tag/valid 表在 GenericTable/外部 table 中。",
+        evidence: [
+          "simulator-new/front-end/icache/include/icache_module.h:119-144 defines req/state/memory/lookup registers",
+          "simulator-new/front-end/icache/GenericTable.h:335 and 398 define storage_ for regfile/SRAM table policies",
+          "simulator-new/front-end/icache/icache.cpp:256-258 instantiates data_table, tag_table and valid_table"
+        ]
+      }
+    ];
+
     const groupFill = (group) => groups[group]?.fill || "#ffffff";
     const moduleById = new Map(modules.map((module) => [module.id, module]));
     const edgeById = new Map(edges.map((edge) => [edge.id, edge]));
+    const stateById = new Map(stateStores.map((state) => [state.id, state]));
     const viewport = document.getElementById("viewport");
     const svg = document.getElementById("canvas");
     const detailTitle = document.getElementById("detailTitle");
@@ -1742,6 +1942,7 @@
     let activePath = null;
     let selectedModule = null;
     let selectedEdge = null;
+    let selectedState = null;
     let pan = { x: 0, y: 0 };
     let scale = 1;
     let dragStart = null;
@@ -1995,6 +2196,53 @@
         moduleLayer.appendChild(g);
       });
       viewport.appendChild(moduleLayer);
+
+      const stateLayer = createSvg("g", { id: "stateLayer" });
+      const stateTitle = createSvg("text", {
+        class: "state-title",
+        x: 105,
+        y: 1234
+      });
+      stateTitle.textContent = "front_top 时序状态 / FIFO / RAM 展开层（不计入 27 个 comb 模块）";
+      stateLayer.appendChild(stateTitle);
+      stateStores.forEach((state) => {
+        const g = createSvg("g", {
+          id: state.id,
+          class: `state-store${selectedState === state.id ? " selected" : ""}`,
+          tabindex: "0",
+          role: "button",
+          "aria-label": state.name
+        });
+        g.appendChild(createSvg("rect", {
+          x: state.x,
+          y: state.y,
+          width: state.w,
+          height: state.h
+        }));
+        const name = createSvg("text", {
+          class: "name",
+          x: state.x + 12,
+          y: state.y + 28
+        });
+        name.textContent = state.name;
+        g.appendChild(name);
+        const meta = createSvg("text", {
+          class: "meta",
+          x: state.x + 12,
+          y: state.y + 52
+        });
+        meta.textContent = `${state.kind} | ${state.file}`;
+        g.appendChild(meta);
+        g.addEventListener("click", () => selectState(state.id));
+        g.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            selectState(state.id);
+          }
+        });
+        stateLayer.appendChild(g);
+      });
+      viewport.appendChild(stateLayer);
       viewport.appendChild(labelLayer);
       applyTransform();
     }
@@ -2029,7 +2277,9 @@
       activePath = pathId ? paths.find((path) => path.id === pathId) : null;
       selectedModule = null;
       selectedEdge = null;
+      selectedState = null;
       document.querySelectorAll(".module").forEach((node) => node.classList.remove("selected"));
+      document.querySelectorAll(".state-store").forEach((node) => node.classList.remove("selected"));
       syncPathButtons();
       if (activePath) {
         detailTitle.textContent = activePath.name;
@@ -2040,6 +2290,8 @@
           <div class="kv"><span>开关依据</span><code>${escapeHtml(defaultReason(activePath))}</code></div>
           <div class="kv"><span>节点数</span><strong>${activePath.nodes.length}</strong></div>
           <div class="kv"><span>连线数</span><strong>${activePath.edges.length}</strong></div>
+          <h2>一拍执行顺序</h2>
+          ${renderEvidence(cycleEvidence)}
           <h2>源码依据</h2>
           ${renderEvidence(activePath.evidence)}
         `;
@@ -2054,6 +2306,7 @@
     function selectModule(moduleId) {
       selectedModule = moduleId;
       selectedEdge = null;
+      selectedState = null;
       syncPathButtons();
       const module = moduleById.get(moduleId);
       detailTitle.textContent = module.name;
@@ -2066,11 +2319,40 @@
         <div class="kv"><span>IO 位宽</span><strong>${module.bits}</strong></div>
         <h2>说明</h2>
         <p>${module.desc}</p>
+        <h2>front_top 一拍顺序</h2>
+        ${renderEvidence(cycleEvidence)}
         <h2>源码依据</h2>
         ${renderEvidence(module.evidence)}
       `;
       document.querySelectorAll(".module").forEach((node) => node.classList.remove("selected"));
       document.getElementById(moduleId)?.classList.add("selected");
+      document.querySelectorAll(".state-store").forEach((node) => node.classList.remove("selected"));
+      applyHighlight();
+    }
+
+    function selectState(stateId) {
+      selectedState = stateId;
+      selectedModule = null;
+      selectedEdge = null;
+      activePath = null;
+      syncPathButtons();
+      const state = stateById.get(stateId);
+      detailTitle.textContent = state.name;
+      detailSubtitle.textContent = `${state.kind} | ${state.file}`;
+      detailBody.innerHTML = `
+        <div class="kv"><span>展开层级</span><strong>front_top 时序状态</strong></div>
+        <div class="kv"><span>存储类型</span><strong>${escapeHtml(state.kind)}</strong></div>
+        <div class="kv"><span>来源文件</span><code>${escapeHtml(state.file)}</code></div>
+        <h2>说明</h2>
+        <p>${escapeHtml(state.desc)}</p>
+        <h2>front_top 一拍顺序</h2>
+        ${renderEvidence(cycleEvidence)}
+        <h2>源码依据</h2>
+        ${renderEvidence(state.evidence)}
+      `;
+      document.querySelectorAll(".module").forEach((node) => node.classList.remove("selected"));
+      document.querySelectorAll(".state-store").forEach((node) => node.classList.remove("selected"));
+      document.getElementById(stateId)?.classList.add("selected");
       applyHighlight();
     }
 
@@ -2078,6 +2360,7 @@
       selectedEdge = edgeId;
       selectedModule = null;
       activePath = null;
+      selectedState = null;
       const edge = edgeById.get(edgeId);
       const from = moduleById.get(edge.from);
       const to = moduleById.get(edge.to);
@@ -2111,6 +2394,7 @@
       `;
       bindDetailPathButtons();
       document.querySelectorAll(".module").forEach((node) => node.classList.remove("selected"));
+      document.querySelectorAll(".state-store").forEach((node) => node.classList.remove("selected"));
       applyHighlight();
     }
 
