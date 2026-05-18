@@ -1,9 +1,9 @@
-﻿// Backend top connectivity view.
+// Backend top connectivity view.
 // Canonical source: maintain this file under back_end/.
 //
 // Source reference:
-//   simulator-new/back-end/include/BackTop.h
-//   simulator-new/back-end/BackTop.cpp
+//   simulator-ffc9fad707a7acb0be5c7d4fe7c06d48987c73e0/back-end/include/BackTop.h
+//   simulator-ffc9fad707a7acb0be5c7d4fe7c06d48987c73e0/back-end/BackTop.cpp
 //
 // This file is a top-down connection skeleton, not the final RTL
 // implementation.  The top level shows module-to-module wiring; each module
@@ -19,15 +19,15 @@ module back_top #(
     parameter integer COMMIT_WIDTH = DECODE_WIDTH,
 
     parameter integer AREG_IDX_WIDTH = 6,
-    parameter integer PRF_IDX_WIDTH       = 9,
-    parameter integer ROB_IDX_WIDTH       = 9,
-    parameter integer STQ_IDX_WIDTH       = 6,
-    parameter integer LDQ_IDX_WIDTH       = 6,
+    parameter integer PRF_IDX_WIDTH       = 11,
+    parameter integer ROB_IDX_WIDTH       = 11,
+    parameter integer STQ_IDX_WIDTH       = 9,
+    parameter integer LDQ_IDX_WIDTH       = 9,
 
     parameter integer BR_TAG_WIDTH        = 6,
     parameter integer BR_MASK_WIDTH       = 64,
     parameter integer CSR_IDX_WIDTH       = 12,
-    parameter integer FTQ_IDX_WIDTH       = 7,
+    parameter integer FTQ_IDX_WIDTH       = 8,
     parameter integer FTQ_OFFSET_WIDTH    = 4,
     parameter integer INST_TYPE_WIDTH     = 5,
     parameter integer UOP_TYPE_WIDTH      = 5,
@@ -51,24 +51,24 @@ module back_top #(
     // ---------------------------------------------------------------------
     // Issue, execution and LSU structure constants.
     // ---------------------------------------------------------------------
-    parameter integer IQ_READY_NUM_WIDTH     = 8,
+    parameter integer IQ_READY_NUM_WIDTH     = 11,
     parameter integer MAX_IQ_DISPATCH_WIDTH  = DECODE_WIDTH,
     parameter integer MAX_STQ_DISPATCH_WIDTH = DECODE_WIDTH,
     parameter integer MAX_LDQ_DISPATCH_WIDTH = DECODE_WIDTH,
-    parameter integer MAX_WAKEUP_PORTS       = 11,
-    parameter integer ISSUE_WIDTH            = 15,
-    parameter integer TOTAL_FU_COUNT         = 19,
-    parameter integer FTQ_PRF_PC_PORT_NUM    = 8,
+    parameter integer MAX_WAKEUP_PORTS       = 16,
+    parameter integer ISSUE_WIDTH            = 24,
+    parameter integer TOTAL_FU_COUNT         = 30,
+    parameter integer FTQ_PRF_PC_PORT_NUM    = 12,
     parameter integer FTQ_ROB_PC_PORT_NUM    = 1,
-    parameter integer ROB_NUM                = 512,
-    parameter integer LSU_LDU_COUNT          = 3,
-    parameter integer LSU_STA_COUNT          = 2,
-    parameter integer LSU_AGU_COUNT          = 5,
-    parameter integer LSU_SDU_COUNT          = 2,
+    parameter integer ROB_NUM                = 2048,
+    parameter integer LSU_LDU_COUNT          = 4,
+    parameter integer LSU_STA_COUNT          = 4,
+    parameter integer LSU_AGU_COUNT          = 8,
+    parameter integer LSU_SDU_COUNT          = 4,
     parameter integer LSU_LOAD_WB_WIDTH      = LSU_LDU_COUNT,
     parameter integer LSU_LDU_WIDTH          = 2,
-    parameter integer W_STQ_COUNT            = 7,
-    parameter integer W_LDQ_COUNT            = 7,
+    parameter integer W_STQ_COUNT            = 10,
+    parameter integer W_LDQ_COUNT            = 10,
 
     // ---------------------------------------------------------------------
     // Basic sideband and instruction-entry widths.
@@ -223,25 +223,6 @@ module back_top #(
         (32 * FETCH_WIDTH) +
         (32 * FETCH_WIDTH) +
         FETCH_WIDTH +
-        1 +
-        FETCH_WIDTH +
-        FETCH_WIDTH +
-        (pcpn_t_BITS * FETCH_WIDTH) +
-        (pcpn_t_BITS * FETCH_WIDTH) +
-        (32 * FETCH_WIDTH) +
-        (TAGE_IDX_WIDTH * FETCH_WIDTH * TN_MAX) +
-        (TAGE_TAG_WIDTH * FETCH_WIDTH * TN_MAX) +
-        FETCH_WIDTH +
-        FETCH_WIDTH +
-        (tage_scl_meta_sum_t_BITS * FETCH_WIDTH) +
-        (BPU_SCL_META_NTABLE * BPU_SCL_META_IDX_BITS * FETCH_WIDTH) +
-        FETCH_WIDTH +
-        FETCH_WIDTH +
-        FETCH_WIDTH +
-        (BPU_LOOP_META_IDX_BITS * FETCH_WIDTH) +
-        (BPU_LOOP_META_TAG_BITS * FETCH_WIDTH) +
-        FETCH_WIDTH,
-    parameter integer W_FrontPreIO_AFTER_FRONT_STALL =
         FETCH_WIDTH +
         FETCH_WIDTH +
         (pcpn_t_BITS * FETCH_WIDTH) +
@@ -348,8 +329,7 @@ module back_top #(
         + W_LsuRobIO
         + W_DecBroadcastIO
         + W_ExuRobIO
-        + W_FtqRobPcRespIO
-        + 1,
+        + W_FtqRobPcRespIO,
     parameter integer W_RobOut =
         W_RobDisIO
         + W_RobCsrIO
@@ -384,7 +364,27 @@ module back_top #(
         + W_LsuMMUIO
 ) (
     // External inputs from frontend, DCache, peripheral and MMU/DTLB side.
-    input  wire [W_FrontPreIO-1:0]       front2pre,
+    input  wire [(32 * FETCH_WIDTH)-1:0]                         front2pre_inst,
+    input  wire [(32 * FETCH_WIDTH)-1:0]                         front2pre_pc,
+    input  wire [FETCH_WIDTH-1:0]                                front2pre_valid,
+    input  wire [FETCH_WIDTH-1:0]                                front2pre_predict_dir,
+    input  wire [FETCH_WIDTH-1:0]                                front2pre_alt_pred,
+    input  wire [(pcpn_t_BITS * FETCH_WIDTH)-1:0]                front2pre_altpcpn,
+    input  wire [(pcpn_t_BITS * FETCH_WIDTH)-1:0]                front2pre_pcpn,
+    input  wire [(32 * FETCH_WIDTH)-1:0]                         front2pre_predict_next_fetch_address,
+    input  wire [(TAGE_IDX_WIDTH * FETCH_WIDTH * TN_MAX)-1:0]    front2pre_tage_idx,
+    input  wire [(TAGE_TAG_WIDTH * FETCH_WIDTH * TN_MAX)-1:0]    front2pre_tage_tag,
+    input  wire [FETCH_WIDTH-1:0]                                front2pre_sc_used,
+    input  wire [FETCH_WIDTH-1:0]                                front2pre_sc_pred,
+    input  wire [(tage_scl_meta_sum_t_BITS * FETCH_WIDTH)-1:0]   front2pre_sc_sum,
+    input  wire [(BPU_SCL_META_NTABLE * BPU_SCL_META_IDX_BITS *
+        FETCH_WIDTH)-1:0]                                       front2pre_sc_idx,
+    input  wire [FETCH_WIDTH-1:0]                                front2pre_loop_used,
+    input  wire [FETCH_WIDTH-1:0]                                front2pre_loop_hit,
+    input  wire [FETCH_WIDTH-1:0]                                front2pre_loop_pred,
+    input  wire [(BPU_LOOP_META_IDX_BITS * FETCH_WIDTH)-1:0]     front2pre_loop_idx,
+    input  wire [(BPU_LOOP_META_TAG_BITS * FETCH_WIDTH)-1:0]     front2pre_loop_tag,
+    input  wire [FETCH_WIDTH-1:0]                                front2pre_page_fault_inst,
     input  wire [W_PeripheralRespIO-1:0] peripheral_resp,
     input  wire [W_DcacheLsuIO-1:0]      dcache2lsu,
     input  wire [W_MMULsuIO-1:0]         mmu2lsu_io,
@@ -472,7 +472,16 @@ module back_top #(
 
     // Source module: idu_top.
     wire        idu_out_dec_bcast_mispred;
+    wire [BR_MASK_WIDTH-1:0] idu_out_dec_bcast_br_mask_unused;
+    wire [BR_TAG_WIDTH-1:0]  idu_out_dec_bcast_br_id_unused;
+    wire [ROB_IDX_WIDTH-1:0] idu_out_dec_bcast_redirect_rob_idx_unused;
+    wire [BR_MASK_WIDTH-1:0] idu_out_dec_bcast_clear_mask_unused;
+    wire        idu_out_idu_br_latch_mispred_unused;
     wire [31:0] idu_out_idu_br_latch_redirect_pc;
+    wire [ROB_IDX_WIDTH-1:0] idu_out_idu_br_latch_redirect_rob_idx_unused;
+    wire [BR_TAG_WIDTH-1:0]  idu_out_idu_br_latch_br_id_unused;
+    wire [FTQ_IDX_WIDTH-1:0] idu_out_idu_br_latch_ftq_idx_unused;
+    wire [BR_MASK_WIDTH-1:0] idu_out_idu_br_latch_clear_mask_unused;
 
     // Source module: rob_top.
     wire        rob_out_rob_bcast_flush;
@@ -481,7 +490,18 @@ module back_top #(
     wire        rob_out_rob_bcast_exception;
     wire        rob_out_rob_bcast_fence;
     wire        rob_out_rob_bcast_fence_i;
+    wire        rob_out_rob_bcast_ecall_unused;
+    wire        rob_out_rob_bcast_page_fault_inst_unused;
+    wire        rob_out_rob_bcast_page_fault_load_unused;
+    wire        rob_out_rob_bcast_page_fault_store_unused;
+    wire        rob_out_rob_bcast_illegal_inst_unused;
+    wire        rob_out_rob_bcast_interrupt_unused;
+    wire [31:0] rob_out_rob_bcast_trap_val_unused;
     wire [31:0] rob_out_rob_bcast_pc;
+    wire [ROB_IDX_WIDTH-1:0] rob_out_rob_bcast_head_rob_idx_unused;
+    wire                     rob_out_rob_bcast_head_valid_unused;
+    wire [ROB_IDX_WIDTH-1:0] rob_out_rob_bcast_head_incomplete_rob_idx_unused;
+    wire                     rob_out_rob_bcast_head_incomplete_valid_unused;
 
     // Source module: csr_top.
     wire [31:0] csr_out_csr2front_epc;
@@ -492,8 +512,8 @@ module back_top #(
     wire [1:0]  csr_out_csr_status_privilege;
 
     // Local top-level glue wires.
+    wire [W_FrontPreIO-1:0] front2pre;
     wire [31:0] redirect_pc_from_flush;
-    wire        front_stall_from_front2pre;
 
     // ---------------------------------------------------------------------
     // 3. Back_out.commit_entry glue.
@@ -559,6 +579,29 @@ module back_top #(
     // 4. Small top-level glue that mirrors BackTop.cpp.
     // ---------------------------------------------------------------------
 
+    assign front2pre = {
+        front2pre_inst,
+        front2pre_pc,
+        front2pre_valid,
+        front2pre_predict_dir,
+        front2pre_alt_pred,
+        front2pre_altpcpn,
+        front2pre_pcpn,
+        front2pre_predict_next_fetch_address,
+        front2pre_tage_idx,
+        front2pre_tage_tag,
+        front2pre_sc_used,
+        front2pre_sc_pred,
+        front2pre_sc_sum,
+        front2pre_sc_idx,
+        front2pre_loop_used,
+        front2pre_loop_hit,
+        front2pre_loop_pred,
+        front2pre_loop_idx,
+        front2pre_loop_tag,
+        front2pre_page_fault_inst
+    };
+
     assign {
         backout_rob_commit_entry_valid,
         backout_rob_commit_entry_uop
@@ -599,11 +642,6 @@ module back_top #(
                         [(32 * (commit_idx + 1))-1:(32 * commit_idx)];
         end
     endgenerate
-
-    // Keep this exact C++ relation:
-    //   rob->in.front_stall = &in.front_stall
-    assign front_stall_from_front2pre =
-        front2pre[W_FrontPreIO_AFTER_FRONT_STALL];
 
     assign commit_entry_zero_src_areg    =
         {(2 * AREG_IDX_WIDTH * COMMIT_WIDTH){1'b0}};
@@ -670,7 +708,18 @@ module back_top #(
         .idu_consume(idu_consume),
         .idu_br_latch(idu_br_latch),
         .dec_bcast_mispred(idu_out_dec_bcast_mispred),
-        .idu_br_latch_redirect_pc(idu_out_idu_br_latch_redirect_pc)
+        .dec_bcast_br_mask(idu_out_dec_bcast_br_mask_unused),
+        .dec_bcast_br_id(idu_out_dec_bcast_br_id_unused),
+        .dec_bcast_redirect_rob_idx(
+            idu_out_dec_bcast_redirect_rob_idx_unused),
+        .dec_bcast_clear_mask(idu_out_dec_bcast_clear_mask_unused),
+        .idu_br_latch_mispred(idu_out_idu_br_latch_mispred_unused),
+        .idu_br_latch_redirect_pc(idu_out_idu_br_latch_redirect_pc),
+        .idu_br_latch_redirect_rob_idx(
+            idu_out_idu_br_latch_redirect_rob_idx_unused),
+        .idu_br_latch_br_id(idu_out_idu_br_latch_br_id_unused),
+        .idu_br_latch_ftq_idx(idu_out_idu_br_latch_ftq_idx_unused),
+        .idu_br_latch_clear_mask(idu_out_idu_br_latch_clear_mask_unused)
     );
 
     // Rename.
@@ -768,7 +817,6 @@ module back_top #(
         .dec_bcast(dec_bcast),
         .exu2rob(exu2rob),
         .ftq_rob_pc_resp(ftq_rob_pc_resp),
-        .front_stall(front_stall_from_front2pre),
         .rob2dis(rob2dis),
         .rob2csr(rob2csr),
         .rob_commit(rob_commit),
@@ -777,10 +825,23 @@ module back_top #(
         .rob_bcast_flush(rob_out_rob_bcast_flush),
         .rob_bcast_mret(rob_out_rob_bcast_mret),
         .rob_bcast_sret(rob_out_rob_bcast_sret),
+        .rob_bcast_ecall(rob_out_rob_bcast_ecall_unused),
         .rob_bcast_exception(rob_out_rob_bcast_exception),
         .rob_bcast_fence(rob_out_rob_bcast_fence),
         .rob_bcast_fence_i(rob_out_rob_bcast_fence_i),
-        .rob_bcast_pc(rob_out_rob_bcast_pc)
+        .rob_bcast_page_fault_inst(rob_out_rob_bcast_page_fault_inst_unused),
+        .rob_bcast_page_fault_load(rob_out_rob_bcast_page_fault_load_unused),
+        .rob_bcast_page_fault_store(rob_out_rob_bcast_page_fault_store_unused),
+        .rob_bcast_illegal_inst(rob_out_rob_bcast_illegal_inst_unused),
+        .rob_bcast_interrupt(rob_out_rob_bcast_interrupt_unused),
+        .rob_bcast_trap_val(rob_out_rob_bcast_trap_val_unused),
+        .rob_bcast_pc(rob_out_rob_bcast_pc),
+        .rob_bcast_head_rob_idx(rob_out_rob_bcast_head_rob_idx_unused),
+        .rob_bcast_head_valid(rob_out_rob_bcast_head_valid_unused),
+        .rob_bcast_head_incomplete_rob_idx(
+            rob_out_rob_bcast_head_incomplete_rob_idx_unused),
+        .rob_bcast_head_incomplete_valid(
+            rob_out_rob_bcast_head_incomplete_valid_unused)
     );
 
     // CSR.

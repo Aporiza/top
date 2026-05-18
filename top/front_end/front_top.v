@@ -1,224 +1,574 @@
-// Frontend 27-comb structural top.
-//
-// Canonical execution reference:
-//   simulator-new/front-end/front_top.cpp::front_comb_calc()
-//   simulator-new/rv_simu_mmu_v2.cpp::SimCpu::front_cycle()
-//
-// Packaging policy:
-//   - Do not hide the training units inside eight coarse groups.
-//   - Keep the 27 formal comb units as one folder and one Verilog module each.
-//   - front_top only wires those 27 units in the same order used by the
-//     front_cycle/front_top explanation documents.
-//   - The stage-0 initialization/defaulting code lives in this top and is not
-//     counted as a formal comb module.
-//
-// The comb modules are currently synthesizable pass-through boundary shells.
-// Replace each shell body with the generated/trained RTL for that unit when
-// it is ready.
+// Frontend top connectivity and training-boundary package.
+// Source: simulator-ffc9fad707a7acb0be5c7d4fe7c06d48987c73e0/front-end/front_IO.h,
+//         simulator-ffc9fad707a7acb0be5c7d4fe7c06d48987c73e0/front-end/train_IO.h,
+//         simulator-ffc9fad707a7acb0be5c7d4fe7c06d48987c73e0/front-end/front_top.cpp.
+// BSD instances use pi/po, but each pi/po is built from named variables.
 
 module front_top #(
-    parameter integer LINK_WIDTH = 64
+    parameter integer FETCH_WIDTH = 16,
+    parameter integer COMMIT_WIDTH = 8,
+    parameter integer TN_MAX = 4,
+    parameter integer PC_BITS = 32,
+    parameter integer INST_BITS = 32,
+    parameter integer PRIVILEGE_BITS = 2,
+    parameter integer PCPN_BITS = 3,
+    parameter integer BR_TYPE_BITS = 3,
+    parameter integer TAGE_IDX_BITS = 12,
+    parameter integer TAGE_TAG_BITS = 8,
+    parameter integer PREDECODE_TYPE_BITS = 2,
+    parameter integer BPU_SCL_META_NTABLE = 8,
+    parameter integer BPU_SCL_META_IDX_BITS = 16,
+    parameter integer BPU_SCL_META_SUM_BITS = 16,
+    parameter integer BPU_LOOP_META_IDX_BITS = 16,
+    parameter integer BPU_LOOP_META_TAG_BITS = 16,
+    parameter integer W_BackUpdateMeta = COMMIT_WIDTH + (2 * PCPN_BITS * COMMIT_WIDTH) + (TAGE_IDX_BITS * COMMIT_WIDTH * TN_MAX) + (TAGE_TAG_BITS * COMMIT_WIDTH * TN_MAX) + COMMIT_WIDTH + COMMIT_WIDTH + (BPU_SCL_META_SUM_BITS * COMMIT_WIDTH) + (BPU_SCL_META_NTABLE * BPU_SCL_META_IDX_BITS * COMMIT_WIDTH) + COMMIT_WIDTH + COMMIT_WIDTH + COMMIT_WIDTH + (BPU_LOOP_META_IDX_BITS * COMMIT_WIDTH) + (BPU_LOOP_META_TAG_BITS * COMMIT_WIDTH),
+    parameter integer W_FrontOutMeta = FETCH_WIDTH + (2 * PCPN_BITS * FETCH_WIDTH) + (TAGE_IDX_BITS * FETCH_WIDTH * TN_MAX) + (TAGE_TAG_BITS * FETCH_WIDTH * TN_MAX) + FETCH_WIDTH + FETCH_WIDTH + (BPU_SCL_META_SUM_BITS * FETCH_WIDTH) + (BPU_SCL_META_NTABLE * BPU_SCL_META_IDX_BITS * FETCH_WIDTH) + FETCH_WIDTH + FETCH_WIDTH + FETCH_WIDTH + (BPU_LOOP_META_IDX_BITS * FETCH_WIDTH) + (BPU_LOOP_META_TAG_BITS * FETCH_WIDTH),
+    parameter integer W_BpuIn = 1 + COMMIT_WIDTH + 1 + PC_BITS + (COMMIT_WIDTH * PC_BITS) + COMMIT_WIDTH + COMMIT_WIDTH + (COMMIT_WIDTH * BR_TYPE_BITS) + (COMMIT_WIDTH * PC_BITS) + W_BackUpdateMeta + 1,
+    parameter integer W_BpuOut = 1 + PC_BITS + 1 + FETCH_WIDTH + PC_BITS + (FETCH_WIDTH * PC_BITS) + W_FrontOutMeta + 1 + PC_BITS + 1 + 1 + PC_BITS,
+    parameter integer W_FetchAddressFifoIn = 1 + 1 + 1 + 1 + PC_BITS,
+    parameter integer W_FetchAddressFifoOut = 1 + 1 + 1 + PC_BITS,
+    parameter integer W_FetchAddrCombOut = W_FetchAddressFifoOut + 1 + 1 + PC_BITS + 1,
+    parameter integer W_PredecodeIn = (FETCH_WIDTH * INST_BITS) + (FETCH_WIDTH * PC_BITS),
+    parameter integer W_PredecodeOut = (FETCH_WIDTH * PREDECODE_TYPE_BITS) + (FETCH_WIDTH * PC_BITS),
+    parameter integer W_InstructionFifoIn = 1 + 1 + 1 + (FETCH_WIDTH * INST_BITS) + (FETCH_WIDTH * PC_BITS) + FETCH_WIDTH + FETCH_WIDTH + 1 + (FETCH_WIDTH * PREDECODE_TYPE_BITS) + (FETCH_WIDTH * PC_BITS) + PC_BITS,
+    parameter integer W_InstructionFifoOut = 1 + 1 + 1 + (FETCH_WIDTH * INST_BITS) + (FETCH_WIDTH * PC_BITS) + FETCH_WIDTH + FETCH_WIDTH + (FETCH_WIDTH * PREDECODE_TYPE_BITS) + (FETCH_WIDTH * PC_BITS) + PC_BITS,
+    parameter integer W_InstructionCombOut = W_InstructionFifoOut + 1 + 1 + W_InstructionFifoIn + 1,
+    parameter integer W_PtabIn = 1 + 1 + 1 + FETCH_WIDTH + PC_BITS + (FETCH_WIDTH * PC_BITS) + W_FrontOutMeta + 1 + 1,
+    parameter integer W_PtabOut = 1 + 1 + 1 + FETCH_WIDTH + PC_BITS + (FETCH_WIDTH * PC_BITS) + W_FrontOutMeta,
+    parameter integer W_PtabCombOut = W_PtabOut + 1 + 1 + W_PtabIn + 1 + W_PtabIn + 1,
+    parameter integer W_PredecodeCheckerIn = FETCH_WIDTH + PC_BITS + (FETCH_WIDTH * PREDECODE_TYPE_BITS) + (FETCH_WIDTH * PC_BITS) + PC_BITS,
+    parameter integer W_PredecodeCheckerOut = FETCH_WIDTH + PC_BITS + 1,
+    parameter integer W_Front2BackFifoIn = 1 + 1 + 1 + 1 + (FETCH_WIDTH * INST_BITS) + FETCH_WIDTH + FETCH_WIDTH + FETCH_WIDTH + PC_BITS + (FETCH_WIDTH * PC_BITS) + W_FrontOutMeta,
+    parameter integer W_Front2BackFifoOut = 1 + 1 + 1 + (FETCH_WIDTH * INST_BITS) + FETCH_WIDTH + FETCH_WIDTH + FETCH_WIDTH + PC_BITS + (FETCH_WIDTH * PC_BITS) + W_FrontOutMeta,
+    parameter integer W_Front2BackCombOut = W_Front2BackFifoOut + 1 + 1 + W_Front2BackFifoIn + 1,
+    parameter integer W_FrontTopOut = 1 + (FETCH_WIDTH * PC_BITS) + (FETCH_WIDTH * INST_BITS) + FETCH_WIDTH + PC_BITS + FETCH_WIDTH + (2 * FETCH_WIDTH * PCPN_BITS) + FETCH_WIDTH + FETCH_WIDTH + (FETCH_WIDTH * TN_MAX * TAGE_IDX_BITS) + (FETCH_WIDTH * TN_MAX * TAGE_TAG_BITS) + FETCH_WIDTH + FETCH_WIDTH + (FETCH_WIDTH * BPU_SCL_META_SUM_BITS) + (FETCH_WIDTH * BPU_SCL_META_NTABLE * BPU_SCL_META_IDX_BITS) + FETCH_WIDTH + FETCH_WIDTH + FETCH_WIDTH + (FETCH_WIDTH * BPU_LOOP_META_IDX_BITS) + (FETCH_WIDTH * BPU_LOOP_META_TAG_BITS)
 ) (
-    input wire [LINK_WIDTH-1:0] pi,
-    output wire [LINK_WIDTH-1:0] po
+    input wire aclk, input wire aresetn, input wire reset,
+    input wire [COMMIT_WIDTH-1:0] back2front_valid,
+    input wire refetch, input wire itlb_flush, input wire fence_i,
+    input wire [PC_BITS-1:0] refetch_address,
+    input wire [COMMIT_WIDTH*PC_BITS-1:0] predict_base_pc,
+    input wire [COMMIT_WIDTH-1:0] predict_dir, input wire [COMMIT_WIDTH-1:0] actual_dir,
+    input wire [COMMIT_WIDTH*BR_TYPE_BITS-1:0] actual_br_type,
+    input wire [COMMIT_WIDTH*PC_BITS-1:0] actual_target,
+    input wire [COMMIT_WIDTH-1:0] alt_pred,
+    input wire [COMMIT_WIDTH*PCPN_BITS-1:0] altpcpn, input wire [COMMIT_WIDTH*PCPN_BITS-1:0] pcpn,
+    input wire [COMMIT_WIDTH*TN_MAX*TAGE_IDX_BITS-1:0] tage_idx,
+    input wire [COMMIT_WIDTH*TN_MAX*TAGE_TAG_BITS-1:0] tage_tag,
+    input wire [COMMIT_WIDTH-1:0] sc_used, input wire [COMMIT_WIDTH-1:0] sc_pred,
+    input wire [COMMIT_WIDTH*BPU_SCL_META_SUM_BITS-1:0] sc_sum,
+    input wire [COMMIT_WIDTH*BPU_SCL_META_NTABLE*BPU_SCL_META_IDX_BITS-1:0] sc_idx,
+    input wire [COMMIT_WIDTH-1:0] loop_used, input wire [COMMIT_WIDTH-1:0] loop_hit, input wire [COMMIT_WIDTH-1:0] loop_pred,
+    input wire [COMMIT_WIDTH*BPU_LOOP_META_IDX_BITS-1:0] loop_idx,
+    input wire [COMMIT_WIDTH*BPU_LOOP_META_TAG_BITS-1:0] loop_tag,
+    input wire FIFO_read_enable,
+    input wire [31:0] csr_status_sstatus, input wire [31:0] csr_status_mstatus, input wire [31:0] csr_status_satp,
+    input wire [PRIVILEGE_BITS-1:0] csr_status_privilege,
+    output wire icache_read_valid, output wire [PC_BITS-1:0] fetch_address,
+    output wire icache_read_valid_2, output wire [PC_BITS-1:0] fetch_address_2,
+    output wire icache_invalidate_req, output wire icache_run_comb_only,
+    input wire icache_read_ready, input wire icache_read_complete, input wire icache_read_ready_2, input wire icache_read_complete_2,
+    input wire [FETCH_WIDTH*INST_BITS-1:0] icache_fetch_group, input wire [FETCH_WIDTH-1:0] icache_page_fault_inst,
+    input wire [FETCH_WIDTH-1:0] icache_inst_valid, input wire [PC_BITS-1:0] icache_fetch_pc,
+    input wire [FETCH_WIDTH*INST_BITS-1:0] icache_fetch_group_2, input wire [FETCH_WIDTH-1:0] icache_page_fault_inst_2,
+    input wire [FETCH_WIDTH-1:0] icache_inst_valid_2, input wire [PC_BITS-1:0] icache_fetch_pc_2,
+    output wire FIFO_valid,
+    output wire [FETCH_WIDTH*PC_BITS-1:0] pc, output wire [FETCH_WIDTH*INST_BITS-1:0] instructions,
+    output wire [FETCH_WIDTH-1:0] out_predict_dir, output wire [PC_BITS-1:0] predict_next_fetch_address,
+    output wire [FETCH_WIDTH-1:0] out_alt_pred, output wire [FETCH_WIDTH*PCPN_BITS-1:0] out_altpcpn,
+    output wire [FETCH_WIDTH*PCPN_BITS-1:0] out_pcpn, output wire [FETCH_WIDTH-1:0] page_fault_inst,
+    output wire [FETCH_WIDTH-1:0] inst_valid, output wire [FETCH_WIDTH*TN_MAX*TAGE_IDX_BITS-1:0] out_tage_idx,
+    output wire [FETCH_WIDTH*TN_MAX*TAGE_TAG_BITS-1:0] out_tage_tag, output wire [FETCH_WIDTH-1:0] out_sc_used,
+    output wire [FETCH_WIDTH-1:0] out_sc_pred, output wire [FETCH_WIDTH*BPU_SCL_META_SUM_BITS-1:0] out_sc_sum,
+    output wire [FETCH_WIDTH*BPU_SCL_META_NTABLE*BPU_SCL_META_IDX_BITS-1:0] out_sc_idx,
+    output wire [FETCH_WIDTH-1:0] out_loop_used, output wire [FETCH_WIDTH-1:0] out_loop_hit, output wire [FETCH_WIDTH-1:0] out_loop_pred,
+    output wire [FETCH_WIDTH*BPU_LOOP_META_IDX_BITS-1:0] out_loop_idx,
+    output wire [FETCH_WIDTH*BPU_LOOP_META_TAG_BITS-1:0] out_loop_tag
 );
-    wire [LINK_WIDTH-1:0] comb_link_00;
-    wire [LINK_WIDTH-1:0] comb_link_01;
-    wire [LINK_WIDTH-1:0] comb_link_02;
-    wire [LINK_WIDTH-1:0] comb_link_03;
-    wire [LINK_WIDTH-1:0] comb_link_04;
-    wire [LINK_WIDTH-1:0] comb_link_05;
-    wire [LINK_WIDTH-1:0] comb_link_06;
-    wire [LINK_WIDTH-1:0] comb_link_07;
-    wire [LINK_WIDTH-1:0] comb_link_08;
-    wire [LINK_WIDTH-1:0] comb_link_09;
-    wire [LINK_WIDTH-1:0] comb_link_10;
-    wire [LINK_WIDTH-1:0] comb_link_11;
-    wire [LINK_WIDTH-1:0] comb_link_12;
-    wire [LINK_WIDTH-1:0] comb_link_13;
-    wire [LINK_WIDTH-1:0] comb_link_14;
-    wire [LINK_WIDTH-1:0] comb_link_15;
-    wire [LINK_WIDTH-1:0] comb_link_16;
-    wire [LINK_WIDTH-1:0] comb_link_17;
-    wire [LINK_WIDTH-1:0] comb_link_18;
-    wire [LINK_WIDTH-1:0] comb_link_19;
-    wire [LINK_WIDTH-1:0] comb_link_20;
-    wire [LINK_WIDTH-1:0] comb_link_21;
-    wire [LINK_WIDTH-1:0] comb_link_22;
-    wire [LINK_WIDTH-1:0] comb_link_23;
-    wire [LINK_WIDTH-1:0] comb_link_24;
-    wire [LINK_WIDTH-1:0] comb_link_25;
-    wire [LINK_WIDTH-1:0] comb_link_26;
-    wire [LINK_WIDTH-1:0] comb_link_27;
-    wire [LINK_WIDTH-1:0] front_comb_init_default;
 
-    // Stage 0: front_comb_calc() first clears the temporary input/output and
-    // request bundles before the formal comb functions run. Model that as a
-    // top-level default layer, then overlay the incoming training packet.
-    assign front_comb_init_default = {LINK_WIDTH{1'b0}};
-    assign comb_link_00 = front_comb_init_default | pi;
+    reg predecode_refetch;
+    reg [PC_BITS-1:0] predecode_refetch_address;
+    reg [31:0] front_sim_time;
+    reg [63:0] front_stats_cycles;
+    reg fetch_addr_fifo_full_latch;
+    reg fetch_addr_fifo_empty_latch;
+    reg fifo_full_latch;
+    reg fifo_empty_latch;
+    reg ptab_full_latch;
+    reg ptab_empty_latch;
+    reg front2back_fifo_full_latch;
+    reg front2back_fifo_empty_latch;
+    reg [W_FetchAddressFifoOut-1:0] fetch_addr_fifo_rd_snapshot_reg;
+    reg [W_InstructionFifoOut-1:0] fifo_rd_snapshot_reg;
+    reg [W_PtabOut-1:0] ptab_rd_snapshot_reg;
+    reg [W_Front2BackFifoOut-1:0] front2back_fifo_rd_snapshot_reg;
 
-    front_global_control_comb #(.W_IN(LINK_WIDTH), .W_OUT(LINK_WIDTH))
-    u_00_front_global_control_comb (
-        .pi(comb_link_00),
-        .po(comb_link_01)
+    wire predecode_refetch_snapshot = predecode_refetch;
+    wire [PC_BITS-1:0] predecode_refetch_address_snapshot = predecode_refetch_address;
+    wire [31:0] front_sim_time_snapshot = front_sim_time;
+    wire [63:0] front_stats_cycles_snapshot = front_stats_cycles;
+    wire fetch_addr_fifo_empty_latch_snapshot = fetch_addr_fifo_empty_latch;
+    wire fifo_empty_latch_snapshot = fifo_empty_latch;
+    wire ptab_empty_latch_snapshot = ptab_empty_latch;
+    wire front2back_fifo_full_latch_snapshot = front2back_fifo_full_latch;
+
+    // Stage 0: front_top.cpp:1013-1084 initialization/default construction.
+    wire [W_FrontTopOut-1:0] front_top_out_default = {W_FrontTopOut{1'b0}};
+    wire [31:0] front_sim_time_init = front_sim_time_snapshot + 32'd1;
+    wire [63:0] front_stats_cycles_init = front_stats_cycles_snapshot + 64'd1;
+    wire front_state_req_valid_init = 1'b0;
+    wire [W_BpuIn-1:0] bpu_in_init = {W_BpuIn{1'b0}};
+    wire [W_FetchAddressFifoOut-1:0] fetch_addr_fifo_rd = fetch_addr_fifo_rd_snapshot_reg;
+    wire [W_InstructionFifoOut-1:0] fifo_rd = fifo_rd_snapshot_reg;
+    wire [W_PtabOut-1:0] ptab_rd = ptab_rd_snapshot_reg;
+    wire [W_Front2BackFifoOut-1:0] front2back_fifo_rd = front2back_fifo_rd_snapshot_reg;
+    wire [W_FetchAddressFifoOut-1:0] fetch_addr_fifo_next_rd_init = fetch_addr_fifo_rd;
+    wire [W_InstructionFifoOut-1:0] fifo_next_rd_init = fifo_rd;
+    wire [W_PtabOut-1:0] ptab_next_rd_init = ptab_rd;
+    wire [W_Front2BackFifoOut-1:0] front2back_fifo_next_rd_init = front2back_fifo_rd;
+    wire global_reset_init = 1'b0;
+    wire global_refetch_init = 1'b0;
+    wire icache_ready_init = 1'b0;
+    wire icache_ready_2_init = 1'b0;
+    wire fetch_addr_fifo_read_enable_slot0_init = 1'b0;
+    wire fetch_addr_fifo_read_enable_slot1_candidate_init = 1'b0;
+    wire inst_fifo_read_enable_init = 1'b0;
+    wire ptab_read_enable_init = 1'b0;
+    wire front2back_read_enable_init = 1'b0;
+
+    wire [1 + 1 + PC_BITS + 1 + PC_BITS - 1:0]
+        front_global_control_comb_in = {
+            reset,
+            refetch,
+            refetch_address,
+            predecode_refetch_snapshot,
+            predecode_refetch_address_snapshot
+        };
+    wire [1 + 1 + PC_BITS - 1:0] front_global_control_comb_out;
+    wire global_reset;
+    wire global_refetch;
+    wire [PC_BITS-1:0] global_refetch_address;
+    front_global_control_comb_top #(
+        .W_FrontGlobalControlCombIn(1 + 1 + PC_BITS + 1 + PC_BITS),
+        .W_FrontGlobalControlCombOut(1 + 1 + PC_BITS)
+    ) u_front_global_control_comb_top (
+        .front_global_control_comb_in(front_global_control_comb_in),
+        .front_global_control_comb_out(front_global_control_comb_out)
+    );
+    assign {
+        global_reset,
+        global_refetch,
+        global_refetch_address
+    } = front_global_control_comb_out;
+
+    wire [8:0] front_read_enable_comb_in = {
+        FIFO_read_enable,
+        fetch_addr_fifo_empty_latch_snapshot,
+        fifo_empty_latch_snapshot,
+        ptab_empty_latch_snapshot,
+        front2back_fifo_full_latch_snapshot,
+        global_reset,
+        global_refetch,
+        icache_read_ready,
+        icache_read_ready_2
+    };
+    wire [5:0] front_read_enable_comb_out;
+    wire fetch_addr_fifo_read_enable_slot0;
+    wire fetch_addr_fifo_read_enable_slot1_candidate;
+    wire predecode_can_run_old;
+    wire inst_fifo_read_enable;
+    wire ptab_read_enable;
+    wire front2back_read_enable;
+    front_read_enable_comb_top #(
+        .W_FrontReadEnableCombIn(9),
+        .W_FrontReadEnableCombOut(6)
+    ) u_front_read_enable_comb_top (
+        .front_read_enable_comb_in(front_read_enable_comb_in),
+        .front_read_enable_comb_out(front_read_enable_comb_out)
+    );
+    assign {
+        fetch_addr_fifo_read_enable_slot0,
+        fetch_addr_fifo_read_enable_slot1_candidate,
+        predecode_can_run_old,
+        inst_fifo_read_enable,
+        ptab_read_enable,
+        front2back_read_enable
+    } = front_read_enable_comb_out;
+
+    wire [6:0] front_read_stage_input_comb_in = {
+        refetch,
+        global_reset,
+        global_refetch,
+        fetch_addr_fifo_read_enable_slot0,
+        inst_fifo_read_enable,
+        ptab_read_enable,
+        front2back_read_enable
+    };
+    wire [11:0] front_read_stage_input_comb_out;
+    wire fetch_addr_fifo_reset;
+    wire fetch_addr_fifo_refetch;
+    wire fetch_addr_fifo_read_enable;
+    wire fifo_reset;
+    wire fifo_refetch;
+    wire fifo_read_enable;
+    wire ptab_reset;
+    wire ptab_refetch;
+    wire ptab_out_read_enable;
+    wire front2back_fifo_reset;
+    wire front2back_fifo_refetch;
+    wire front2back_fifo_read_enable;
+    front_read_stage_input_comb_top #(
+        .W_FrontReadStageInputCombIn(7),
+        .W_FrontReadStageInputCombOut(12)
+    ) u_front_read_stage_input_comb_top (
+        .front_read_stage_input_comb_in(front_read_stage_input_comb_in),
+        .front_read_stage_input_comb_out(front_read_stage_input_comb_out)
+    );
+    assign {
+        fetch_addr_fifo_reset,
+        fetch_addr_fifo_refetch,
+        fetch_addr_fifo_read_enable,
+        fifo_reset,
+        fifo_refetch,
+        fifo_read_enable,
+        ptab_reset,
+        ptab_refetch,
+        ptab_out_read_enable,
+        front2back_fifo_reset,
+        front2back_fifo_refetch,
+        front2back_fifo_read_enable
+    } = front_read_stage_input_comb_out;
+
+    wire [W_BpuIn-1:0] bpu_in_seed = {
+        reset,
+        back2front_valid,
+        refetch,
+        refetch_address,
+        predict_base_pc,
+        predict_dir,
+        actual_dir,
+        actual_br_type,
+        actual_target,
+        alt_pred,
+        altpcpn,
+        pcpn,
+        tage_idx,
+        tage_tag,
+        sc_used,
+        sc_pred,
+        sc_sum,
+        sc_idx,
+        loop_used,
+        loop_hit,
+        loop_pred,
+        loop_idx,
+        loop_tag,
+        icache_read_ready
+    };
+    wire [W_BpuIn + 2 + 1 + 1 + PC_BITS - 1:0]
+        front_bpu_control_comb_in = {
+            bpu_in_seed,
+            fetch_addr_fifo_full_latch,
+            ptab_full_latch,
+            global_reset,
+            global_refetch,
+            global_refetch_address
+        };
+    wire [3 + W_BpuIn + W_BpuIn - 1:0] front_bpu_control_comb_out;
+    wire bpu_stall;
+    wire bpu_can_run;
+    wire bpu_icache_ready;
+    wire [W_BpuIn-1:0] bpu_in_after_control;
+    wire [W_BpuIn-1:0] bpu_input_payload;
+    front_bpu_control_comb_top #(
+        .W_FrontBpuControlCombIn(W_BpuIn + 2 + 1 + 1 + PC_BITS),
+        .W_FrontBpuControlCombOut(3 + W_BpuIn + W_BpuIn)
+    ) u_front_bpu_control_comb_top (
+        .front_bpu_control_comb_in(front_bpu_control_comb_in),
+        .front_bpu_control_comb_out(front_bpu_control_comb_out)
+    );
+    assign {
+        bpu_stall,
+        bpu_can_run,
+        bpu_icache_ready,
+        bpu_in_after_control,
+        bpu_input_payload
+    } = front_bpu_control_comb_out;
+
+    wire [W_BpuOut-1:0] bpu_output_payload;
+    bpu_top #(
+        .W_BpuIn(W_BpuIn),
+        .W_BpuOut(W_BpuOut)
+    ) u_bpu_top (
+        .bpu_in(bpu_in_after_control),
+        .bpu_out(bpu_output_payload)
     );
 
-    front_read_enable_comb #(.W_IN(LINK_WIDTH), .W_OUT(LINK_WIDTH))
-    u_01_front_read_enable_comb (
-        .pi(comb_link_01),
-        .po(comb_link_02)
+    wire bpu_output_icache_read_valid;
+    wire [PC_BITS-1:0] bpu_output_fetch_address;
+    wire bpu_output_ptab_write_enable;
+    wire [FETCH_WIDTH-1:0] bpu_output_predict_dir;
+    wire [PC_BITS-1:0] bpu_output_predict_next_fetch_address;
+    wire [FETCH_WIDTH*PC_BITS-1:0] bpu_output_predict_base_pc;
+    wire [W_FrontOutMeta-1:0] bpu_output_meta;
+    wire bpu_output_two_ahead_valid;
+    wire [PC_BITS-1:0] bpu_output_two_ahead_target;
+    wire bpu_output_mini_flush_req;
+    wire bpu_output_mini_flush_correct;
+    wire [PC_BITS-1:0] bpu_output_mini_flush_target;
+    assign {
+        bpu_output_icache_read_valid,
+        bpu_output_fetch_address,
+        bpu_output_ptab_write_enable,
+        bpu_output_predict_dir,
+        bpu_output_predict_next_fetch_address,
+        bpu_output_predict_base_pc,
+        bpu_output_meta,
+        bpu_output_two_ahead_valid,
+        bpu_output_two_ahead_target,
+        bpu_output_mini_flush_req,
+        bpu_output_mini_flush_correct,
+        bpu_output_mini_flush_target
+    } = bpu_output_payload;
+
+    assign icache_read_valid = bpu_output_icache_read_valid;
+    assign fetch_address = bpu_output_fetch_address;
+    assign icache_read_valid_2 = 1'b0;
+    assign fetch_address_2 = {PC_BITS{1'b0}};
+    assign icache_invalidate_req = 1'b0;
+    assign icache_run_comb_only = 1'b0;
+
+    wire [W_FetchAddressFifoIn-1:0] fetch_addr_fifo_in = {
+        fetch_addr_fifo_reset,
+        fetch_addr_fifo_refetch,
+        fetch_addr_fifo_read_enable,
+        bpu_output_icache_read_valid,
+        bpu_output_fetch_address
+    };
+    wire [W_FetchAddressFifoIn + W_FetchAddressFifoOut - 1:0]
+        fetch_address_FIFO_comb_in = {
+            fetch_addr_fifo_in,
+            fetch_addr_fifo_rd
+        };
+    wire [W_FetchAddrCombOut-1:0] fetch_addr_fifo_req;
+    wire [W_FetchAddressFifoOut-1:0] fetch_addr_fifo_out =
+        fetch_addr_fifo_req[W_FetchAddressFifoOut-1:0];
+    fetch_address_FIFO_comb_top #(
+        .W_FetchAddressFifoCombIn(W_FetchAddressFifoIn + W_FetchAddressFifoOut),
+        .W_FetchAddressFifoCombOut(W_FetchAddrCombOut)
+    ) u_fetch_address_FIFO_comb_top (
+        .fetch_address_FIFO_comb_in(fetch_address_FIFO_comb_in),
+        .fetch_address_FIFO_comb_out(fetch_addr_fifo_req)
     );
 
-    front_read_stage_input_comb #(.W_IN(LINK_WIDTH), .W_OUT(LINK_WIDTH))
-    u_02_front_read_stage_input_comb (
-        .pi(comb_link_02),
-        .po(comb_link_03)
+    wire [W_PredecodeIn-1:0] predecode_comb_in = {
+        icache_fetch_group,
+        {FETCH_WIDTH{icache_fetch_pc}}
+    };
+    wire [W_PredecodeOut-1:0] predecode_result;
+    predecode_comb_top #(
+        .W_PredecodeCombIn(W_PredecodeIn),
+        .W_PredecodeCombOut(W_PredecodeOut)
+    ) u_predecode_comb_top (
+        .predecode_comb_in(predecode_comb_in),
+        .predecode_comb_out(predecode_result)
     );
 
-    front_bpu_control_comb #(.W_IN(LINK_WIDTH), .W_OUT(LINK_WIDTH))
-    u_03_front_bpu_control_comb (
-        .pi(comb_link_03),
-        .po(comb_link_04)
+    wire [W_InstructionFifoIn-1:0] instruction_fifo_in = {
+        fifo_reset,
+        fifo_refetch,
+        icache_read_complete,
+        icache_fetch_group,
+        {FETCH_WIDTH{icache_fetch_pc}},
+        icache_page_fault_inst,
+        icache_inst_valid,
+        fifo_read_enable,
+        predecode_result,
+        (icache_fetch_pc + (FETCH_WIDTH * 4))
+    };
+    wire [W_InstructionFifoIn + W_InstructionFifoOut - 1:0]
+        instruction_FIFO_comb_in = {
+            instruction_fifo_in,
+            fifo_rd
+        };
+    wire [W_InstructionCombOut-1:0] instruction_fifo_req;
+    wire [W_InstructionFifoOut-1:0] instruction_fifo_out =
+        instruction_fifo_req[W_InstructionFifoOut-1:0];
+    instruction_FIFO_comb_top #(
+        .W_InstructionFifoCombIn(W_InstructionFifoIn + W_InstructionFifoOut),
+        .W_InstructionFifoCombOut(W_InstructionCombOut)
+    ) u_instruction_FIFO_comb_top (
+        .instruction_FIFO_comb_in(instruction_FIFO_comb_in),
+        .instruction_FIFO_comb_out(instruction_fifo_req)
     );
 
-    bpu_pre_read_req_comb #(.W_IN(LINK_WIDTH), .W_OUT(LINK_WIDTH))
-    u_04_bpu_pre_read_req_comb (
-        .pi(comb_link_04),
-        .po(comb_link_05)
+    wire [W_PtabIn-1:0] ptab_in;
+    wire [W_PtabCombOut-1:0] ptab_req;
+    wire [W_PtabOut-1:0] ptab_out = ptab_req[W_PtabOut-1:0];
+    wire [W_BpuOut + 3 - 1:0] front_ptab_write_comb_in = {
+        bpu_output_payload,
+        global_reset,
+        global_refetch,
+        ~ptab_full_latch
+    };
+    wire [W_PtabIn + W_PtabOut - 1:0] PTAB_comb_in = {
+        ptab_in,
+        ptab_rd
+    };
+    front_ptab_write_comb_top #(
+        .W_FrontPtabWriteCombIn(W_BpuOut + 3),
+        .W_FrontPtabWriteCombOut(W_PtabIn)
+    ) u_front_ptab_write_comb_top (
+        .front_ptab_write_comb_in(front_ptab_write_comb_in),
+        .front_ptab_write_comb_out(ptab_in)
+    );
+    PTAB_comb_top #(
+        .W_PtabCombIn(W_PtabIn + W_PtabOut),
+        .W_PtabCombOut(W_PtabCombOut)
+    ) u_PTAB_comb_top (
+        .PTAB_comb_in(PTAB_comb_in),
+        .PTAB_comb_out(ptab_req)
     );
 
-    type_predictor_pre_read_comb #(.W_IN(LINK_WIDTH), .W_OUT(LINK_WIDTH))
-    u_05_type_predictor_pre_read_comb (
-        .pi(comb_link_05),
-        .po(comb_link_06)
+    wire [W_PredecodeCheckerIn-1:0] checker_in;
+    wire [W_PredecodeCheckerOut-1:0] checker_out;
+    wire [W_InstructionFifoOut + W_PtabOut - 1:0] front_checker_input_comb_in = {
+        instruction_fifo_out,
+        ptab_out
+    };
+    front_checker_input_comb_top #(
+        .W_FrontCheckerInputCombIn(W_InstructionFifoOut + W_PtabOut),
+        .W_FrontCheckerInputCombOut(W_PredecodeCheckerIn)
+    ) u_front_checker_input_comb_top (
+        .front_checker_input_comb_in(front_checker_input_comb_in),
+        .front_checker_input_comb_out(checker_in)
+    );
+    predecode_checker_comb_top #(
+        .W_PredecodeCheckerCombIn(W_PredecodeCheckerIn),
+        .W_PredecodeCheckerCombOut(W_PredecodeCheckerOut)
+    ) u_predecode_checker_comb_top (
+        .predecode_checker_comb_in(checker_in),
+        .predecode_checker_comb_out(checker_out)
     );
 
-    tage_pre_read_comb #(.W_IN(LINK_WIDTH), .W_OUT(LINK_WIDTH))
-    u_06_tage_pre_read_comb (
-        .pi(comb_link_06),
-        .po(comb_link_07)
+    wire use_front2back_output_bypass = 1'b0;
+    wire [W_Front2BackFifoIn-1:0] front2back_fifo_in;
+    wire [W_Front2BackFifoOut-1:0] bypass_front2back_fifo_out;
+    wire [W_InstructionFifoOut + W_PtabOut + W_PredecodeCheckerOut + 1 - 1:0]
+        front_front2back_write_comb_in = {
+            instruction_fifo_out,
+            ptab_out,
+            checker_out,
+            use_front2back_output_bypass
+        };
+    wire [W_Front2BackFifoIn + W_Front2BackFifoOut - 1:0]
+        front_front2back_write_comb_out;
+    front_front2back_write_comb_top #(
+        .W_FrontFront2backWriteCombIn(W_InstructionFifoOut + W_PtabOut + W_PredecodeCheckerOut + 1),
+        .W_FrontFront2backWriteCombOut(W_Front2BackFifoIn + W_Front2BackFifoOut)
+    ) u_front_front2back_write_comb_top (
+        .front_front2back_write_comb_in(front_front2back_write_comb_in),
+        .front_front2back_write_comb_out(front_front2back_write_comb_out)
+    );
+    assign {
+        front2back_fifo_in,
+        bypass_front2back_fifo_out
+    } = front_front2back_write_comb_out;
+
+    wire [W_Front2BackFifoIn + W_Front2BackFifoOut - 1:0]
+        front2back_FIFO_comb_in = {
+            front2back_fifo_in,
+            front2back_fifo_rd
+        };
+    wire [W_Front2BackCombOut-1:0] front2back_fifo_req;
+    wire [W_Front2BackFifoOut-1:0] front2back_fifo_out =
+        front2back_fifo_req[W_Front2BackFifoOut-1:0];
+    front2back_FIFO_comb_top #(
+        .W_Front2backFifoCombIn(W_Front2BackFifoIn + W_Front2BackFifoOut),
+        .W_Front2backFifoCombOut(W_Front2BackCombOut)
+    ) u_front2back_FIFO_comb_top (
+        .front2back_FIFO_comb_in(front2back_FIFO_comb_in),
+        .front2back_FIFO_comb_out(front2back_fifo_req)
     );
 
-    btb_pre_read_comb #(.W_IN(LINK_WIDTH), .W_OUT(LINK_WIDTH))
-    u_07_btb_pre_read_comb (
-        .pi(comb_link_07),
-        .po(comb_link_08)
+    wire [W_Front2BackFifoOut + W_Front2BackFifoOut + 1 - 1:0] front_output_comb_in = {
+        front2back_fifo_out,
+        bypass_front2back_fifo_out,
+        use_front2back_output_bypass
+    };
+    wire [W_FrontTopOut-1:0] front_top_out_bus;
+    front_output_comb_top #(
+        .W_FrontOutputCombIn(W_Front2BackFifoOut + W_Front2BackFifoOut + 1),
+        .W_FrontOutputCombOut(W_FrontTopOut)
+    ) u_front_output_comb_top (
+        .front_output_comb_in(front_output_comb_in),
+        .front_output_comb_out(front_top_out_bus)
     );
+    assign {
+        FIFO_valid,
+        pc,
+        instructions,
+        out_predict_dir,
+        predict_next_fetch_address,
+        out_alt_pred,
+        out_altpcpn,
+        out_pcpn,
+        page_fault_inst,
+        inst_valid,
+        out_tage_idx,
+        out_tage_tag,
+        out_sc_used,
+        out_sc_pred,
+        out_sc_sum,
+        out_sc_idx,
+        out_loop_used,
+        out_loop_hit,
+        out_loop_pred,
+        out_loop_idx,
+        out_loop_tag
+    } = front_top_out_bus;
 
-    bpu_post_read_req_comb #(.W_IN(LINK_WIDTH), .W_OUT(LINK_WIDTH))
-    u_08_bpu_post_read_req_comb (
-        .pi(comb_link_08),
-        .po(comb_link_09)
-    );
+    wire front_state_req_valid = 1'b1; // front_top.cpp:1802 enables the final state refresh request.
+    wire next_predecode_refetch = checker_out[0];
+    wire [PC_BITS-1:0] next_predecode_refetch_address = checker_out[PC_BITS:1];
+    always @(posedge aclk or negedge aresetn) begin
+        if (!aresetn || reset) begin
+            predecode_refetch <= 1'b0;
+            predecode_refetch_address <= {PC_BITS{1'b0}};
+            front_sim_time <= 32'd0;
+            front_stats_cycles <= 64'd0;
+            fetch_addr_fifo_full_latch <= 1'b0;
+            fetch_addr_fifo_empty_latch <= 1'b1;
+            fifo_full_latch <= 1'b0;
+            fifo_empty_latch <= 1'b1;
+            ptab_full_latch <= 1'b0;
+            ptab_empty_latch <= 1'b1;
+            front2back_fifo_full_latch <= 1'b0;
+            front2back_fifo_empty_latch <= 1'b1;
+            fetch_addr_fifo_rd_snapshot_reg <= {W_FetchAddressFifoOut{1'b0}};
+            fifo_rd_snapshot_reg <= {W_InstructionFifoOut{1'b0}};
+            ptab_rd_snapshot_reg <= {W_PtabOut{1'b0}};
+            front2back_fifo_rd_snapshot_reg <= {W_Front2BackFifoOut{1'b0}};
+        end else begin
+            front_sim_time <= front_sim_time_init;
+            front_stats_cycles <= front_stats_cycles_init;
+            if (front_state_req_valid) begin
+                predecode_refetch <= next_predecode_refetch;
+                predecode_refetch_address <= next_predecode_refetch_address;
+                fetch_addr_fifo_full_latch <= fetch_addr_fifo_out[W_FetchAddressFifoOut-1];
+                fetch_addr_fifo_empty_latch <= fetch_addr_fifo_out[W_FetchAddressFifoOut-2];
+                fifo_full_latch <= instruction_fifo_out[W_InstructionFifoOut-1];
+                fifo_empty_latch <= instruction_fifo_out[W_InstructionFifoOut-2];
+                ptab_full_latch <= ptab_out[W_PtabOut-2];
+                ptab_empty_latch <= ptab_out[W_PtabOut-3];
+                front2back_fifo_full_latch <= front2back_fifo_out[W_Front2BackFifoOut-1];
+                front2back_fifo_empty_latch <= front2back_fifo_out[W_Front2BackFifoOut-2];
+                fetch_addr_fifo_rd_snapshot_reg <= fetch_addr_fifo_out;
+                fifo_rd_snapshot_reg <= instruction_fifo_out;
+                ptab_rd_snapshot_reg <= ptab_out;
+                front2back_fifo_rd_snapshot_reg <= front2back_fifo_out;
+            end
+        end
+    end
 
-    type_pred_comb #(.W_IN(LINK_WIDTH), .W_OUT(LINK_WIDTH))
-    u_09_type_pred_comb (
-        .pi(comb_link_09),
-        .po(comb_link_10)
-    );
-
-    tage_comb #(.W_IN(LINK_WIDTH), .W_OUT(LINK_WIDTH))
-    u_10_tage_comb (
-        .pi(comb_link_10),
-        .po(comb_link_11)
-    );
-
-    btb_post_read_req_comb #(.W_IN(LINK_WIDTH), .W_OUT(LINK_WIDTH))
-    u_11_btb_post_read_req_comb (
-        .pi(comb_link_11),
-        .po(comb_link_12)
-    );
-
-    btb_comb #(.W_IN(LINK_WIDTH), .W_OUT(LINK_WIDTH))
-    u_12_btb_comb (
-        .pi(comb_link_12),
-        .po(comb_link_13)
-    );
-
-    bpu_submodule_bind_comb #(.W_IN(LINK_WIDTH), .W_OUT(LINK_WIDTH))
-    u_13_bpu_submodule_bind_comb (
-        .pi(comb_link_13),
-        .po(comb_link_14)
-    );
-
-    bpu_predict_main_comb #(.W_IN(LINK_WIDTH), .W_OUT(LINK_WIDTH))
-    u_14_bpu_predict_main_comb (
-        .pi(comb_link_14),
-        .po(comb_link_15)
-    );
-
-    bpu_hist_comb #(.W_IN(LINK_WIDTH), .W_OUT(LINK_WIDTH))
-    u_15_bpu_hist_comb (
-        .pi(comb_link_15),
-        .po(comb_link_16)
-    );
-
-    bpu_queue_comb #(.W_IN(LINK_WIDTH), .W_OUT(LINK_WIDTH))
-    u_16_bpu_queue_comb (
-        .pi(comb_link_16),
-        .po(comb_link_17)
-    );
-
-    fetch_address_FIFO_comb #(.W_IN(LINK_WIDTH), .W_OUT(LINK_WIDTH))
-    u_17_fetch_address_FIFO_comb (
-        .pi(comb_link_17),
-        .po(comb_link_18)
-    );
-
-    predecode_comb #(.W_IN(LINK_WIDTH), .W_OUT(LINK_WIDTH))
-    u_18_predecode_comb (
-        .pi(comb_link_18),
-        .po(comb_link_19)
-    );
-
-    instruction_FIFO_comb #(.W_IN(LINK_WIDTH), .W_OUT(LINK_WIDTH))
-    u_19_instruction_FIFO_comb (
-        .pi(comb_link_19),
-        .po(comb_link_20)
-    );
-
-    front_ptab_write_comb #(.W_IN(LINK_WIDTH), .W_OUT(LINK_WIDTH))
-    u_20_front_ptab_write_comb (
-        .pi(comb_link_20),
-        .po(comb_link_21)
-    );
-
-    PTAB_comb #(.W_IN(LINK_WIDTH), .W_OUT(LINK_WIDTH))
-    u_21_PTAB_comb (
-        .pi(comb_link_21),
-        .po(comb_link_22)
-    );
-
-    front_checker_input_comb #(.W_IN(LINK_WIDTH), .W_OUT(LINK_WIDTH))
-    u_22_front_checker_input_comb (
-        .pi(comb_link_22),
-        .po(comb_link_23)
-    );
-
-    predecode_checker_comb #(.W_IN(LINK_WIDTH), .W_OUT(LINK_WIDTH))
-    u_23_predecode_checker_comb (
-        .pi(comb_link_23),
-        .po(comb_link_24)
-    );
-
-    front_front2back_write_comb #(.W_IN(LINK_WIDTH), .W_OUT(LINK_WIDTH))
-    u_24_front_front2back_write_comb (
-        .pi(comb_link_24),
-        .po(comb_link_25)
-    );
-
-    front2back_FIFO_comb #(.W_IN(LINK_WIDTH), .W_OUT(LINK_WIDTH))
-    u_25_front2back_FIFO_comb (
-        .pi(comb_link_25),
-        .po(comb_link_26)
-    );
-
-    front_output_comb #(.W_IN(LINK_WIDTH), .W_OUT(LINK_WIDTH))
-    u_26_front_output_comb (
-        .pi(comb_link_26),
-        .po(comb_link_27)
-    );
-
-    assign po = comb_link_27;
 endmodule

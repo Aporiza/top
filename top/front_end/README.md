@@ -1,196 +1,101 @@
-# 前端 front_top 阅读入口
+# Frontend ff 版本交付说明
 
-本文档顺着一条主线说明：
-
-```text
-代码怎么进入 front_top
-front_top 内先执行哪些组合逻辑
-组合逻辑如何只生成 next 请求
-最后在哪里统一更新寄存器 / FIFO / RAM / 预测表状态
-```
-
-## 1. 先看哪几个 HTML
-
-| 文件 | 用途 |
-|---|---|
-| `top/front_end/front_top_execution_flow.html` | 新版主入口。按一拍执行顺序平铺：入口、`front_seq_read`、13 个组合阶段、`front_seq_write`。适合第一次读代码或给老板/学长解释流程。 |
-| `top/front_end/front_oracle_execution_flow.html` | Oracle 参考路径说明。只在 `CONFIG_BPU` 关闭时进入，不走 `front_top()` 三段式，而是 `front_cycle -> step_oracle -> get_oracle`。 |
-| `top/front_end/front_top_interactive.html` | 旧版拓扑参考图。保留 27 个正式 comb 模块、连线和路径高亮，用来查模块之间的数据关系。 |
-
-后续汇报建议优先打开 `front_top_execution_flow.html`。旧图不删除，是因为它仍适合查“这根线连接哪些模块”。
-
-## 2. 一拍执行主线
-
-默认 `CONFIG_BPU` 打开时，前端硬件主路径是：
+本文档面向第一次读前端代码的人。当前 `top/front_end` 的依据统一切换到：
 
 ```text
-SimCpu::front_cycle()
-  -> FrontTop::step_bpu()
-    -> front_top(&in, &out)
-      -> front_seq_read()
-      -> front_comb_calc()
-      -> front_seq_write()
+simulator-ffc9fad707a7acb0be5c7d4fe7c06d48987c73e0
 ```
 
-| 顺序 | 函数 | 源码依据 | 做什么 |
+不要再按旧版模拟器或 `include/config.h.large` 判断接口宽度。本次训练版本以 `simulator-ffc.../include/config.h` 的生效配置为准。
+
+## 1. 生效配置
+
+| 项 | ff 生效值 | 源码依据 |
+|---|---:|---|
+| `FETCH_WIDTH` | 16 | `include/config.h:57` |
+| `DECODE_WIDTH` | 8 | `include/config.h:58` |
+| `COMMIT_WIDTH` | 8 | `include/config.h:63` |
+| `CONFIG_BPU` | 打开 | `include/config.h:35` |
+| `CONFIG_ORACLE_STEADY_FETCH_WIDTH` | 打开 | `include/config.h:37` |
+| `PRF_NUM` | 2048，`PRF_IDX_WIDTH=11` | `include/config.h:320,619` |
+| `ROB_NUM` | 2048，`ROB_IDX_WIDTH=11` | `include/config.h:326,620` |
+| `STQ_SIZE/LDQ_SIZE` | 512，索引宽度 9 | `include/config.h:438-439,621-622` |
+| `FTQ_SIZE` | 256，`FTQ_IDX_WIDTH=8` | `include/config.h:334,626` |
+
+`config.h.large` 在这个 ff 目录里不是当前训练用的生效配置，里面 `PRF_NUM=512`、`CONFIG_BPU` 注释掉，不能拿它对端口。
+
+## 2. 入口顺序
+
+前端主线从 CPU 顶层进入，顺序如下：
+
+| 步骤 | 函数 | 源码依据 | 作用 |
 |---|---|---|---|
-| 1 | `SimCpu::front_cycle()` | `simulator-new/rv_simu_mmu_v2.cpp:652-684` | 每拍由 CPU 顶层进入前端，写 `front.in.FIFO_read_enable/refetch/refetch_address/...`，然后调用 `front.step_bpu()`。 |
-| 2 | `FrontTop::step_bpu()` | `simulator-new/front-end/FrontTop.cpp:36-38` | 同步 ICache/PTW 运行时端口后，调用 `front_top(&in, &out)`。 |
-| 3 | `front_top()` | `simulator-new/front-end/front_top.cpp:2068-2077` | 创建 `FrontReadData rd` 和 `FrontUpdateRequest req`，然后固定执行 `front_seq_read -> front_comb_calc -> front_seq_write`。 |
-| 4 | `front_seq_read()` | `simulator-new/front-end/front_top.cpp:1997-2030` | 读取上一拍寄存器/FIFO/RAM/ICache 快照。这里读到的是旧状态。 |
-| 5 | `front_comb_calc()` | `simulator-new/front-end/front_top.cpp:1002-1969` | 按固定顺序执行本拍组合逻辑，只生成 `out` 和 `req`，不直接提交状态。 |
-| 6 | `front_seq_write()` | `simulator-new/front-end/front_top.cpp:2034-2062` | 周期末统一提交 BPU、FIFO、PTAB、ICache 和 `front_top` 本地状态。 |
+| 1 | `SimCpu::front_cycle()` | `rv_simu_mmu_v2.cpp:639-707` | 每拍设置 `front.in`，再调用 `front.step_bpu()`。stall 分支也会调用一次，只是 `FIFO_read_enable=false`。 |
+| 2 | `FrontTop::step_bpu()` | `front-end/FrontTop.cpp:36-39` | 同步 ICache/PTW 运行时端口后调用 `front_top(&in, &out)`。 |
+| 3 | `front_top()` | `front-end/front_top.cpp:1936-1945` | 固定执行 `front_seq_read -> front_comb_calc -> front_seq_write`。 |
+| 4 | `front_seq_read()` | `front-end/front_top.cpp:1865-1899` | 读取上一拍寄存器、FIFO、PTAB、ICache/BPU 快照。 |
+| 5 | `front_comb_calc()` | `front-end/front_top.cpp:920-1849` | 按顺序跑组合逻辑，只生成本拍 `out` 和 next-state 请求。 |
+| 6 | `front_seq_write()` | `front-end/front_top.cpp:1902-1934` | 周期末统一写回 BPU、FIFO、PTAB、ICache 和 `front_top` 本地寄存器。 |
 
+讲代码时可以抓住一句话：先读旧状态，再跑完整组合链，最后统一写新状态。
 
+## 3. 组合逻辑主线
 
-`front_top()` 一拍内先通过 `front_seq_read()` 读旧状态，再在 `front_comb_calc()` 中按阶段顺序执行组合逻辑，所有组合逻辑只产生 `FrontUpdateRequest req` 和本拍输出，最后由 `front_seq_write()` 统一写回寄存器、FIFO、RAM 和预测表。
+`front_comb_calc()` 内的主要组合函数按源码顺序执行：
 
-## 3. front_seq_read 读了什么
+| 顺序 | 模块/函数 | 源码依据 | 说明 |
+|---:|---|---|---|
+| 1 | `front_global_control_comb` | `front_top.cpp:613,1009` | 合并 reset、后端 refetch、上一拍 checker refetch。 |
+| 2 | `front_read_enable_comb` | `front_top.cpp:624,1072` | 根据后端读请求、FIFO/PTAB 空满、ICache ready 生成读使能。 |
+| 3 | `front_read_stage_input_comb` | `front_top.cpp:647,1107` | 把全局控制转换成四个队列的读控制。 |
+| 4 | `front_bpu_control_comb` | `front_top.cpp:679,1210` | 组装 BPU 输入，包括后端训练反馈和 refetch。 |
+| 5 | `bpu_seq_read + bpu_comb_calc` | `front_top.cpp:1253-1256`、`BPU/BPU.h` | 先读 BPU 内部表项，再计算本拍预测结果。 |
+| 6 | `fetch_address_FIFO_comb` | `front_top.cpp:1290-1331` | 把 BPU 产生的 fetch address 写入取址 FIFO。 |
+| 7 | `icache_comb_calc` | `front_top.cpp:1340-1382` | 用 FIFO/bypass 地址访问 ICache。当前 RTL 把 ICache 作为显式外部握手边界。 |
+| 8 | `predecode_comb + instruction_FIFO_comb` | `front_top.cpp:1435-1555` | ICache 返回后做预译码，并写入 instruction FIFO。 |
+| 9 | `front_ptab_write_comb + PTAB_comb` | `front_top.cpp:1574-1586` | 把 BPU 预测上下文写入 PTAB。 |
+| 10 | `front_checker_input_comb + predecode_checker_comb` | `front_top.cpp:1602-1628` | 对齐 instruction FIFO 与 PTAB，检查预译码/预测是否需要修正。 |
+| 11 | `front_front2back_write_comb + front2back_FIFO_comb` | `front_top.cpp:1652-1684` | 生成写给后端的前端输出包。 |
+| 12 | `front_output_comb` | `front_top.cpp:863,1707` | 从 front2back FIFO 或 bypass 生成最终 `front_top_out`。 |
 
-`front_seq_read()` 先读取 `front_top` 本地状态：
+## 4. 27 个训练组合模块
 
-| 状态 | 含义 | 源码 |
-|---|---|---|
-| `predecode_refetch` | 上一拍 checker flush 延迟到本拍的 refetch 标志 | `front_top.cpp:1999` |
-| `predecode_refetch_address` | 上一拍 checker 修正后的 next PC | `front_top.cpp:2000` |
-| `front_sim_time` / `front_stats` | 前端统计状态 | `front_top.cpp:2001-2002` |
-| `fetch_addr_fifo_full/empty_latch` | fetch address FIFO 上一拍满/空状态位 | `front_top.cpp:2003-2004` |
-| `fifo_full/empty_latch` | instruction FIFO 上一拍满/空状态位 | `front_top.cpp:2005-2006` |
-| `ptab_full/empty_latch` | PTAB 上一拍满/空状态位 | `front_top.cpp:2007-2008` |
-| `front2back_fifo_full/empty_latch` | front2back FIFO 上一拍满/空状态位 | `front_top.cpp:2009-2010` |
+前端交付时按 27 个正式 comb 训练单元组织。`bpu_hist_*` helper 不作为独立顶层模块展开，它们被归到 `bpu_hist_comb` 说明里。
 
-然后读取子模块：
+| 分组 | 模块 |
+|---|---|
+| `front_top_glue` | `front_global_control_comb`、`front_read_enable_comb`、`front_read_stage_input_comb`、`front_bpu_control_comb`、`front_ptab_write_comb`、`front_checker_input_comb`、`front_front2back_write_comb`、`front_output_comb` |
+| `bpu` | `bpu_pre_read_req_comb`、`bpu_post_read_req_comb`、`bpu_submodule_bind_comb`、`bpu_predict_main_comb`、`bpu_hist_comb`、`bpu_queue_comb` |
+| `type_predictor` | `type_predictor_pre_read_comb`、`type_pred_comb` |
+| `dir_predictor` | `tage_pre_read_comb`、`tage_comb` |
+| `target_predictor` | `btb_pre_read_comb`、`btb_post_read_req_comb`、`btb_comb` |
+| `fifo/predecode` | `fetch_address_FIFO_comb`、`instruction_FIFO_comb`、`PTAB_comb`、`front2back_FIFO_comb`、`predecode_comb`、`predecode_checker_comb` |
 
-| 子模块 | 读接口 | 源码 |
-|---|---|---|
-| fetch address FIFO | `fetch_address_FIFO_seq_read()` | `front_top.cpp:2026` |
-| instruction FIFO | `instruction_FIFO_seq_read()` | `front_top.cpp:2027` |
-| PTAB | `PTAB_seq_read()` | `front_top.cpp:2028` |
-| front2back FIFO | `front2back_FIFO_seq_read()` | `front_top.cpp:2029` |
-| ICache | `icache_seq_read()` | `front_top.cpp:2030` |
+## 5. 前后端接口
 
-注意：源码变量名里带 `latch`，这里汇报时建议说“上一拍状态寄存器快照”或“状态位”，不要理解成透明 latch。
+ff 版本的 `front_top_out` 没有 `commit_stall`，`FrontPreIO` 也没有 `front_stall`。这两个字段是旧版模拟器的残留，不能再计入端口宽度。
 
-## 4. front_comb_calc 组合逻辑顺序
-
-`front_comb_calc()` 是本拍组合调度层。它用 `front_seq_read()` 给出的旧状态快照计算本拍输出和 next 请求。
-
-| 阶段 | 组合逻辑 | 源码依据 | 作用 |
-|---|---|---|---|
-| 0 | 初始化临时结构 | `front_top.cpp:1029-1084` | 清空本拍临时输入输出，复制 FIFO/PTAB read snapshot。 |
-| 1 | `front_global_control_comb` | `front_top.cpp:1092-1102` | 合并 reset、后端 refetch、上一拍 checker refetch。 |
-| 2 | `icache_peek_ready` + `front_read_enable_comb` | `front_top.cpp:1139-1162` | 先看 ICache ready，再决定 fetch FIFO、instruction FIFO、PTAB、front2back FIFO 的读使能。 |
-| 3 | `front_read_stage_input_comb` + FIFO/PTAB/front2back 读 comb | `front_top.cpp:1187-1263` | 把读使能下发到各 FIFO/PTAB，并保存读出的包。 |
-| 4 | `front_bpu_control_comb` + `bpu_seq_read` + `bpu_comb_calc` | `front_top.cpp:1290-1357` | 生成 BPU 输入，读 BPU 状态，执行 BPU 预测组合逻辑。 |
-| 5 | `fetch_address_FIFO_comb_calc` 写 | `front_top.cpp:1383-1424` | 将 BPU 产生的取指地址写入 fetch address FIFO。 |
-| 6 | `icache_comb_calc` | `front_top.cpp:1434-1476` | 用 fetch FIFO 输出或旁路地址访问 ICache。 |
-| 7 | `predecode_comb` + `instruction_FIFO_comb_calc` | `front_top.cpp:1528-1680` | ICache 返回后预解码，并写入 instruction FIFO。 |
-| 8 | `front_ptab_write_comb` + `PTAB_comb_calc` | `front_top.cpp:1697-1707` | 将 BPU 预测方向、next PC、base PC、训练元信息写入 PTAB。 |
-| 9 | `front_checker_input_comb` + `predecode_checker_comb` | `front_top.cpp:1719-1744` | 对齐 instruction FIFO 和 PTAB，检查预测是否需要 flush。 |
-| 10 | `front_front2back_write_comb` + `front2back_FIFO_comb_calc` | `front_top.cpp:1749-1797` | 汇总指令、预测、checker 修正结果，写入 front2back FIFO。 |
-| 11 | flush 状态请求生成 | `front_top.cpp:1802-1816` | checker flush 时向 ICache 发 invalidate-only 请求，并设置下一拍 `predecode_refetch`。 |
-| 12 | `front_output_comb` | `front_top.cpp:1822-1841` | 刷新 FIFO full/empty next 状态，生成最终 `front_top_out`。 |
-
-这里要抓住一个核心点：这些阶段都还在组合逻辑里。它们可以写 `req.fetch_addr_fifo_req`、`req.ptab_req`、`req.front_state.next_*`，但不直接改寄存器本体。
-
-## 5. front_seq_write 统一写回
-
-真正改变状态的位置集中在 `front_seq_write()`：
-
-| 写回对象 | 写回代码 | 源码 |
-|---|---|---|
-| BPU 内部寄存器、队列、预测表 | `bpu_instance.bpu_seq_write(...)` | `front_top.cpp:2040-2042` |
-| fetch address FIFO | `fetch_address_FIFO_seq_write(...)` | `front_top.cpp:2043` |
-| instruction FIFO | `instruction_FIFO_seq_write(...)` | `front_top.cpp:2044` |
-| PTAB | `PTAB_seq_write(...)` | `front_top.cpp:2045` |
-| front2back FIFO | `front2back_FIFO_seq_write(...)` | `front_top.cpp:2046` |
-| predecode checker | `predecode_checker_seq_write()` | `front_top.cpp:2047` |
-| ICache | `icache_seq_write()` | `front_top.cpp:2048` |
-| `front_top` 本地状态 | `front_sim_time/front_stats/predecode_refetch/FIFO full-empty 状态位` | `front_top.cpp:2050-2062` |
-
-所以时序/组合分离可以这样讲：
+前端写后端的字段来自：
 
 ```text
-seq_read 读旧值
-comb_calc 只算 next
-seq_write 才统一提交 next
+front-end/front_IO.h:42-64
+back-end/include/IO.h:108-159
+rv_simu_mmu_v2.cpp:675-695
 ```
 
-## 6. 寄存器、RAM、FIFO 在哪里
+当前 `top_top.v` 中按 ff 逻辑生成 `front2pre_valid_bits`：第 0 条 lane 只看 `FIFO_valid && inst_valid[0]`，后续 lane 还要保证前面没有已预测 taken 的分支。
 
-| 类型 | 位置 | 说明 |
-|---|---|---|
-| `front_top` 本地状态寄存器 | `simulator-new/front-end/front_top.cpp:25-37` | `predecode_refetch`、`predecode_refetch_address`、FIFO full/empty 状态位、统计状态。 |
-| BPU 寄存器/队列 | `simulator-new/front-end/BPU/BPU.h:638-691` | `pc_reg`、`state`、RAS、update queue、NLP 表等。 |
-| BPU 状态读写接口 | `simulator-new/front-end/BPU/BPU.h:740-947`、`1827-1927` | `bpu_seq_read()` 读旧状态，`bpu_seq_write()` 写回 next 状态。 |
-| TypePredictor RAM | `simulator-new/front-end/BPU/type_predictor/TypePredictor.h:142` | 类型预测表。 |
-| TAGE RAM/状态 | `simulator-new/front-end/BPU/dir_predictor/TAGE_top.h:681-705` | base counter、tag/cnt/useful 表、loop table。 |
-| BTB/BHT/TC RAM | `simulator-new/front-end/BPU/target_predictor/BTB_top.h:454-463` | 目标预测、方向历史、target cache 相关表。 |
-| 四个 FIFO/PTAB | `simulator-new/front-end/fifo/*.cpp` | `fetch_address_FIFO`、`instruction_FIFO`、`PTAB`、`front2back_FIFO` 的 entries/size 状态。 |
-| ICache 寄存器/RAM | `simulator-new/front-end/icache/include/icache_module.h:119-144`、`icache.cpp:256-258` | ICache 控制状态和 data/tag/valid table。 |
+## 6. ICache 边界
 
-## 7. 27 个 comb 和这条主线的关系
+ff 源码里前端是真实 ICache/PTW 运行时边界，不是简单 ideal 取指。当前 RTL 包没有私自实现 ICache，而是在 `front_top.v` 暴露 ICache 握手端口，并在 `top_top.v` 统一抬成 `front_icache_*` 端口，避免输入悬空。
 
-本包仍然保留 27 个正式 comb 训练边界口径。区别是：
+## 7. 明天讲解抓手
 
-| 视角 | 作用 |
-|---|---|
-| `front_top_execution_flow.html` | 按执行顺序解释代码怎么跑，一拍内先后做什么。 |
-| `front_top_interactive.html` | 按模块/连线解释 27 个正式 comb 之间的数据关系。 |
-| `front_top.v` | 总 top，只负责把 27 个正式 comb 按 `comb_link_00 -> comb_link_27` 串起来。 |
-| `*/<同名>.v` | 每个正式 comb 一个子文件夹、一个同名 `.v`，目录和 generated 列表一一对应。 |
-| `filelist.f` | 编译/检查用文件列表，先列 27 个 comb，再列 `front_top.v`。 |
+讲的时候按这条线走：
 
-注意：这里的 `front_top.v` 是训练包的结构顶层，目标是把 27 个 comb 边界清楚包起来；它不是完整复刻 `front_IO.h` 的功能端口。后续如果要接回真实 CPU 前端，需要再把 `pi/po` 训练总线替换成各 comb 的真实输入输出字段。
-
-`front_comb_calc()` 的初始化阶段已经放在 `front_top.v` 里，但不单独计入 27 个正式 comb。对应源码是 `front_top.cpp:1029-1084`：先清空本拍临时输入、输出、request/default bundle，再进入 `front_global_control_comb`。RTL 包里对应的是 `front_comb_init_default` 和 `comb_link_00` 的赋值。
-
-现在的 RTL 链接口径是：
-
-```text
-front_top.v
-  -> stage 0 init/default layer
-  -> front_global_control_comb
-  -> front_read_enable_comb
-  -> front_read_stage_input_comb
-  -> front_bpu_control_comb
-  -> bpu_pre_read_req_comb
-  -> type_predictor_pre_read_comb
-  -> tage_pre_read_comb
-  -> btb_pre_read_comb
-  -> bpu_post_read_req_comb
-  -> type_pred_comb
-  -> tage_comb
-  -> btb_post_read_req_comb
-  -> btb_comb
-  -> bpu_submodule_bind_comb
-  -> bpu_predict_main_comb
-  -> bpu_hist_comb
-  -> bpu_queue_comb
-  -> fetch_address_FIFO_comb
-  -> predecode_comb
-  -> instruction_FIFO_comb
-  -> front_ptab_write_comb
-  -> PTAB_comb
-  -> front_checker_input_comb
-  -> predecode_checker_comb
-  -> front_front2back_write_comb
-  -> front2back_FIFO_comb
-  -> front_output_comb
-```
-
-正式计数按 27 个 comb 模块。`bpu_hist_commit_ctrl_comb`、`bpu_hist_pred_ctrl_comb`、`bpu_hist_ras_step_comb`、`bpu_hist_step_comb` 属于 `bpu_hist_comb` 的内部 helper/子函数说明，不单独建文件夹，也不把正式模块数从 27 改成 30。
-
-默认关闭但保留依据的分支包括：
-
-| 分支 | 当前处理 |
-|---|---|
-| Oracle `step_oracle()` | 模拟器参考分支，不进入 27 个正式 comb 主图；单独说明见 `front_oracle_execution_flow.html`。 |
-| `ENABLE_2AHEAD` / NLP | 默认关闭，不计入正式模块。 |
-| ICache slot1 | 默认 true ICache 主线只走 slot0，slot1 只保留源码依据。 |
-| fetch-to-ICache bypass | 默认关闭，只保留源码依据。 |
-| ICache-to-predecode bypass | 默认关闭，只保留源码依据。 |
-
-## 8. 短版说法
-
-`front_top()` 的结构是典型的“读旧状态 - 组合计算 - 统一写回”。CPU 顶层从 `SimCpu::front_cycle()` 进入 `FrontTop::step_bpu()`，再调用 `front_top(&in, &out)`。`front_top()` 先用 `front_seq_read()` 把上一拍寄存器、FIFO、RAM、ICache 状态读到 `FrontReadData rd`，再在 `front_comb_calc()` 里按固定阶段执行全局控制、读使能、FIFO/PTAB 读、BPU、fetch FIFO 写、ICache、predecode、PTAB 写、checker、front2back 写和输出选择。组合阶段只生成 `FrontUpdateRequest req` 和 `front_top_out`，最后 `front_seq_write()` 才统一把 BPU、FIFO、PTAB、ICache 和 `front_top` 自身状态写回。
+1. `SimCpu::front_cycle()` 决定本拍前端是否读包、是否 refetch。
+2. `front.step_bpu()` 进入 `front_top()`。
+3. `front_seq_read()` 先读上一拍寄存器和各队列/RAM 快照。
+4. `front_comb_calc()` 按 12 个阶段从控制、BPU、取址、ICache、预译码、PTAB、checker 到 front2back 输出一路跑完。
+5. `front_seq_write()` 在周期末统一更新所有寄存器、FIFO、PTAB、BPU 表项。
+6. `rv_simu_mmu_v2.cpp` 再把 `front.out` 的指令、PC、预测元信息写进 `back.in`。
