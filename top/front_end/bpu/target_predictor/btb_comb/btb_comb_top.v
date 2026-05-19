@@ -1,40 +1,58 @@
-﻿// Formal frontend comb boundary: btb_comb.
-// Canonical source: simulator-ffc9fad707a7acb0be5c7d4fe7c06d48987c73e0/front-end/BPU/target_predictor/BTB_top.h:711,940.
-// Role: BTB target prediction.
+// Formal frontend comb boundary: btb_comb.
+// Source: simulator-ff/front-end/BPU related comb calculation.
+// Role: BTB target result bundle construction.
 //
-// This top keeps a semantic packed boundary around the BSD pi/po interface.
-// The slices/ directory next to this file is reserved for future concrete RTL.
+// The parent module connects this wrapper with bsd_pi/bsd_po.
+// This wrapper unpacks the buses into semantic variable names before the BSD layer.
 
 module btb_comb_top #(
-    parameter integer W_BtbCombIn = 64,
+    parameter integer W_BtbCombIn  = 64,
     parameter integer W_BtbCombOut = 64
 ) (
-    input wire [W_BtbCombIn-1:0] btb_comb_in,
-    output wire [W_BtbCombOut-1:0] btb_comb_out
+    input  wire [W_BtbCombIn-1:0]  bsd_pi,
+    output wire [W_BtbCombOut-1:0] bsd_po
 );
 
-    wire [W_BtbCombIn-1:0] btb_comb_pi;
-    wire [W_BtbCombOut-1:0] btb_comb_po;
+    // Semantic view of the packed BSD input/output buses.
+    wire [W_BtbCombIn-1:0]  btb_post_read_req_bundle;
+    wire [W_BtbCombOut-1:0] btb_bundle;
+    wire [W_BtbCombIn-1:0]  btb_comb_bsd_pi;
+    wire [W_BtbCombOut-1:0] btb_comb_bsd_po;
 
-    assign btb_comb_pi = btb_comb_in;
-    assign btb_comb_out = btb_comb_po;
+    assign {
+        btb_post_read_req_bundle
+    } = bsd_pi;
+
+    assign btb_comb_bsd_pi = {
+        btb_post_read_req_bundle
+    };
+
+    assign {
+        btb_bundle
+    } = btb_comb_bsd_po;
+
+    assign bsd_po = {
+        btb_bundle
+    };
 
     btb_comb_bsd_top #(
         .W_BtbCombIn(W_BtbCombIn),
         .W_BtbCombOut(W_BtbCombOut)
     ) u_btb_comb_bsd_top (
-        .pi(btb_comb_pi),
-        .po(btb_comb_po)
+        .bsd_pi(btb_comb_bsd_pi),
+        .bsd_po(btb_comb_bsd_po)
     );
 
 endmodule
 
 module btb_comb_bsd_top #(
-    parameter integer W_BtbCombIn = 64,
+    parameter integer W_BtbCombIn  = 64,
     parameter integer W_BtbCombOut = 64
 ) (
-    input wire [W_BtbCombIn-1:0] pi,
-    output wire [W_BtbCombOut-1:0] po
+    input  wire [W_BtbCombIn-1:0]  bsd_pi,
+    output wire [W_BtbCombOut-1:0] bsd_po
 );
-    assign po = {W_BtbCombOut{1'b0}};
+
+    assign bsd_po = {W_BtbCombOut{1'b0}};
+
 endmodule

@@ -1,40 +1,58 @@
-﻿// Formal frontend comb boundary: bpu_pre_read_req_comb.
-// Canonical source: simulator-ffc9fad707a7acb0be5c7d4fe7c06d48987c73e0/front-end/BPU/BPU.h:738,1908.
-// Role: BPU predictor pre-read request.
+// Formal frontend comb boundary: bpu_pre_read_req_comb.
+// Source: simulator-ff/front-end/BPU related comb calculation.
+// Role: BPU pre-read request bundle construction.
 //
-// This top keeps a semantic packed boundary around the BSD pi/po interface.
-// The slices/ directory next to this file is reserved for future concrete RTL.
+// The parent module connects this wrapper with bsd_pi/bsd_po.
+// This wrapper unpacks the buses into semantic variable names before the BSD layer.
 
 module bpu_pre_read_req_comb_top #(
-    parameter integer W_BpuPreReadReqCombIn = 64,
+    parameter integer W_BpuPreReadReqCombIn  = 64,
     parameter integer W_BpuPreReadReqCombOut = 64
 ) (
-    input wire [W_BpuPreReadReqCombIn-1:0] bpu_pre_read_req_comb_in,
-    output wire [W_BpuPreReadReqCombOut-1:0] bpu_pre_read_req_comb_out
+    input  wire [W_BpuPreReadReqCombIn-1:0]  bsd_pi,
+    output wire [W_BpuPreReadReqCombOut-1:0] bsd_po
 );
 
-    wire [W_BpuPreReadReqCombIn-1:0] bpu_pre_read_req_comb_pi;
-    wire [W_BpuPreReadReqCombOut-1:0] bpu_pre_read_req_comb_po;
+    // Semantic view of the packed BSD input/output buses.
+    wire [W_BpuPreReadReqCombIn-1:0]  bpu_input_bundle;
+    wire [W_BpuPreReadReqCombOut-1:0] bpu_pre_read_req_bundle;
+    wire [W_BpuPreReadReqCombIn-1:0]  bpu_pre_read_req_comb_bsd_pi;
+    wire [W_BpuPreReadReqCombOut-1:0] bpu_pre_read_req_comb_bsd_po;
 
-    assign bpu_pre_read_req_comb_pi = bpu_pre_read_req_comb_in;
-    assign bpu_pre_read_req_comb_out = bpu_pre_read_req_comb_po;
+    assign {
+        bpu_input_bundle
+    } = bsd_pi;
+
+    assign bpu_pre_read_req_comb_bsd_pi = {
+        bpu_input_bundle
+    };
+
+    assign {
+        bpu_pre_read_req_bundle
+    } = bpu_pre_read_req_comb_bsd_po;
+
+    assign bsd_po = {
+        bpu_pre_read_req_bundle
+    };
 
     bpu_pre_read_req_comb_bsd_top #(
         .W_BpuPreReadReqCombIn(W_BpuPreReadReqCombIn),
         .W_BpuPreReadReqCombOut(W_BpuPreReadReqCombOut)
     ) u_bpu_pre_read_req_comb_bsd_top (
-        .pi(bpu_pre_read_req_comb_pi),
-        .po(bpu_pre_read_req_comb_po)
+        .bsd_pi(bpu_pre_read_req_comb_bsd_pi),
+        .bsd_po(bpu_pre_read_req_comb_bsd_po)
     );
 
 endmodule
 
 module bpu_pre_read_req_comb_bsd_top #(
-    parameter integer W_BpuPreReadReqCombIn = 64,
+    parameter integer W_BpuPreReadReqCombIn  = 64,
     parameter integer W_BpuPreReadReqCombOut = 64
 ) (
-    input wire [W_BpuPreReadReqCombIn-1:0] pi,
-    output wire [W_BpuPreReadReqCombOut-1:0] po
+    input  wire [W_BpuPreReadReqCombIn-1:0]  bsd_pi,
+    output wire [W_BpuPreReadReqCombOut-1:0] bsd_po
 );
-    assign po = {W_BpuPreReadReqCombOut{1'b0}};
+
+    assign bsd_po = {W_BpuPreReadReqCombOut{1'b0}};
+
 endmodule

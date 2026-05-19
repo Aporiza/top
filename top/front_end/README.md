@@ -56,7 +56,7 @@ simulator-ffc9fad707a7acb0be5c7d4fe7c06d48987c73e0
 当前 `*_bsd_top` 多数仍是占位逻辑：
 
 ```verilog
-assign po = {W_xxxOut{1'b0}};
+assign bsd_po = {W_xxxOut{1'b0}};
 ```
 
 占位逻辑只表示结构连接，不代表功能正确。需要在对应 `*_bsd_top` 中替换为真实 RTL。
@@ -171,18 +171,36 @@ module xxx_comb_top #(
     parameter integer W_XxxCombIn = 64,
     parameter integer W_XxxCombOut = 64
 ) (
-    input  wire [W_XxxCombIn-1:0]  xxx_comb_in,
-    output wire [W_XxxCombOut-1:0] xxx_comb_out
+    input  wire [W_XxxCombIn-1:0]  bsd_pi,
+    output wire [W_XxxCombOut-1:0] bsd_po
 );
-    wire [W_XxxCombIn-1:0]  xxx_comb_pi;
-    wire [W_XxxCombOut-1:0] xxx_comb_po;
+    wire named_control;
+    wire [W_XxxPayload-1:0] named_input_bundle;
+    wire [W_XxxResult-1:0]  named_output_bundle;
+    wire [W_XxxCombIn-1:0]  xxx_comb_bsd_pi;
+    wire [W_XxxCombOut-1:0] xxx_comb_bsd_po;
 
-    assign xxx_comb_pi = xxx_comb_in;
-    assign xxx_comb_out = xxx_comb_po;
+    assign {
+        named_control,
+        named_input_bundle
+    } = bsd_pi;
+
+    assign xxx_comb_bsd_pi = {
+        named_control,
+        named_input_bundle
+    };
+
+    assign {
+        named_output_bundle
+    } = xxx_comb_bsd_po;
+
+    assign bsd_po = {
+        named_output_bundle
+    };
 
     xxx_comb_bsd_top u_xxx_comb_bsd_top (
-        .pi(xxx_comb_pi),
-        .po(xxx_comb_po)
+        .bsd_pi(xxx_comb_bsd_pi),
+        .bsd_po(xxx_comb_bsd_po)
     );
 endmodule
 ```
@@ -190,11 +208,14 @@ endmodule
 实现要求：
 
 1. 保留 `xxx_comb_top` 作为连接壳。
-2. 在 `xxx_comb_bsd_top` 中实现真实组合逻辑。
-3. 保持 `front_top.v` 和 `bpu_top.v` 的大框架连线稳定。
-4. 如果一个 comb 内部需要继续拆小函数，可在本 comb 目录下新建子模块或使用 `slices/` 预留目录；helper 不计入新的正式顶层 comb。
-5. 补完后确认 `filelist.f` 中包含新增子模块文件。
-6. 所有接口宽度按 simulator-ff 当前配置，不按旧版 large 截图或 simulator_new。
+2. `xxx_comb_top` 和 `xxx_comb_bsd_top` 对外统一使用 `bsd_pi/bsd_po`。
+3. 在 `front_top.v`、`bpu_top.v` 调用 comb 时，用 `.bsd_pi({变量...})` 和 `.bsd_po({变量...})` 展开连接，方便直接看到每个字段来自哪里、写到哪里。
+4. 在 `xxx_comb_top` 内部把 `bsd_pi/bsd_po` 拆成变量名，再拼给 `xxx_comb_bsd_top`，方便组员按变量补逻辑。
+5. 在 `xxx_comb_bsd_top` 中实现真实组合逻辑，最终交付接口保持 `bsd_pi/bsd_po`。
+6. 保持 `front_top.v` 和 `bpu_top.v` 的大框架连线稳定。
+7. 如果一个 comb 内部需要继续拆小函数，可在本 comb 目录下新建子模块或使用 `slices/` 预留目录；helper 不计入新的正式顶层 comb。
+8. 补完后确认 `filelist.f` 中包含新增子模块文件。
+9. 所有接口宽度按 simulator-ff 当前配置，不按旧版 large 截图或 simulator_new。
 
 ## 7. ICache 和 Oracle 说明
 

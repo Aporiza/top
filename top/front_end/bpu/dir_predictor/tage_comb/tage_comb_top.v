@@ -1,40 +1,58 @@
-﻿// Formal frontend comb boundary: tage_comb.
-// Canonical source: simulator-ffc9fad707a7acb0be5c7d4fe7c06d48987c73e0/front-end/BPU/dir_predictor/TAGE_top.h:948,1497.
-// Role: TAGE comb.
+// Formal frontend comb boundary: tage_comb.
+// Source: simulator-ff/front-end/BPU related comb calculation.
+// Role: TAGE direction result bundle construction.
 //
-// This top keeps a semantic packed boundary around the BSD pi/po interface.
-// The slices/ directory next to this file is reserved for future concrete RTL.
+// The parent module connects this wrapper with bsd_pi/bsd_po.
+// This wrapper unpacks the buses into semantic variable names before the BSD layer.
 
 module tage_comb_top #(
-    parameter integer W_TageCombIn = 64,
+    parameter integer W_TageCombIn  = 64,
     parameter integer W_TageCombOut = 64
 ) (
-    input wire [W_TageCombIn-1:0] tage_comb_in,
-    output wire [W_TageCombOut-1:0] tage_comb_out
+    input  wire [W_TageCombIn-1:0]  bsd_pi,
+    output wire [W_TageCombOut-1:0] bsd_po
 );
 
-    wire [W_TageCombIn-1:0] tage_comb_pi;
-    wire [W_TageCombOut-1:0] tage_comb_po;
+    // Semantic view of the packed BSD input/output buses.
+    wire [W_TageCombIn-1:0]  tage_input_bundle;
+    wire [W_TageCombOut-1:0] tage_bundle;
+    wire [W_TageCombIn-1:0]  tage_comb_bsd_pi;
+    wire [W_TageCombOut-1:0] tage_comb_bsd_po;
 
-    assign tage_comb_pi = tage_comb_in;
-    assign tage_comb_out = tage_comb_po;
+    assign {
+        tage_input_bundle
+    } = bsd_pi;
+
+    assign tage_comb_bsd_pi = {
+        tage_input_bundle
+    };
+
+    assign {
+        tage_bundle
+    } = tage_comb_bsd_po;
+
+    assign bsd_po = {
+        tage_bundle
+    };
 
     tage_comb_bsd_top #(
         .W_TageCombIn(W_TageCombIn),
         .W_TageCombOut(W_TageCombOut)
     ) u_tage_comb_bsd_top (
-        .pi(tage_comb_pi),
-        .po(tage_comb_po)
+        .bsd_pi(tage_comb_bsd_pi),
+        .bsd_po(tage_comb_bsd_po)
     );
 
 endmodule
 
 module tage_comb_bsd_top #(
-    parameter integer W_TageCombIn = 64,
+    parameter integer W_TageCombIn  = 64,
     parameter integer W_TageCombOut = 64
 ) (
-    input wire [W_TageCombIn-1:0] pi,
-    output wire [W_TageCombOut-1:0] po
+    input  wire [W_TageCombIn-1:0]  bsd_pi,
+    output wire [W_TageCombOut-1:0] bsd_po
 );
-    assign po = {W_TageCombOut{1'b0}};
+
+    assign bsd_po = {W_TageCombOut{1'b0}};
+
 endmodule

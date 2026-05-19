@@ -2,177 +2,316 @@
 // Source: simulator-ffc9fad707a7acb0be5c7d4fe7c06d48987c73e0/front-end/front_IO.h,
 //         simulator-ffc9fad707a7acb0be5c7d4fe7c06d48987c73e0/front-end/train_IO.h,
 //         simulator-ffc9fad707a7acb0be5c7d4fe7c06d48987c73e0/front-end/front_top.cpp.
-// BSD instances use pi/po, but each pi/po is built from named variables.
+// Comb instances use bsd_pi/bsd_po, and each bus is built from named variables.
 
 module front_top #(
-    parameter integer FETCH_WIDTH = 16,
-    parameter integer COMMIT_WIDTH = 8,
-    parameter integer TN_MAX = 4,
-    parameter integer PC_BITS = 32,
-    parameter integer INST_BITS = 32,
-    parameter integer PRIVILEGE_BITS = 2,
-    parameter integer PCPN_BITS = 3,
-    parameter integer BR_TYPE_BITS = 3,
-    parameter integer TAGE_IDX_BITS = 12,
-    parameter integer TAGE_TAG_BITS = 8,
-    parameter integer PREDECODE_TYPE_BITS = 2,
-    parameter integer BPU_SCL_META_NTABLE = 8,
-    parameter integer BPU_SCL_META_IDX_BITS = 16,
-    parameter integer BPU_SCL_META_SUM_BITS = 16,
+    parameter integer FETCH_WIDTH            = 16,
+    parameter integer COMMIT_WIDTH           = 8,
+    parameter integer TN_MAX                 = 4,
+    parameter integer PC_BITS                = 32,
+    parameter integer INST_BITS              = 32,
+    parameter integer PRIVILEGE_BITS         = 2,
+    parameter integer PCPN_BITS              = 3,
+    parameter integer BR_TYPE_BITS           = 3,
+    parameter integer TAGE_IDX_BITS          = 12,
+    parameter integer TAGE_TAG_BITS          = 8,
+    parameter integer PREDECODE_TYPE_BITS    = 2,
+    parameter integer BPU_SCL_META_NTABLE    = 8,
+    parameter integer BPU_SCL_META_IDX_BITS  = 16,
+    parameter integer BPU_SCL_META_SUM_BITS  = 16,
     parameter integer BPU_LOOP_META_IDX_BITS = 16,
     parameter integer BPU_LOOP_META_TAG_BITS = 16,
-    parameter integer W_BackUpdateMeta = COMMIT_WIDTH + (2 * PCPN_BITS * COMMIT_WIDTH) + (TAGE_IDX_BITS * COMMIT_WIDTH * TN_MAX) + (TAGE_TAG_BITS * COMMIT_WIDTH * TN_MAX) + COMMIT_WIDTH + COMMIT_WIDTH + (BPU_SCL_META_SUM_BITS * COMMIT_WIDTH) + (BPU_SCL_META_NTABLE * BPU_SCL_META_IDX_BITS * COMMIT_WIDTH) + COMMIT_WIDTH + COMMIT_WIDTH + COMMIT_WIDTH + (BPU_LOOP_META_IDX_BITS * COMMIT_WIDTH) + (BPU_LOOP_META_TAG_BITS * COMMIT_WIDTH),
-    parameter integer W_FrontOutMeta = FETCH_WIDTH + (2 * PCPN_BITS * FETCH_WIDTH) + (TAGE_IDX_BITS * FETCH_WIDTH * TN_MAX) + (TAGE_TAG_BITS * FETCH_WIDTH * TN_MAX) + FETCH_WIDTH + FETCH_WIDTH + (BPU_SCL_META_SUM_BITS * FETCH_WIDTH) + (BPU_SCL_META_NTABLE * BPU_SCL_META_IDX_BITS * FETCH_WIDTH) + FETCH_WIDTH + FETCH_WIDTH + FETCH_WIDTH + (BPU_LOOP_META_IDX_BITS * FETCH_WIDTH) + (BPU_LOOP_META_TAG_BITS * FETCH_WIDTH),
-    parameter integer W_BpuIn = 1 + COMMIT_WIDTH + 1 + PC_BITS + (COMMIT_WIDTH * PC_BITS) + COMMIT_WIDTH + COMMIT_WIDTH + (COMMIT_WIDTH * BR_TYPE_BITS) + (COMMIT_WIDTH * PC_BITS) + W_BackUpdateMeta + 1,
-    parameter integer W_BpuOut = 1 + PC_BITS + 1 + FETCH_WIDTH + PC_BITS + (FETCH_WIDTH * PC_BITS) + W_FrontOutMeta + 1 + PC_BITS + 1 + 1 + PC_BITS,
-    parameter integer W_FetchAddressFifoIn = 1 + 1 + 1 + 1 + PC_BITS,
-    parameter integer W_FetchAddressFifoOut = 1 + 1 + 1 + PC_BITS,
-    parameter integer W_FetchAddrCombOut = W_FetchAddressFifoOut + 1 + 1 + PC_BITS + 1,
-    parameter integer W_PredecodeIn = (FETCH_WIDTH * INST_BITS) + (FETCH_WIDTH * PC_BITS),
-    parameter integer W_PredecodeOut = (FETCH_WIDTH * PREDECODE_TYPE_BITS) + (FETCH_WIDTH * PC_BITS),
-    parameter integer W_InstructionFifoIn = 1 + 1 + 1 + (FETCH_WIDTH * INST_BITS) + (FETCH_WIDTH * PC_BITS) + FETCH_WIDTH + FETCH_WIDTH + 1 + (FETCH_WIDTH * PREDECODE_TYPE_BITS) + (FETCH_WIDTH * PC_BITS) + PC_BITS,
-    parameter integer W_InstructionFifoOut = 1 + 1 + 1 + (FETCH_WIDTH * INST_BITS) + (FETCH_WIDTH * PC_BITS) + FETCH_WIDTH + FETCH_WIDTH + (FETCH_WIDTH * PREDECODE_TYPE_BITS) + (FETCH_WIDTH * PC_BITS) + PC_BITS,
-    parameter integer W_InstructionCombOut = W_InstructionFifoOut + 1 + 1 + W_InstructionFifoIn + 1,
-    parameter integer W_PtabIn = 1 + 1 + 1 + FETCH_WIDTH + PC_BITS + (FETCH_WIDTH * PC_BITS) + W_FrontOutMeta + 1 + 1,
-    parameter integer W_PtabOut = 1 + 1 + 1 + FETCH_WIDTH + PC_BITS + (FETCH_WIDTH * PC_BITS) + W_FrontOutMeta,
-    parameter integer W_PtabCombOut = W_PtabOut + 1 + 1 + W_PtabIn + 1 + W_PtabIn + 1,
-    parameter integer W_PredecodeCheckerIn = FETCH_WIDTH + PC_BITS + (FETCH_WIDTH * PREDECODE_TYPE_BITS) + (FETCH_WIDTH * PC_BITS) + PC_BITS,
-    parameter integer W_PredecodeCheckerOut = FETCH_WIDTH + PC_BITS + 1,
-    parameter integer W_Front2BackFifoIn = 1 + 1 + 1 + 1 + (FETCH_WIDTH * INST_BITS) + FETCH_WIDTH + FETCH_WIDTH + FETCH_WIDTH + PC_BITS + (FETCH_WIDTH * PC_BITS) + W_FrontOutMeta,
-    parameter integer W_Front2BackFifoOut = 1 + 1 + 1 + (FETCH_WIDTH * INST_BITS) + FETCH_WIDTH + FETCH_WIDTH + FETCH_WIDTH + PC_BITS + (FETCH_WIDTH * PC_BITS) + W_FrontOutMeta,
-    parameter integer W_Front2BackCombOut = W_Front2BackFifoOut + 1 + 1 + W_Front2BackFifoIn + 1,
-    parameter integer W_FrontTopOut = 1 + (FETCH_WIDTH * PC_BITS) + (FETCH_WIDTH * INST_BITS) + FETCH_WIDTH + PC_BITS + FETCH_WIDTH + (2 * FETCH_WIDTH * PCPN_BITS) + FETCH_WIDTH + FETCH_WIDTH + (FETCH_WIDTH * TN_MAX * TAGE_IDX_BITS) + (FETCH_WIDTH * TN_MAX * TAGE_TAG_BITS) + FETCH_WIDTH + FETCH_WIDTH + (FETCH_WIDTH * BPU_SCL_META_SUM_BITS) + (FETCH_WIDTH * BPU_SCL_META_NTABLE * BPU_SCL_META_IDX_BITS) + FETCH_WIDTH + FETCH_WIDTH + FETCH_WIDTH + (FETCH_WIDTH * BPU_LOOP_META_IDX_BITS) + (FETCH_WIDTH * BPU_LOOP_META_TAG_BITS)
+    parameter integer W_BackUpdateMeta       =
+        COMMIT_WIDTH
+      + (2 * PCPN_BITS * COMMIT_WIDTH)
+      + (TAGE_IDX_BITS * COMMIT_WIDTH * TN_MAX)
+      + (TAGE_TAG_BITS * COMMIT_WIDTH * TN_MAX)
+      + COMMIT_WIDTH
+      + COMMIT_WIDTH
+      + (BPU_SCL_META_SUM_BITS * COMMIT_WIDTH)
+      + (BPU_SCL_META_NTABLE * BPU_SCL_META_IDX_BITS * COMMIT_WIDTH)
+      + COMMIT_WIDTH
+      + COMMIT_WIDTH
+      + COMMIT_WIDTH
+      + (BPU_LOOP_META_IDX_BITS * COMMIT_WIDTH)
+      + (BPU_LOOP_META_TAG_BITS * COMMIT_WIDTH),
+    parameter integer W_FrontOutMeta         =
+        FETCH_WIDTH
+      + (2 * PCPN_BITS * FETCH_WIDTH)
+      + (TAGE_IDX_BITS * FETCH_WIDTH * TN_MAX)
+      + (TAGE_TAG_BITS * FETCH_WIDTH * TN_MAX)
+      + FETCH_WIDTH
+      + FETCH_WIDTH
+      + (BPU_SCL_META_SUM_BITS * FETCH_WIDTH)
+      + (BPU_SCL_META_NTABLE * BPU_SCL_META_IDX_BITS * FETCH_WIDTH)
+      + FETCH_WIDTH
+      + FETCH_WIDTH
+      + FETCH_WIDTH
+      + (BPU_LOOP_META_IDX_BITS * FETCH_WIDTH)
+      + (BPU_LOOP_META_TAG_BITS * FETCH_WIDTH),
+    parameter integer W_BpuIn                =
+        1
+      + COMMIT_WIDTH
+      + 1
+      + PC_BITS
+      + (COMMIT_WIDTH * PC_BITS)
+      + COMMIT_WIDTH
+      + COMMIT_WIDTH
+      + (COMMIT_WIDTH * BR_TYPE_BITS)
+      + (COMMIT_WIDTH * PC_BITS)
+      + W_BackUpdateMeta
+      + 1,
+    parameter integer W_BpuOut               =
+        1
+      + PC_BITS
+      + 1
+      + FETCH_WIDTH
+      + PC_BITS
+      + (FETCH_WIDTH * PC_BITS)
+      + W_FrontOutMeta
+      + 1
+      + PC_BITS
+      + 1
+      + 1
+      + PC_BITS,
+    parameter integer W_FetchAddressFifoIn   = 1 + 1 + 1 + 1 + PC_BITS,
+    parameter integer W_FetchAddressFifoOut  = 1 + 1 + 1 + PC_BITS,
+    parameter integer W_FetchAddrCombOut     = W_FetchAddressFifoOut + 1 + 1 + PC_BITS + 1,
+    parameter integer W_PredecodeIn          = (FETCH_WIDTH * INST_BITS) + (FETCH_WIDTH * PC_BITS),
+    parameter integer W_PredecodeOut         = (FETCH_WIDTH * PREDECODE_TYPE_BITS) + (FETCH_WIDTH * PC_BITS),
+    parameter integer W_InstructionFifoIn    =
+        1
+      + 1
+      + 1
+      + (FETCH_WIDTH * INST_BITS)
+      + (FETCH_WIDTH * PC_BITS)
+      + FETCH_WIDTH
+      + FETCH_WIDTH
+      + 1
+      + (FETCH_WIDTH * PREDECODE_TYPE_BITS)
+      + (FETCH_WIDTH * PC_BITS)
+      + PC_BITS,
+    parameter integer W_InstructionFifoOut   =
+        1
+      + 1
+      + 1
+      + (FETCH_WIDTH * INST_BITS)
+      + (FETCH_WIDTH * PC_BITS)
+      + FETCH_WIDTH
+      + FETCH_WIDTH
+      + (FETCH_WIDTH * PREDECODE_TYPE_BITS)
+      + (FETCH_WIDTH * PC_BITS)
+      + PC_BITS,
+    parameter integer W_InstructionCombOut   = W_InstructionFifoOut + 1 + 1 + W_InstructionFifoIn + 1,
+    parameter integer W_PtabIn               = 1 + 1 + 1 + FETCH_WIDTH + PC_BITS + (FETCH_WIDTH * PC_BITS) + W_FrontOutMeta + 1 + 1,
+    parameter integer W_PtabOut              = 1 + 1 + 1 + FETCH_WIDTH + PC_BITS + (FETCH_WIDTH * PC_BITS) + W_FrontOutMeta,
+    parameter integer W_PtabCombOut          = W_PtabOut + 1 + 1 + W_PtabIn + 1 + W_PtabIn + 1,
+    parameter integer W_PredecodeCheckerIn   =
+        FETCH_WIDTH
+      + PC_BITS
+      + (FETCH_WIDTH * PREDECODE_TYPE_BITS)
+      + (FETCH_WIDTH * PC_BITS)
+      + PC_BITS,
+    parameter integer W_PredecodeCheckerOut  = FETCH_WIDTH + PC_BITS + 1,
+    parameter integer W_Front2BackFifoIn     =
+        1
+      + 1
+      + 1
+      + 1
+      + (FETCH_WIDTH * INST_BITS)
+      + FETCH_WIDTH
+      + FETCH_WIDTH
+      + FETCH_WIDTH
+      + PC_BITS
+      + (FETCH_WIDTH * PC_BITS)
+      + W_FrontOutMeta,
+    parameter integer W_Front2BackFifoOut    =
+        1
+      + 1
+      + 1
+      + (FETCH_WIDTH * INST_BITS)
+      + FETCH_WIDTH
+      + FETCH_WIDTH
+      + FETCH_WIDTH
+      + PC_BITS
+      + (FETCH_WIDTH * PC_BITS)
+      + W_FrontOutMeta,
+    parameter integer W_Front2BackCombOut    = W_Front2BackFifoOut + 1 + 1 + W_Front2BackFifoIn + 1,
+    parameter integer W_FrontTopOut          =
+        1
+      + (FETCH_WIDTH * PC_BITS)
+      + (FETCH_WIDTH * INST_BITS)
+      + FETCH_WIDTH
+      + PC_BITS
+      + FETCH_WIDTH
+      + (2 * FETCH_WIDTH * PCPN_BITS)
+      + FETCH_WIDTH
+      + FETCH_WIDTH
+      + (FETCH_WIDTH * TN_MAX * TAGE_IDX_BITS)
+      + (FETCH_WIDTH * TN_MAX * TAGE_TAG_BITS)
+      + FETCH_WIDTH
+      + FETCH_WIDTH
+      + (FETCH_WIDTH * BPU_SCL_META_SUM_BITS)
+      + (FETCH_WIDTH * BPU_SCL_META_NTABLE * BPU_SCL_META_IDX_BITS)
+      + FETCH_WIDTH
+      + FETCH_WIDTH
+      + FETCH_WIDTH
+      + (FETCH_WIDTH * BPU_LOOP_META_IDX_BITS)
+      + (FETCH_WIDTH * BPU_LOOP_META_TAG_BITS)
 ) (
-    input wire aclk, input wire aresetn, input wire reset,
-    input wire [COMMIT_WIDTH-1:0] back2front_valid,
-    input wire refetch, input wire itlb_flush, input wire fence_i,
-    input wire [PC_BITS-1:0] refetch_address,
-    input wire [COMMIT_WIDTH*PC_BITS-1:0] predict_base_pc,
-    input wire [COMMIT_WIDTH-1:0] predict_dir, input wire [COMMIT_WIDTH-1:0] actual_dir,
-    input wire [COMMIT_WIDTH*BR_TYPE_BITS-1:0] actual_br_type,
-    input wire [COMMIT_WIDTH*PC_BITS-1:0] actual_target,
-    input wire [COMMIT_WIDTH-1:0] alt_pred,
-    input wire [COMMIT_WIDTH*PCPN_BITS-1:0] altpcpn, input wire [COMMIT_WIDTH*PCPN_BITS-1:0] pcpn,
-    input wire [COMMIT_WIDTH*TN_MAX*TAGE_IDX_BITS-1:0] tage_idx,
-    input wire [COMMIT_WIDTH*TN_MAX*TAGE_TAG_BITS-1:0] tage_tag,
-    input wire [COMMIT_WIDTH-1:0] sc_used, input wire [COMMIT_WIDTH-1:0] sc_pred,
-    input wire [COMMIT_WIDTH*BPU_SCL_META_SUM_BITS-1:0] sc_sum,
-    input wire [COMMIT_WIDTH*BPU_SCL_META_NTABLE*BPU_SCL_META_IDX_BITS-1:0] sc_idx,
-    input wire [COMMIT_WIDTH-1:0] loop_used, input wire [COMMIT_WIDTH-1:0] loop_hit, input wire [COMMIT_WIDTH-1:0] loop_pred,
-    input wire [COMMIT_WIDTH*BPU_LOOP_META_IDX_BITS-1:0] loop_idx,
-    input wire [COMMIT_WIDTH*BPU_LOOP_META_TAG_BITS-1:0] loop_tag,
-    input wire FIFO_read_enable,
-    input wire [31:0] csr_status_sstatus, input wire [31:0] csr_status_mstatus, input wire [31:0] csr_status_satp,
-    input wire [PRIVILEGE_BITS-1:0] csr_status_privilege,
-    output wire icache_read_valid, output wire [PC_BITS-1:0] fetch_address,
-    output wire icache_read_valid_2, output wire [PC_BITS-1:0] fetch_address_2,
-    output wire icache_invalidate_req, output wire icache_run_comb_only,
-    input wire icache_read_ready, input wire icache_read_complete, input wire icache_read_ready_2, input wire icache_read_complete_2,
-    input wire [FETCH_WIDTH*INST_BITS-1:0] icache_fetch_group, input wire [FETCH_WIDTH-1:0] icache_page_fault_inst,
-    input wire [FETCH_WIDTH-1:0] icache_inst_valid, input wire [PC_BITS-1:0] icache_fetch_pc,
-    input wire [FETCH_WIDTH*INST_BITS-1:0] icache_fetch_group_2, input wire [FETCH_WIDTH-1:0] icache_page_fault_inst_2,
-    input wire [FETCH_WIDTH-1:0] icache_inst_valid_2, input wire [PC_BITS-1:0] icache_fetch_pc_2,
-    output wire FIFO_valid,
-    output wire [FETCH_WIDTH*PC_BITS-1:0] pc, output wire [FETCH_WIDTH*INST_BITS-1:0] instructions,
-    output wire [FETCH_WIDTH-1:0] out_predict_dir, output wire [PC_BITS-1:0] predict_next_fetch_address,
-    output wire [FETCH_WIDTH-1:0] out_alt_pred, output wire [FETCH_WIDTH*PCPN_BITS-1:0] out_altpcpn,
-    output wire [FETCH_WIDTH*PCPN_BITS-1:0] out_pcpn, output wire [FETCH_WIDTH-1:0] page_fault_inst,
-    output wire [FETCH_WIDTH-1:0] inst_valid, output wire [FETCH_WIDTH*TN_MAX*TAGE_IDX_BITS-1:0] out_tage_idx,
-    output wire [FETCH_WIDTH*TN_MAX*TAGE_TAG_BITS-1:0] out_tage_tag, output wire [FETCH_WIDTH-1:0] out_sc_used,
-    output wire [FETCH_WIDTH-1:0] out_sc_pred, output wire [FETCH_WIDTH*BPU_SCL_META_SUM_BITS-1:0] out_sc_sum,
+    // Clock and global control.
+    input  wire               aclk,
+    input  wire               aresetn,
+    input  wire               reset,
+    input  wire               refetch,
+    input  wire               itlb_flush,
+    input  wire               fence_i,
+    input  wire [PC_BITS-1:0] refetch_address,
+    input  wire               FIFO_read_enable,
+
+    // Backend-to-frontend BPU training feedback.
+    input  wire [COMMIT_WIDTH-1:0]                                           back2front_valid,
+    input  wire [COMMIT_WIDTH*PC_BITS-1:0]                                   predict_base_pc,
+    input  wire [COMMIT_WIDTH-1:0]                                           predict_dir,
+    input  wire [COMMIT_WIDTH-1:0]                                           actual_dir,
+    input  wire [COMMIT_WIDTH*BR_TYPE_BITS-1:0]                              actual_br_type,
+    input  wire [COMMIT_WIDTH*PC_BITS-1:0]                                   actual_target,
+    input  wire [COMMIT_WIDTH-1:0]                                           alt_pred,
+    input  wire [COMMIT_WIDTH*PCPN_BITS-1:0]                                 altpcpn,
+    input  wire [COMMIT_WIDTH*PCPN_BITS-1:0]                                 pcpn,
+    input  wire [COMMIT_WIDTH*TN_MAX*TAGE_IDX_BITS-1:0]                      tage_idx,
+    input  wire [COMMIT_WIDTH*TN_MAX*TAGE_TAG_BITS-1:0]                      tage_tag,
+    input  wire [COMMIT_WIDTH-1:0]                                           sc_used,
+    input  wire [COMMIT_WIDTH-1:0]                                           sc_pred,
+    input  wire [COMMIT_WIDTH*BPU_SCL_META_SUM_BITS-1:0]                     sc_sum,
+    input  wire [COMMIT_WIDTH*BPU_SCL_META_NTABLE*BPU_SCL_META_IDX_BITS-1:0] sc_idx,
+    input  wire [COMMIT_WIDTH-1:0]                                           loop_used,
+    input  wire [COMMIT_WIDTH-1:0]                                           loop_hit,
+    input  wire [COMMIT_WIDTH-1:0]                                           loop_pred,
+    input  wire [COMMIT_WIDTH*BPU_LOOP_META_IDX_BITS-1:0]                    loop_idx,
+    input  wire [COMMIT_WIDTH*BPU_LOOP_META_TAG_BITS-1:0]                    loop_tag,
+
+    // CSR status and frontend ICache boundary.
+    input  wire [31:0]                      csr_status_sstatus,
+    input  wire [31:0]                      csr_status_mstatus,
+    input  wire [31:0]                      csr_status_satp,
+    input  wire [PRIVILEGE_BITS-1:0]        csr_status_privilege,
+    input  wire                             icache_read_ready,
+    input  wire                             icache_read_complete,
+    input  wire                             icache_read_ready_2,
+    input  wire                             icache_read_complete_2,
+    input  wire [FETCH_WIDTH*INST_BITS-1:0] icache_fetch_group,
+    input  wire [FETCH_WIDTH-1:0]           icache_page_fault_inst,
+    input  wire [FETCH_WIDTH-1:0]           icache_inst_valid,
+    input  wire [PC_BITS-1:0]               icache_fetch_pc,
+    input  wire [FETCH_WIDTH*INST_BITS-1:0] icache_fetch_group_2,
+    input  wire [FETCH_WIDTH-1:0]           icache_page_fault_inst_2,
+    input  wire [FETCH_WIDTH-1:0]           icache_inst_valid_2,
+    input  wire [PC_BITS-1:0]               icache_fetch_pc_2,
+    output wire                             icache_read_valid,
+    output wire [PC_BITS-1:0]               fetch_address,
+    output wire                             icache_read_valid_2,
+    output wire [PC_BITS-1:0]               fetch_address_2,
+    output wire                             icache_invalidate_req,
+    output wire                             icache_run_comb_only,
+
+    // Frontend-to-backend output.
+    output wire                                                             FIFO_valid,
+    output wire [FETCH_WIDTH*PC_BITS-1:0]                                   pc,
+    output wire [FETCH_WIDTH*INST_BITS-1:0]                                 instructions,
+    output wire [FETCH_WIDTH-1:0]                                           out_predict_dir,
+    output wire [PC_BITS-1:0]                                               predict_next_fetch_address,
+    output wire [FETCH_WIDTH-1:0]                                           out_alt_pred,
+    output wire [FETCH_WIDTH*PCPN_BITS-1:0]                                 out_altpcpn,
+    output wire [FETCH_WIDTH*PCPN_BITS-1:0]                                 out_pcpn,
+    output wire [FETCH_WIDTH-1:0]                                           page_fault_inst,
+    output wire [FETCH_WIDTH-1:0]                                           inst_valid,
+    output wire [FETCH_WIDTH*TN_MAX*TAGE_IDX_BITS-1:0]                      out_tage_idx,
+    output wire [FETCH_WIDTH*TN_MAX*TAGE_TAG_BITS-1:0]                      out_tage_tag,
+    output wire [FETCH_WIDTH-1:0]                                           out_sc_used,
+    output wire [FETCH_WIDTH-1:0]                                           out_sc_pred,
+    output wire [FETCH_WIDTH*BPU_SCL_META_SUM_BITS-1:0]                     out_sc_sum,
     output wire [FETCH_WIDTH*BPU_SCL_META_NTABLE*BPU_SCL_META_IDX_BITS-1:0] out_sc_idx,
-    output wire [FETCH_WIDTH-1:0] out_loop_used, output wire [FETCH_WIDTH-1:0] out_loop_hit, output wire [FETCH_WIDTH-1:0] out_loop_pred,
-    output wire [FETCH_WIDTH*BPU_LOOP_META_IDX_BITS-1:0] out_loop_idx,
-    output wire [FETCH_WIDTH*BPU_LOOP_META_TAG_BITS-1:0] out_loop_tag
+    output wire [FETCH_WIDTH-1:0]                                           out_loop_used,
+    output wire [FETCH_WIDTH-1:0]                                           out_loop_hit,
+    output wire [FETCH_WIDTH-1:0]                                           out_loop_pred,
+    output wire [FETCH_WIDTH*BPU_LOOP_META_IDX_BITS-1:0]                    out_loop_idx,
+    output wire [FETCH_WIDTH*BPU_LOOP_META_TAG_BITS-1:0]                    out_loop_tag
 );
 
-    reg predecode_refetch;
-    reg [PC_BITS-1:0] predecode_refetch_address;
-    reg [31:0] front_sim_time;
-    reg [63:0] front_stats_cycles;
-    reg fetch_addr_fifo_full_latch;
-    reg fetch_addr_fifo_empty_latch;
-    reg fifo_full_latch;
-    reg fifo_empty_latch;
-    reg ptab_full_latch;
-    reg ptab_empty_latch;
-    reg front2back_fifo_full_latch;
-    reg front2back_fifo_empty_latch;
-    reg [W_FetchAddressFifoOut-1:0] fetch_addr_fifo_rd_snapshot_reg;
-    reg [W_InstructionFifoOut-1:0] fifo_rd_snapshot_reg;
-    reg [W_PtabOut-1:0] ptab_rd_snapshot_reg;
-    reg [W_Front2BackFifoOut-1:0] front2back_fifo_rd_snapshot_reg;
+    reg                              predecode_refetch;
+    reg  [PC_BITS-1:0]               predecode_refetch_address;
+    reg  [31:0]                      front_sim_time;
+    reg  [63:0]                      front_stats_cycles;
+    reg                              fetch_addr_fifo_full_latch;
+    reg                              fetch_addr_fifo_empty_latch;
+    reg                              fifo_full_latch;
+    reg                              fifo_empty_latch;
+    reg                              ptab_full_latch;
+    reg                              ptab_empty_latch;
+    reg                              front2back_fifo_full_latch;
+    reg                              front2back_fifo_empty_latch;
+    reg  [W_FetchAddressFifoOut-1:0] fetch_addr_fifo_rd_snapshot_reg;
+    reg  [W_InstructionFifoOut-1:0]  fifo_rd_snapshot_reg;
+    reg  [W_PtabOut-1:0]             ptab_rd_snapshot_reg;
+    reg  [W_Front2BackFifoOut-1:0]   front2back_fifo_rd_snapshot_reg;
 
-    wire predecode_refetch_snapshot = predecode_refetch;
-    wire [PC_BITS-1:0] predecode_refetch_address_snapshot = predecode_refetch_address;
-    wire [31:0] front_sim_time_snapshot = front_sim_time;
-    wire [63:0] front_stats_cycles_snapshot = front_stats_cycles;
-    wire fetch_addr_fifo_empty_latch_snapshot = fetch_addr_fifo_empty_latch;
-    wire fifo_empty_latch_snapshot = fifo_empty_latch;
-    wire ptab_empty_latch_snapshot = ptab_empty_latch;
-    wire front2back_fifo_full_latch_snapshot = front2back_fifo_full_latch;
+    wire               predecode_refetch_snapshot           = predecode_refetch;
+    wire [PC_BITS-1:0] predecode_refetch_address_snapshot   = predecode_refetch_address;
+    wire [31:0]        front_sim_time_snapshot              = front_sim_time;
+    wire [63:0]        front_stats_cycles_snapshot          = front_stats_cycles;
+    wire               fetch_addr_fifo_empty_latch_snapshot = fetch_addr_fifo_empty_latch;
+    wire               fifo_empty_latch_snapshot            = fifo_empty_latch;
+    wire               ptab_empty_latch_snapshot            = ptab_empty_latch;
+    wire               front2back_fifo_full_latch_snapshot  = front2back_fifo_full_latch;
 
     // Stage 0: front_top.cpp:1013-1084 initialization/default construction.
-    wire [W_FrontTopOut-1:0] front_top_out_default = {W_FrontTopOut{1'b0}};
-    wire [31:0] front_sim_time_init = front_sim_time_snapshot + 32'd1;
-    wire [63:0] front_stats_cycles_init = front_stats_cycles_snapshot + 64'd1;
-    wire front_state_req_valid_init = 1'b0;
-    wire [W_BpuIn-1:0] bpu_in_init = {W_BpuIn{1'b0}};
-    wire [W_FetchAddressFifoOut-1:0] fetch_addr_fifo_rd = fetch_addr_fifo_rd_snapshot_reg;
-    wire [W_InstructionFifoOut-1:0] fifo_rd = fifo_rd_snapshot_reg;
-    wire [W_PtabOut-1:0] ptab_rd = ptab_rd_snapshot_reg;
-    wire [W_Front2BackFifoOut-1:0] front2back_fifo_rd = front2back_fifo_rd_snapshot_reg;
-    wire [W_FetchAddressFifoOut-1:0] fetch_addr_fifo_next_rd_init = fetch_addr_fifo_rd;
-    wire [W_InstructionFifoOut-1:0] fifo_next_rd_init = fifo_rd;
-    wire [W_PtabOut-1:0] ptab_next_rd_init = ptab_rd;
-    wire [W_Front2BackFifoOut-1:0] front2back_fifo_next_rd_init = front2back_fifo_rd;
-    wire global_reset_init = 1'b0;
-    wire global_refetch_init = 1'b0;
-    wire icache_ready_init = 1'b0;
-    wire icache_ready_2_init = 1'b0;
-    wire fetch_addr_fifo_read_enable_slot0_init = 1'b0;
-    wire fetch_addr_fifo_read_enable_slot1_candidate_init = 1'b0;
-    wire inst_fifo_read_enable_init = 1'b0;
-    wire ptab_read_enable_init = 1'b0;
-    wire front2back_read_enable_init = 1'b0;
+    wire [W_FrontTopOut-1:0]         front_top_out_default                            = {W_FrontTopOut{1'b0}};
+    wire [31:0]                      front_sim_time_init                              = front_sim_time_snapshot + 32'd1;
+    wire [63:0]                      front_stats_cycles_init                          = front_stats_cycles_snapshot + 64'd1;
+    wire                             front_state_req_valid_init                       = 1'b0;
+    wire [W_BpuIn-1:0]               bpu_in_init                                      = {W_BpuIn{1'b0}};
+    wire [W_FetchAddressFifoOut-1:0] fetch_addr_fifo_rd                               = fetch_addr_fifo_rd_snapshot_reg;
+    wire [W_InstructionFifoOut-1:0]  fifo_rd                                          = fifo_rd_snapshot_reg;
+    wire [W_PtabOut-1:0]             ptab_rd                                          = ptab_rd_snapshot_reg;
+    wire [W_Front2BackFifoOut-1:0]   front2back_fifo_rd                               = front2back_fifo_rd_snapshot_reg;
+    wire [W_FetchAddressFifoOut-1:0] fetch_addr_fifo_next_rd_init                     = fetch_addr_fifo_rd;
+    wire [W_InstructionFifoOut-1:0]  fifo_next_rd_init                                = fifo_rd;
+    wire [W_PtabOut-1:0]             ptab_next_rd_init                                = ptab_rd;
+    wire [W_Front2BackFifoOut-1:0]   front2back_fifo_next_rd_init                     = front2back_fifo_rd;
+    wire                             global_reset_init                                = 1'b0;
+    wire                             global_refetch_init                              = 1'b0;
+    wire                             icache_ready_init                                = 1'b0;
+    wire                             icache_ready_2_init                              = 1'b0;
+    wire                             fetch_addr_fifo_read_enable_slot0_init           = 1'b0;
+    wire                             fetch_addr_fifo_read_enable_slot1_candidate_init = 1'b0;
+    wire                             inst_fifo_read_enable_init                       = 1'b0;
+    wire                             ptab_read_enable_init                            = 1'b0;
+    wire                             front2back_read_enable_init                      = 1'b0;
 
-    wire [1 + 1 + PC_BITS + 1 + PC_BITS - 1:0]
-        front_global_control_comb_in = {
+    wire               global_reset;
+    wire               global_refetch;
+    wire [PC_BITS-1:0] global_refetch_address;
+
+    front_global_control_comb_top #(
+        .PC_BITS(PC_BITS),
+        .W_FrontGlobalControlCombIn(1 + 1 + PC_BITS + 1 + PC_BITS),
+        .W_FrontGlobalControlCombOut(1 + 1 + PC_BITS)
+    ) u_front_global_control_comb_top (
+        .bsd_pi({
             reset,
             refetch,
             refetch_address,
             predecode_refetch_snapshot,
             predecode_refetch_address_snapshot
-        };
-    wire [1 + 1 + PC_BITS - 1:0] front_global_control_comb_out;
-    wire global_reset;
-    wire global_refetch;
-    wire [PC_BITS-1:0] global_refetch_address;
-    front_global_control_comb_top #(
-        .W_FrontGlobalControlCombIn(1 + 1 + PC_BITS + 1 + PC_BITS),
-        .W_FrontGlobalControlCombOut(1 + 1 + PC_BITS)
-    ) u_front_global_control_comb_top (
-        .front_global_control_comb_in(front_global_control_comb_in),
-        .front_global_control_comb_out(front_global_control_comb_out)
+        }),
+        .bsd_po({
+            global_reset,
+            global_refetch,
+            global_refetch_address
+        })
     );
-    assign {
-        global_reset,
-        global_refetch,
-        global_refetch_address
-    } = front_global_control_comb_out;
 
-    wire [8:0] front_read_enable_comb_in = {
-        FIFO_read_enable,
-        fetch_addr_fifo_empty_latch_snapshot,
-        fifo_empty_latch_snapshot,
-        ptab_empty_latch_snapshot,
-        front2back_fifo_full_latch_snapshot,
-        global_reset,
-        global_refetch,
-        icache_read_ready,
-        icache_read_ready_2
-    };
-    wire [5:0] front_read_enable_comb_out;
     wire fetch_addr_fifo_read_enable_slot0;
     wire fetch_addr_fifo_read_enable_slot1_candidate;
     wire predecode_can_run_old;
@@ -183,28 +322,27 @@ module front_top #(
         .W_FrontReadEnableCombIn(9),
         .W_FrontReadEnableCombOut(6)
     ) u_front_read_enable_comb_top (
-        .front_read_enable_comb_in(front_read_enable_comb_in),
-        .front_read_enable_comb_out(front_read_enable_comb_out)
+        .bsd_pi({
+            FIFO_read_enable,
+            fetch_addr_fifo_empty_latch_snapshot,
+            fifo_empty_latch_snapshot,
+            ptab_empty_latch_snapshot,
+            front2back_fifo_full_latch_snapshot,
+            global_reset,
+            global_refetch,
+            icache_read_ready,
+            icache_read_ready_2
+        }),
+        .bsd_po({
+            fetch_addr_fifo_read_enable_slot0,
+            fetch_addr_fifo_read_enable_slot1_candidate,
+            predecode_can_run_old,
+            inst_fifo_read_enable,
+            ptab_read_enable,
+            front2back_read_enable
+        })
     );
-    assign {
-        fetch_addr_fifo_read_enable_slot0,
-        fetch_addr_fifo_read_enable_slot1_candidate,
-        predecode_can_run_old,
-        inst_fifo_read_enable,
-        ptab_read_enable,
-        front2back_read_enable
-    } = front_read_enable_comb_out;
 
-    wire [6:0] front_read_stage_input_comb_in = {
-        refetch,
-        global_reset,
-        global_refetch,
-        fetch_addr_fifo_read_enable_slot0,
-        inst_fifo_read_enable,
-        ptab_read_enable,
-        front2back_read_enable
-    };
-    wire [11:0] front_read_stage_input_comb_out;
     wire fetch_addr_fifo_reset;
     wire fetch_addr_fifo_refetch;
     wire fetch_addr_fifo_read_enable;
@@ -221,23 +359,30 @@ module front_top #(
         .W_FrontReadStageInputCombIn(7),
         .W_FrontReadStageInputCombOut(12)
     ) u_front_read_stage_input_comb_top (
-        .front_read_stage_input_comb_in(front_read_stage_input_comb_in),
-        .front_read_stage_input_comb_out(front_read_stage_input_comb_out)
+        .bsd_pi({
+            refetch,
+            global_reset,
+            global_refetch,
+            fetch_addr_fifo_read_enable_slot0,
+            inst_fifo_read_enable,
+            ptab_read_enable,
+            front2back_read_enable
+        }),
+        .bsd_po({
+            fetch_addr_fifo_reset,
+            fetch_addr_fifo_refetch,
+            fetch_addr_fifo_read_enable,
+            fifo_reset,
+            fifo_refetch,
+            fifo_read_enable,
+            ptab_reset,
+            ptab_refetch,
+            ptab_out_read_enable,
+            front2back_fifo_reset,
+            front2back_fifo_refetch,
+            front2back_fifo_read_enable
+        })
     );
-    assign {
-        fetch_addr_fifo_reset,
-        fetch_addr_fifo_refetch,
-        fetch_addr_fifo_read_enable,
-        fifo_reset,
-        fifo_refetch,
-        fifo_read_enable,
-        ptab_reset,
-        ptab_refetch,
-        ptab_out_read_enable,
-        front2back_fifo_reset,
-        front2back_fifo_refetch,
-        front2back_fifo_read_enable
-    } = front_read_stage_input_comb_out;
 
     wire [W_BpuIn-1:0] bpu_in_seed = {
         reset,
@@ -265,35 +410,33 @@ module front_top #(
         loop_tag,
         icache_read_ready
     };
-    wire [W_BpuIn + 2 + 1 + 1 + PC_BITS - 1:0]
-        front_bpu_control_comb_in = {
+    wire               bpu_stall;
+    wire               bpu_can_run;
+    wire               bpu_icache_ready;
+    wire [W_BpuIn-1:0] bpu_in_after_control;
+    wire [W_BpuIn-1:0] bpu_input_payload;
+    front_bpu_control_comb_top #(
+        .PC_BITS(PC_BITS),
+        .W_BpuIn(W_BpuIn),
+        .W_FrontBpuControlCombIn(W_BpuIn + 2 + 1 + 1 + PC_BITS),
+        .W_FrontBpuControlCombOut(3 + W_BpuIn + W_BpuIn)
+    ) u_front_bpu_control_comb_top (
+        .bsd_pi({
             bpu_in_seed,
             fetch_addr_fifo_full_latch,
             ptab_full_latch,
             global_reset,
             global_refetch,
             global_refetch_address
-        };
-    wire [3 + W_BpuIn + W_BpuIn - 1:0] front_bpu_control_comb_out;
-    wire bpu_stall;
-    wire bpu_can_run;
-    wire bpu_icache_ready;
-    wire [W_BpuIn-1:0] bpu_in_after_control;
-    wire [W_BpuIn-1:0] bpu_input_payload;
-    front_bpu_control_comb_top #(
-        .W_FrontBpuControlCombIn(W_BpuIn + 2 + 1 + 1 + PC_BITS),
-        .W_FrontBpuControlCombOut(3 + W_BpuIn + W_BpuIn)
-    ) u_front_bpu_control_comb_top (
-        .front_bpu_control_comb_in(front_bpu_control_comb_in),
-        .front_bpu_control_comb_out(front_bpu_control_comb_out)
+        }),
+        .bsd_po({
+            bpu_stall,
+            bpu_can_run,
+            bpu_icache_ready,
+            bpu_in_after_control,
+            bpu_input_payload
+        })
     );
-    assign {
-        bpu_stall,
-        bpu_can_run,
-        bpu_icache_ready,
-        bpu_in_after_control,
-        bpu_input_payload
-    } = front_bpu_control_comb_out;
 
     wire [W_BpuOut-1:0] bpu_output_payload;
     bpu_top #(
@@ -304,18 +447,18 @@ module front_top #(
         .bpu_out(bpu_output_payload)
     );
 
-    wire bpu_output_icache_read_valid;
-    wire [PC_BITS-1:0] bpu_output_fetch_address;
-    wire bpu_output_ptab_write_enable;
-    wire [FETCH_WIDTH-1:0] bpu_output_predict_dir;
-    wire [PC_BITS-1:0] bpu_output_predict_next_fetch_address;
+    wire                           bpu_output_icache_read_valid;
+    wire [PC_BITS-1:0]             bpu_output_fetch_address;
+    wire                           bpu_output_ptab_write_enable;
+    wire [FETCH_WIDTH-1:0]         bpu_output_predict_dir;
+    wire [PC_BITS-1:0]             bpu_output_predict_next_fetch_address;
     wire [FETCH_WIDTH*PC_BITS-1:0] bpu_output_predict_base_pc;
-    wire [W_FrontOutMeta-1:0] bpu_output_meta;
-    wire bpu_output_two_ahead_valid;
-    wire [PC_BITS-1:0] bpu_output_two_ahead_target;
-    wire bpu_output_mini_flush_req;
-    wire bpu_output_mini_flush_correct;
-    wire [PC_BITS-1:0] bpu_output_mini_flush_target;
+    wire [W_FrontOutMeta-1:0]      bpu_output_meta;
+    wire                           bpu_output_two_ahead_valid;
+    wire [PC_BITS-1:0]             bpu_output_two_ahead_target;
+    wire                           bpu_output_mini_flush_req;
+    wire                           bpu_output_mini_flush_correct;
+    wire [PC_BITS-1:0]             bpu_output_mini_flush_target;
     assign {
         bpu_output_icache_read_valid,
         bpu_output_fetch_address,
@@ -345,33 +488,43 @@ module front_top #(
         bpu_output_icache_read_valid,
         bpu_output_fetch_address
     };
-    wire [W_FetchAddressFifoIn + W_FetchAddressFifoOut - 1:0]
-        fetch_address_FIFO_comb_in = {
-            fetch_addr_fifo_in,
-            fetch_addr_fifo_rd
-        };
     wire [W_FetchAddrCombOut-1:0] fetch_addr_fifo_req;
     wire [W_FetchAddressFifoOut-1:0] fetch_addr_fifo_out =
         fetch_addr_fifo_req[W_FetchAddressFifoOut-1:0];
     fetch_address_FIFO_comb_top #(
+        .W_FetchAddressFifoIn(W_FetchAddressFifoIn),
+        .W_FetchAddressFifoOut(W_FetchAddressFifoOut),
+        .W_FetchAddrCombOut(W_FetchAddrCombOut),
         .W_FetchAddressFifoCombIn(W_FetchAddressFifoIn + W_FetchAddressFifoOut),
         .W_FetchAddressFifoCombOut(W_FetchAddrCombOut)
     ) u_fetch_address_FIFO_comb_top (
-        .fetch_address_FIFO_comb_in(fetch_address_FIFO_comb_in),
-        .fetch_address_FIFO_comb_out(fetch_addr_fifo_req)
+        .bsd_pi({
+            fetch_addr_fifo_in,
+            fetch_addr_fifo_rd
+        }),
+        .bsd_po({
+            fetch_addr_fifo_req
+        })
     );
 
-    wire [W_PredecodeIn-1:0] predecode_comb_in = {
-        icache_fetch_group,
-        {FETCH_WIDTH{icache_fetch_pc}}
-    };
+    wire [FETCH_WIDTH*PC_BITS-1:0] predecode_fetch_pc_group =
+        {FETCH_WIDTH{icache_fetch_pc}};
     wire [W_PredecodeOut-1:0] predecode_result;
     predecode_comb_top #(
+        .FETCH_WIDTH(FETCH_WIDTH),
+        .INST_BITS(INST_BITS),
+        .PC_BITS(PC_BITS),
+        .W_PredecodeOut(W_PredecodeOut),
         .W_PredecodeCombIn(W_PredecodeIn),
         .W_PredecodeCombOut(W_PredecodeOut)
     ) u_predecode_comb_top (
-        .predecode_comb_in(predecode_comb_in),
-        .predecode_comb_out(predecode_result)
+        .bsd_pi({
+            icache_fetch_group,
+            predecode_fetch_pc_group
+        }),
+        .bsd_po({
+            predecode_result
+        })
     );
 
     wire [W_InstructionFifoIn-1:0] instruction_fifo_in = {
@@ -386,123 +539,153 @@ module front_top #(
         predecode_result,
         (icache_fetch_pc + (FETCH_WIDTH * 4))
     };
-    wire [W_InstructionFifoIn + W_InstructionFifoOut - 1:0]
-        instruction_FIFO_comb_in = {
-            instruction_fifo_in,
-            fifo_rd
-        };
     wire [W_InstructionCombOut-1:0] instruction_fifo_req;
     wire [W_InstructionFifoOut-1:0] instruction_fifo_out =
         instruction_fifo_req[W_InstructionFifoOut-1:0];
     instruction_FIFO_comb_top #(
+        .W_InstructionFifoIn(W_InstructionFifoIn),
+        .W_InstructionFifoOut(W_InstructionFifoOut),
+        .W_InstructionCombOut(W_InstructionCombOut),
         .W_InstructionFifoCombIn(W_InstructionFifoIn + W_InstructionFifoOut),
         .W_InstructionFifoCombOut(W_InstructionCombOut)
     ) u_instruction_FIFO_comb_top (
-        .instruction_FIFO_comb_in(instruction_FIFO_comb_in),
-        .instruction_FIFO_comb_out(instruction_fifo_req)
+        .bsd_pi({
+            instruction_fifo_in,
+            fifo_rd
+        }),
+        .bsd_po({
+            instruction_fifo_req
+        })
     );
 
-    wire [W_PtabIn-1:0] ptab_in;
+    wire [W_PtabIn-1:0]      ptab_in;
     wire [W_PtabCombOut-1:0] ptab_req;
-    wire [W_PtabOut-1:0] ptab_out = ptab_req[W_PtabOut-1:0];
-    wire [W_BpuOut + 3 - 1:0] front_ptab_write_comb_in = {
-        bpu_output_payload,
-        global_reset,
-        global_refetch,
-        ~ptab_full_latch
-    };
-    wire [W_PtabIn + W_PtabOut - 1:0] PTAB_comb_in = {
-        ptab_in,
-        ptab_rd
-    };
+    wire [W_PtabOut-1:0]     ptab_out = ptab_req[W_PtabOut-1:0];
+
     front_ptab_write_comb_top #(
+        .W_BpuOut(W_BpuOut),
+        .W_PtabIn(W_PtabIn),
         .W_FrontPtabWriteCombIn(W_BpuOut + 3),
         .W_FrontPtabWriteCombOut(W_PtabIn)
     ) u_front_ptab_write_comb_top (
-        .front_ptab_write_comb_in(front_ptab_write_comb_in),
-        .front_ptab_write_comb_out(ptab_in)
+        .bsd_pi({
+            bpu_output_payload,
+            global_reset,
+            global_refetch,
+            ~ptab_full_latch
+        }),
+        .bsd_po({
+            ptab_in
+        })
     );
+
     PTAB_comb_top #(
+        .W_PtabIn(W_PtabIn),
+        .W_PtabOut(W_PtabOut),
         .W_PtabCombIn(W_PtabIn + W_PtabOut),
         .W_PtabCombOut(W_PtabCombOut)
     ) u_PTAB_comb_top (
-        .PTAB_comb_in(PTAB_comb_in),
-        .PTAB_comb_out(ptab_req)
+        .bsd_pi({
+            ptab_in,
+            ptab_rd
+        }),
+        .bsd_po({
+            ptab_req
+        })
     );
 
-    wire [W_PredecodeCheckerIn-1:0] checker_in;
+    wire [W_PredecodeCheckerIn-1:0]  checker_in;
     wire [W_PredecodeCheckerOut-1:0] checker_out;
-    wire [W_InstructionFifoOut + W_PtabOut - 1:0] front_checker_input_comb_in = {
-        instruction_fifo_out,
-        ptab_out
-    };
+
     front_checker_input_comb_top #(
+        .W_InstructionFifoOut(W_InstructionFifoOut),
+        .W_PtabOut(W_PtabOut),
+        .W_PredecodeCheckerIn(W_PredecodeCheckerIn),
         .W_FrontCheckerInputCombIn(W_InstructionFifoOut + W_PtabOut),
         .W_FrontCheckerInputCombOut(W_PredecodeCheckerIn)
     ) u_front_checker_input_comb_top (
-        .front_checker_input_comb_in(front_checker_input_comb_in),
-        .front_checker_input_comb_out(checker_in)
+        .bsd_pi({
+            instruction_fifo_out,
+            ptab_out
+        }),
+        .bsd_po({
+            checker_in
+        })
     );
+
     predecode_checker_comb_top #(
+        .W_PredecodeCheckerIn(W_PredecodeCheckerIn),
+        .W_PredecodeCheckerOut(W_PredecodeCheckerOut),
         .W_PredecodeCheckerCombIn(W_PredecodeCheckerIn),
         .W_PredecodeCheckerCombOut(W_PredecodeCheckerOut)
     ) u_predecode_checker_comb_top (
-        .predecode_checker_comb_in(checker_in),
-        .predecode_checker_comb_out(checker_out)
+        .bsd_pi({
+            checker_in
+        }),
+        .bsd_po({
+            checker_out
+        })
     );
 
-    wire use_front2back_output_bypass = 1'b0;
-    wire [W_Front2BackFifoIn-1:0] front2back_fifo_in;
+    wire                           use_front2back_output_bypass = 1'b0;
+    wire [W_Front2BackFifoIn-1:0]  front2back_fifo_in;
     wire [W_Front2BackFifoOut-1:0] bypass_front2back_fifo_out;
-    wire [W_InstructionFifoOut + W_PtabOut + W_PredecodeCheckerOut + 1 - 1:0]
-        front_front2back_write_comb_in = {
+
+    front_front2back_write_comb_top #(
+        .W_InstructionFifoOut(W_InstructionFifoOut),
+        .W_PtabOut(W_PtabOut),
+        .W_PredecodeCheckerOut(W_PredecodeCheckerOut),
+        .W_Front2BackFifoIn(W_Front2BackFifoIn),
+        .W_Front2BackFifoOut(W_Front2BackFifoOut),
+        .W_FrontFront2backWriteCombIn(W_InstructionFifoOut + W_PtabOut + W_PredecodeCheckerOut + 1),
+        .W_FrontFront2backWriteCombOut(W_Front2BackFifoIn + W_Front2BackFifoOut)
+    ) u_front_front2back_write_comb_top (
+        .bsd_pi({
             instruction_fifo_out,
             ptab_out,
             checker_out,
             use_front2back_output_bypass
-        };
-    wire [W_Front2BackFifoIn + W_Front2BackFifoOut - 1:0]
-        front_front2back_write_comb_out;
-    front_front2back_write_comb_top #(
-        .W_FrontFront2backWriteCombIn(W_InstructionFifoOut + W_PtabOut + W_PredecodeCheckerOut + 1),
-        .W_FrontFront2backWriteCombOut(W_Front2BackFifoIn + W_Front2BackFifoOut)
-    ) u_front_front2back_write_comb_top (
-        .front_front2back_write_comb_in(front_front2back_write_comb_in),
-        .front_front2back_write_comb_out(front_front2back_write_comb_out)
-    );
-    assign {
-        front2back_fifo_in,
-        bypass_front2back_fifo_out
-    } = front_front2back_write_comb_out;
-
-    wire [W_Front2BackFifoIn + W_Front2BackFifoOut - 1:0]
-        front2back_FIFO_comb_in = {
+        }),
+        .bsd_po({
             front2back_fifo_in,
-            front2back_fifo_rd
-        };
+            bypass_front2back_fifo_out
+        })
+    );
+
     wire [W_Front2BackCombOut-1:0] front2back_fifo_req;
     wire [W_Front2BackFifoOut-1:0] front2back_fifo_out =
         front2back_fifo_req[W_Front2BackFifoOut-1:0];
     front2back_FIFO_comb_top #(
+        .W_Front2BackFifoIn(W_Front2BackFifoIn),
+        .W_Front2BackFifoOut(W_Front2BackFifoOut),
+        .W_Front2BackCombOut(W_Front2BackCombOut),
         .W_Front2backFifoCombIn(W_Front2BackFifoIn + W_Front2BackFifoOut),
         .W_Front2backFifoCombOut(W_Front2BackCombOut)
     ) u_front2back_FIFO_comb_top (
-        .front2back_FIFO_comb_in(front2back_FIFO_comb_in),
-        .front2back_FIFO_comb_out(front2back_fifo_req)
+        .bsd_pi({
+            front2back_fifo_in,
+            front2back_fifo_rd
+        }),
+        .bsd_po({
+            front2back_fifo_req
+        })
     );
 
-    wire [W_Front2BackFifoOut + W_Front2BackFifoOut + 1 - 1:0] front_output_comb_in = {
-        front2back_fifo_out,
-        bypass_front2back_fifo_out,
-        use_front2back_output_bypass
-    };
     wire [W_FrontTopOut-1:0] front_top_out_bus;
     front_output_comb_top #(
+        .W_Front2BackFifoOut(W_Front2BackFifoOut),
+        .W_FrontTopOut(W_FrontTopOut),
         .W_FrontOutputCombIn(W_Front2BackFifoOut + W_Front2BackFifoOut + 1),
         .W_FrontOutputCombOut(W_FrontTopOut)
     ) u_front_output_comb_top (
-        .front_output_comb_in(front_output_comb_in),
-        .front_output_comb_out(front_top_out_bus)
+        .bsd_pi({
+            front2back_fifo_out,
+            bypass_front2back_fifo_out,
+            use_front2back_output_bypass
+        }),
+        .bsd_po({
+            front_top_out_bus
+        })
     );
     assign {
         FIFO_valid,
@@ -529,7 +712,7 @@ module front_top #(
     } = front_top_out_bus;
 
     wire front_state_req_valid = 1'b1; // front_top.cpp:1802 enables the final state refresh request.
-    wire next_predecode_refetch = checker_out[0];
+    wire               next_predecode_refetch         = checker_out[0];
     wire [PC_BITS-1:0] next_predecode_refetch_address = checker_out[PC_BITS:1];
     always @(posedge aclk or negedge aresetn) begin
         if (!aresetn || reset) begin
