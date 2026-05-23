@@ -1,8 +1,8 @@
 // Frontend top connectivity and training-boundary package.
-// Source: simulator-ffc9fad707a7acb0be5c7d4fe7c06d48987c73e0/front-end/front_IO.h,
-//         simulator-ffc9fad707a7acb0be5c7d4fe7c06d48987c73e0/front-end/train_IO.h,
-//         simulator-ffc9fad707a7acb0be5c7d4fe7c06d48987c73e0/front-end/front_top.cpp.
-// Comb instances use bsd_pi/bsd_po, and each bus is built from named variables.
+// Source: simulator-front/front-end/front_IO.h,
+//         simulator-front/front-end/train_IO.h,
+//         simulator-front/front-end/front_top.cpp.
+// Comb instances use semantic variable ports; each wrapper builds pi/po internally.
 
 module front_top #(
     parameter integer FETCH_WIDTH            = 16,
@@ -21,6 +21,10 @@ module front_top #(
     parameter integer BPU_SCL_META_SUM_BITS  = 16,
     parameter integer BPU_LOOP_META_IDX_BITS = 16,
     parameter integer BPU_LOOP_META_TAG_BITS = 16,
+    parameter integer FETCH_ADDR_FIFO_SIZE   = 32,
+    parameter integer INSTRUCTION_FIFO_SIZE  = 32,
+    parameter integer PTAB_SIZE              = 32,
+    parameter integer FRONT2BACK_FIFO_SIZE   = 64,
     parameter integer W_BackUpdateMeta       =
         COMMIT_WIDTH
       + (2 * PCPN_BITS * COMMIT_WIDTH)
@@ -298,18 +302,14 @@ module front_top #(
         .W_FrontGlobalControlCombIn(1 + 1 + PC_BITS + 1 + PC_BITS),
         .W_FrontGlobalControlCombOut(1 + 1 + PC_BITS)
     ) u_front_global_control_comb_top (
-        .bsd_pi({
-            reset,
-            refetch,
-            refetch_address,
-            predecode_refetch_snapshot,
-            predecode_refetch_address_snapshot
-        }),
-        .bsd_po({
-            global_reset,
-            global_refetch,
-            global_refetch_address
-        })
+        .reset(reset),
+        .refetch(refetch),
+        .refetch_address(refetch_address),
+        .predecode_refetch_snapshot(predecode_refetch_snapshot),
+        .predecode_refetch_address_snapshot(predecode_refetch_address_snapshot),
+        .global_reset(global_reset),
+        .global_refetch(global_refetch),
+        .global_refetch_address(global_refetch_address)
     );
 
     wire fetch_addr_fifo_read_enable_slot0;
@@ -322,25 +322,21 @@ module front_top #(
         .W_FrontReadEnableCombIn(9),
         .W_FrontReadEnableCombOut(6)
     ) u_front_read_enable_comb_top (
-        .bsd_pi({
-            FIFO_read_enable,
-            fetch_addr_fifo_empty_latch_snapshot,
-            fifo_empty_latch_snapshot,
-            ptab_empty_latch_snapshot,
-            front2back_fifo_full_latch_snapshot,
-            global_reset,
-            global_refetch,
-            icache_read_ready,
-            icache_read_ready_2
-        }),
-        .bsd_po({
-            fetch_addr_fifo_read_enable_slot0,
-            fetch_addr_fifo_read_enable_slot1_candidate,
-            predecode_can_run_old,
-            inst_fifo_read_enable,
-            ptab_read_enable,
-            front2back_read_enable
-        })
+        .FIFO_read_enable(FIFO_read_enable),
+        .fetch_addr_fifo_empty_latch_snapshot(fetch_addr_fifo_empty_latch_snapshot),
+        .fifo_empty_latch_snapshot(fifo_empty_latch_snapshot),
+        .ptab_empty_latch_snapshot(ptab_empty_latch_snapshot),
+        .front2back_fifo_full_latch_snapshot(front2back_fifo_full_latch_snapshot),
+        .global_reset(global_reset),
+        .global_refetch(global_refetch),
+        .icache_read_ready(icache_read_ready),
+        .icache_read_ready_2(icache_read_ready_2),
+        .fetch_addr_fifo_read_enable_slot0(fetch_addr_fifo_read_enable_slot0),
+        .fetch_addr_fifo_read_enable_slot1_candidate(fetch_addr_fifo_read_enable_slot1_candidate),
+        .predecode_can_run_old(predecode_can_run_old),
+        .inst_fifo_read_enable(inst_fifo_read_enable),
+        .ptab_read_enable(ptab_read_enable),
+        .front2back_read_enable(front2back_read_enable)
     );
 
     wire fetch_addr_fifo_reset;
@@ -359,29 +355,25 @@ module front_top #(
         .W_FrontReadStageInputCombIn(7),
         .W_FrontReadStageInputCombOut(12)
     ) u_front_read_stage_input_comb_top (
-        .bsd_pi({
-            refetch,
-            global_reset,
-            global_refetch,
-            fetch_addr_fifo_read_enable_slot0,
-            inst_fifo_read_enable,
-            ptab_read_enable,
-            front2back_read_enable
-        }),
-        .bsd_po({
-            fetch_addr_fifo_reset,
-            fetch_addr_fifo_refetch,
-            fetch_addr_fifo_read_enable,
-            fifo_reset,
-            fifo_refetch,
-            fifo_read_enable,
-            ptab_reset,
-            ptab_refetch,
-            ptab_out_read_enable,
-            front2back_fifo_reset,
-            front2back_fifo_refetch,
-            front2back_fifo_read_enable
-        })
+        .refetch(refetch),
+        .global_reset(global_reset),
+        .global_refetch(global_refetch),
+        .fetch_addr_fifo_read_enable_slot0(fetch_addr_fifo_read_enable_slot0),
+        .inst_fifo_read_enable(inst_fifo_read_enable),
+        .ptab_read_enable(ptab_read_enable),
+        .front2back_read_enable(front2back_read_enable),
+        .fetch_addr_fifo_reset(fetch_addr_fifo_reset),
+        .fetch_addr_fifo_refetch(fetch_addr_fifo_refetch),
+        .fetch_addr_fifo_read_enable(fetch_addr_fifo_read_enable),
+        .fifo_reset(fifo_reset),
+        .fifo_refetch(fifo_refetch),
+        .fifo_read_enable(fifo_read_enable),
+        .ptab_reset(ptab_reset),
+        .ptab_refetch(ptab_refetch),
+        .ptab_out_read_enable(ptab_out_read_enable),
+        .front2back_fifo_reset(front2back_fifo_reset),
+        .front2back_fifo_refetch(front2back_fifo_refetch),
+        .front2back_fifo_read_enable(front2back_fifo_read_enable)
     );
 
     wire [W_BpuIn-1:0] bpu_in_seed = {
@@ -421,28 +413,40 @@ module front_top #(
         .W_FrontBpuControlCombIn(W_BpuIn + 2 + 1 + 1 + PC_BITS),
         .W_FrontBpuControlCombOut(3 + W_BpuIn + W_BpuIn)
     ) u_front_bpu_control_comb_top (
-        .bsd_pi({
-            bpu_in_seed,
-            fetch_addr_fifo_full_latch,
-            ptab_full_latch,
-            global_reset,
-            global_refetch,
-            global_refetch_address
-        }),
-        .bsd_po({
-            bpu_stall,
-            bpu_can_run,
-            bpu_icache_ready,
-            bpu_in_after_control,
-            bpu_input_payload
-        })
+        .bpu_in_seed(bpu_in_seed),
+        .fetch_addr_fifo_full_latch(fetch_addr_fifo_full_latch),
+        .ptab_full_latch(ptab_full_latch),
+        .global_reset(global_reset),
+        .global_refetch(global_refetch),
+        .global_refetch_address(global_refetch_address),
+        .bpu_stall(bpu_stall),
+        .bpu_can_run(bpu_can_run),
+        .bpu_icache_ready(bpu_icache_ready),
+        .bpu_in_after_control(bpu_in_after_control),
+        .bpu_input_payload(bpu_input_payload)
     );
 
     wire [W_BpuOut-1:0] bpu_output_payload;
     bpu_top #(
+        .FETCH_WIDTH(FETCH_WIDTH),
+        .COMMIT_WIDTH(COMMIT_WIDTH),
+        .TN_MAX(TN_MAX),
+        .PC_BITS(PC_BITS),
+        .PCPN_BITS(PCPN_BITS),
+        .BR_TYPE_BITS(BR_TYPE_BITS),
+        .TAGE_IDX_BITS(TAGE_IDX_BITS),
+        .TAGE_TAG_BITS(TAGE_TAG_BITS),
+        .BPU_SCL_META_NTABLE(BPU_SCL_META_NTABLE),
+        .BPU_SCL_META_IDX_BITS(BPU_SCL_META_IDX_BITS),
+        .BPU_SCL_META_SUM_BITS(BPU_SCL_META_SUM_BITS),
+        .BPU_LOOP_META_IDX_BITS(BPU_LOOP_META_IDX_BITS),
+        .BPU_LOOP_META_TAG_BITS(BPU_LOOP_META_TAG_BITS),
         .W_BpuIn(W_BpuIn),
         .W_BpuOut(W_BpuOut)
     ) u_bpu_top (
+        .aclk(aclk),
+        .aresetn(aresetn),
+        .reset(reset),
         .bpu_in(bpu_in_after_control),
         .bpu_out(bpu_output_payload)
     );
@@ -495,16 +499,15 @@ module front_top #(
         .W_FetchAddressFifoIn(W_FetchAddressFifoIn),
         .W_FetchAddressFifoOut(W_FetchAddressFifoOut),
         .W_FetchAddrCombOut(W_FetchAddrCombOut),
+        .FETCH_ADDR_FIFO_SIZE(FETCH_ADDR_FIFO_SIZE),
         .W_FetchAddressFifoCombIn(W_FetchAddressFifoIn + W_FetchAddressFifoOut),
         .W_FetchAddressFifoCombOut(W_FetchAddrCombOut)
     ) u_fetch_address_FIFO_comb_top (
-        .bsd_pi({
-            fetch_addr_fifo_in,
-            fetch_addr_fifo_rd
-        }),
-        .bsd_po({
-            fetch_addr_fifo_req
-        })
+        .aclk(aclk),
+        .aresetn(aresetn),
+        .fetch_addr_fifo_in(fetch_addr_fifo_in),
+        .fetch_addr_fifo_rd(fetch_addr_fifo_rd),
+        .fetch_addr_fifo_req(fetch_addr_fifo_req)
     );
 
     wire [FETCH_WIDTH*PC_BITS-1:0] predecode_fetch_pc_group =
@@ -518,13 +521,9 @@ module front_top #(
         .W_PredecodeCombIn(W_PredecodeIn),
         .W_PredecodeCombOut(W_PredecodeOut)
     ) u_predecode_comb_top (
-        .bsd_pi({
-            icache_fetch_group,
-            predecode_fetch_pc_group
-        }),
-        .bsd_po({
-            predecode_result
-        })
+        .icache_fetch_group(icache_fetch_group),
+        .predecode_fetch_pc_group(predecode_fetch_pc_group),
+        .predecode_result(predecode_result)
     );
 
     wire [W_InstructionFifoIn-1:0] instruction_fifo_in = {
@@ -546,16 +545,16 @@ module front_top #(
         .W_InstructionFifoIn(W_InstructionFifoIn),
         .W_InstructionFifoOut(W_InstructionFifoOut),
         .W_InstructionCombOut(W_InstructionCombOut),
+        .W_InstructionFifoLowData(W_PredecodeOut + PC_BITS),
+        .INSTRUCTION_FIFO_SIZE(INSTRUCTION_FIFO_SIZE),
         .W_InstructionFifoCombIn(W_InstructionFifoIn + W_InstructionFifoOut),
         .W_InstructionFifoCombOut(W_InstructionCombOut)
     ) u_instruction_FIFO_comb_top (
-        .bsd_pi({
-            instruction_fifo_in,
-            fifo_rd
-        }),
-        .bsd_po({
-            instruction_fifo_req
-        })
+        .aclk(aclk),
+        .aresetn(aresetn),
+        .instruction_fifo_in(instruction_fifo_in),
+        .fifo_rd(fifo_rd),
+        .instruction_fifo_req(instruction_fifo_req)
     );
 
     wire [W_PtabIn-1:0]      ptab_in;
@@ -568,30 +567,25 @@ module front_top #(
         .W_FrontPtabWriteCombIn(W_BpuOut + 3),
         .W_FrontPtabWriteCombOut(W_PtabIn)
     ) u_front_ptab_write_comb_top (
-        .bsd_pi({
-            bpu_output_payload,
-            global_reset,
-            global_refetch,
-            ~ptab_full_latch
-        }),
-        .bsd_po({
-            ptab_in
-        })
+        .bpu_output_payload(bpu_output_payload),
+        .global_reset(global_reset),
+        .global_refetch(global_refetch),
+        .ptab_can_write(~ptab_full_latch),
+        .ptab_in(ptab_in)
     );
 
     PTAB_comb_top #(
         .W_PtabIn(W_PtabIn),
         .W_PtabOut(W_PtabOut),
+        .PTAB_SIZE(PTAB_SIZE),
         .W_PtabCombIn(W_PtabIn + W_PtabOut),
         .W_PtabCombOut(W_PtabCombOut)
     ) u_PTAB_comb_top (
-        .bsd_pi({
-            ptab_in,
-            ptab_rd
-        }),
-        .bsd_po({
-            ptab_req
-        })
+        .aclk(aclk),
+        .aresetn(aresetn),
+        .ptab_in(ptab_in),
+        .ptab_rd(ptab_rd),
+        .ptab_req(ptab_req)
     );
 
     wire [W_PredecodeCheckerIn-1:0]  checker_in;
@@ -604,13 +598,9 @@ module front_top #(
         .W_FrontCheckerInputCombIn(W_InstructionFifoOut + W_PtabOut),
         .W_FrontCheckerInputCombOut(W_PredecodeCheckerIn)
     ) u_front_checker_input_comb_top (
-        .bsd_pi({
-            instruction_fifo_out,
-            ptab_out
-        }),
-        .bsd_po({
-            checker_in
-        })
+        .instruction_fifo_out(instruction_fifo_out),
+        .ptab_out(ptab_out),
+        .checker_in(checker_in)
     );
 
     predecode_checker_comb_top #(
@@ -619,12 +609,8 @@ module front_top #(
         .W_PredecodeCheckerCombIn(W_PredecodeCheckerIn),
         .W_PredecodeCheckerCombOut(W_PredecodeCheckerOut)
     ) u_predecode_checker_comb_top (
-        .bsd_pi({
-            checker_in
-        }),
-        .bsd_po({
-            checker_out
-        })
+        .checker_in(checker_in),
+        .checker_out(checker_out)
     );
 
     wire                           use_front2back_output_bypass = 1'b0;
@@ -640,16 +626,12 @@ module front_top #(
         .W_FrontFront2backWriteCombIn(W_InstructionFifoOut + W_PtabOut + W_PredecodeCheckerOut + 1),
         .W_FrontFront2backWriteCombOut(W_Front2BackFifoIn + W_Front2BackFifoOut)
     ) u_front_front2back_write_comb_top (
-        .bsd_pi({
-            instruction_fifo_out,
-            ptab_out,
-            checker_out,
-            use_front2back_output_bypass
-        }),
-        .bsd_po({
-            front2back_fifo_in,
-            bypass_front2back_fifo_out
-        })
+        .instruction_fifo_out(instruction_fifo_out),
+        .ptab_out(ptab_out),
+        .checker_out(checker_out),
+        .use_front2back_output_bypass(use_front2back_output_bypass),
+        .front2back_fifo_in(front2back_fifo_in),
+        .bypass_front2back_fifo_out(bypass_front2back_fifo_out)
     );
 
     wire [W_Front2BackCombOut-1:0] front2back_fifo_req;
@@ -659,16 +641,15 @@ module front_top #(
         .W_Front2BackFifoIn(W_Front2BackFifoIn),
         .W_Front2BackFifoOut(W_Front2BackFifoOut),
         .W_Front2BackCombOut(W_Front2BackCombOut),
+        .FRONT2BACK_FIFO_SIZE(FRONT2BACK_FIFO_SIZE),
         .W_Front2backFifoCombIn(W_Front2BackFifoIn + W_Front2BackFifoOut),
         .W_Front2backFifoCombOut(W_Front2BackCombOut)
     ) u_front2back_FIFO_comb_top (
-        .bsd_pi({
-            front2back_fifo_in,
-            front2back_fifo_rd
-        }),
-        .bsd_po({
-            front2back_fifo_req
-        })
+        .aclk(aclk),
+        .aresetn(aresetn),
+        .front2back_fifo_in(front2back_fifo_in),
+        .front2back_fifo_rd(front2back_fifo_rd),
+        .front2back_fifo_req(front2back_fifo_req)
     );
 
     wire [W_FrontTopOut-1:0] front_top_out_bus;
@@ -678,14 +659,10 @@ module front_top #(
         .W_FrontOutputCombIn(W_Front2BackFifoOut + W_Front2BackFifoOut + 1),
         .W_FrontOutputCombOut(W_FrontTopOut)
     ) u_front_output_comb_top (
-        .bsd_pi({
-            front2back_fifo_out,
-            bypass_front2back_fifo_out,
-            use_front2back_output_bypass
-        }),
-        .bsd_po({
-            front_top_out_bus
-        })
+        .front2back_fifo_out(front2back_fifo_out),
+        .bypass_front2back_fifo_out(bypass_front2back_fifo_out),
+        .use_front2back_output_bypass(use_front2back_output_bypass),
+        .front_top_out_bus(front_top_out_bus)
     );
     assign {
         FIFO_valid,

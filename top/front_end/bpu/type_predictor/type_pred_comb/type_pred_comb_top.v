@@ -1,58 +1,47 @@
 // Formal frontend comb boundary: type_pred_comb.
-// Source: simulator-ff/front-end/BPU related comb calculation.
+// Source: simulator-front/front-end/BPU related comb calculation.
 // Role: type prediction result bundle construction.
 //
-// The parent module connects this wrapper with bsd_pi/bsd_po.
-// This wrapper unpacks the buses into semantic variable names before the BSD layer.
+// The parent module connects this wrapper with semantic variable ports.
+// Only the BSD implementation layer keeps the packed pi/po interface.
 
 module type_pred_comb_top #(
-    parameter integer W_TypePredCombIn  = 64,
-    parameter integer W_TypePredCombOut = 64
+    parameter integer W_TypePredCombIn  = 4949,  // actual: 4949, from bpu_top W_BpuOut
+    parameter integer W_TypePredCombOut = 4949    // actual: 4949, from bpu_top W_BpuOut
 ) (
-    input  wire [W_TypePredCombIn-1:0]  bsd_pi,
-    output wire [W_TypePredCombOut-1:0] bsd_po
+    input  wire [W_TypePredCombIn-1:0]  type_pred_input_bundle,
+    output wire [W_TypePredCombOut-1:0] type_pred_bundle
 );
 
-    // Semantic view of the packed BSD input/output buses.
-    wire [W_TypePredCombIn-1:0]  type_pred_input_bundle;
-    wire [W_TypePredCombOut-1:0] type_pred_bundle;
-    wire [W_TypePredCombIn-1:0]  type_pred_comb_bsd_pi;
-    wire [W_TypePredCombOut-1:0] type_pred_comb_bsd_po;
-
-    assign {
-        type_pred_input_bundle
-    } = bsd_pi;
-
-    assign type_pred_comb_bsd_pi = {
+    // Packed pi/po bridge for the BSD implementation layer.
+    wire [W_TypePredCombIn-1:0]  pi;
+    wire [W_TypePredCombOut-1:0] po;
+    assign pi = {
         type_pred_input_bundle
     };
 
     assign {
         type_pred_bundle
-    } = type_pred_comb_bsd_po;
-
-    assign bsd_po = {
-        type_pred_bundle
-    };
+    } = po;
 
     type_pred_comb_bsd_top #(
         .W_TypePredCombIn(W_TypePredCombIn),
         .W_TypePredCombOut(W_TypePredCombOut)
     ) u_type_pred_comb_bsd_top (
-        .bsd_pi(type_pred_comb_bsd_pi),
-        .bsd_po(type_pred_comb_bsd_po)
+        .pi(pi),
+        .po(po)
     );
 
 endmodule
 
 module type_pred_comb_bsd_top #(
-    parameter integer W_TypePredCombIn  = 64,
-    parameter integer W_TypePredCombOut = 64
+    parameter integer W_TypePredCombIn  = 4949,  // actual: 4949, from bpu_top W_BpuOut
+    parameter integer W_TypePredCombOut = 4949    // actual: 4949, from bpu_top W_BpuOut
 ) (
-    input  wire [W_TypePredCombIn-1:0]  bsd_pi,
-    output wire [W_TypePredCombOut-1:0] bsd_po
+    input  wire [W_TypePredCombIn-1:0]  pi,
+    output wire [W_TypePredCombOut-1:0] po
 );
 
-    assign bsd_po = {W_TypePredCombOut{1'b0}};
+    assign po = {W_TypePredCombOut{1'b0}};
 
 endmodule
