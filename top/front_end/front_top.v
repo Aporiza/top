@@ -26,13 +26,13 @@ module front_top #(
     parameter PTAB_SIZE              = 32,
     parameter FRONT2BACK_FIFO_SIZE   = 64,
     parameter FETCH_ADDR_FIFO_SIZE_BITS =
-        6,  // 实际： 6, clog2(FETCH_ADDR_FIFO_SIZE + 1), FETCH_ADDR_FIFO_SIZE=32
+        6,  // 实际：6, clog2(FETCH_ADDR_FIFO_SIZE + 1), FETCH_ADDR_FIFO_SIZE=32
     parameter INSTRUCTION_FIFO_SIZE_BITS =
-        6,  // 实际： 6, clog2(INSTRUCTION_FIFO_SIZE + 1), INSTRUCTION_FIFO_SIZE=32
+        6,  // 实际：6, clog2(INSTRUCTION_FIFO_SIZE + 1), INSTRUCTION_FIFO_SIZE=32
     parameter PTAB_SIZE_BITS =
-        6,  // 实际： 6, clog2(PTAB_SIZE + 1), PTAB_SIZE=32
+        6,  // 实际：6, clog2(PTAB_SIZE + 1), PTAB_SIZE=32
     parameter FRONT2BACK_FIFO_SIZE_BITS =
-        7,  // 实际： 7, clog2(FRONT2BACK_FIFO_SIZE + 1), FRONT2BACK_FIFO_SIZE=64
+        7,  // 实际：7, clog2(FRONT2BACK_FIFO_SIZE + 1), FRONT2BACK_FIFO_SIZE=64
     parameter W_BackUpdateMeta       =
         COMMIT_WIDTH
       + (2 * PCPN_BITS * COMMIT_WIDTH)
@@ -73,6 +73,8 @@ module front_top #(
       + (COMMIT_WIDTH * PC_BITS)
       + W_BackUpdateMeta
       + 1,
+    parameter W_BpuInputPayload      =
+        W_BpuIn - 1,  // 实际：2738，BPU_TOP::InputPayload 比 BPU_in 少 reset 位
     parameter W_BpuOut               =
         1
       + PC_BITS
@@ -88,13 +90,11 @@ module front_top #(
       + PC_BITS,
     parameter W_FetchAddressFifoIn   = 1 + 1 + 1 + 1 + PC_BITS,
     parameter W_FetchAddressFifoOut  = 1 + 1 + 1 + PC_BITS,
-    parameter W_FetchAddressFifoReadData =
-        FETCH_ADDR_FIFO_SIZE_BITS + 1 + PC_BITS,
-    parameter W_FetchAddressFifoCombIn =
-        W_FetchAddressFifoIn + W_FetchAddressFifoReadData,
-    parameter W_FetchAddrCombOut     = W_FetchAddressFifoOut + 1 + 1 + PC_BITS + 1,
-    parameter W_PredecodeIn          = (FETCH_WIDTH * INST_BITS) + (FETCH_WIDTH * PC_BITS),
-    parameter W_PredecodeOut         = (FETCH_WIDTH * PREDECODE_TYPE_BITS) + (FETCH_WIDTH * PC_BITS),
+    parameter W_FetchAddrCombOut     = 2 * W_FetchAddressFifoOut,
+    parameter W_PredecodeIn          = INST_BITS + PC_BITS,
+    parameter W_PredecodeOut         = PREDECODE_TYPE_BITS + PC_BITS,
+    parameter W_PredecodeGroupIn     = FETCH_WIDTH * W_PredecodeIn,
+    parameter W_PredecodeGroupOut    = FETCH_WIDTH * W_PredecodeOut,
     parameter W_InstructionFifoIn    =
         1
       + 1
@@ -118,24 +118,27 @@ module front_top #(
       + (FETCH_WIDTH * PREDECODE_TYPE_BITS)
       + (FETCH_WIDTH * PC_BITS)
       + PC_BITS,
-    parameter W_InstructionFifoEntry =
-        W_InstructionFifoOut - 3,
-    parameter W_InstructionFifoReadData =
-        INSTRUCTION_FIFO_SIZE_BITS + 1 + W_InstructionFifoEntry,
-    parameter W_InstructionFifoCombIn =
-        W_InstructionFifoIn + W_InstructionFifoReadData,
-    parameter W_InstructionCombOut   =
-        W_InstructionFifoOut + 1 + 1 + W_InstructionFifoEntry + 1,
-    parameter W_PtabIn               = 1 + 1 + 1 + FETCH_WIDTH + PC_BITS + (FETCH_WIDTH * PC_BITS) + W_FrontOutMeta + 1 + 1,
-    parameter W_PtabOut              = 1 + 1 + 1 + FETCH_WIDTH + PC_BITS + (FETCH_WIDTH * PC_BITS) + W_FrontOutMeta,
-    parameter W_PtabEntry            =
-        W_PtabOut - 1,
-    parameter W_PtabReadData         =
-        PTAB_SIZE_BITS + 1 + W_PtabEntry,
-    parameter W_PtabCombIn           =
-        W_PtabIn + W_PtabReadData,
+    parameter W_InstructionCombOut   = 2 * W_InstructionFifoOut,
+    parameter W_PtabIn               =
+        1
+      + 1
+      + 1
+      + FETCH_WIDTH
+      + PC_BITS
+      + (FETCH_WIDTH * PC_BITS)
+      + W_FrontOutMeta
+      + 1
+      + 1,
+    parameter W_PtabOut              =
+        1
+      + 1
+      + 1
+      + FETCH_WIDTH
+      + PC_BITS
+      + (FETCH_WIDTH * PC_BITS)
+      + W_FrontOutMeta,
     parameter W_PtabCombOut          =
-        W_PtabOut + 1 + 1 + W_PtabEntry + 1 + W_PtabEntry + 1,
+        W_PtabOut + 1 + 1 + (W_PtabOut - 1) + 1 + (W_PtabOut - 1) + 1,
     parameter W_PredecodeCheckerIn   =
         FETCH_WIDTH
       + PC_BITS
@@ -166,14 +169,21 @@ module front_top #(
       + PC_BITS
       + (FETCH_WIDTH * PC_BITS)
       + W_FrontOutMeta,
-    parameter W_Front2BackFifoEntry  =
-        W_Front2BackFifoOut - 3,
-    parameter W_Front2BackFifoReadData =
-        FRONT2BACK_FIFO_SIZE_BITS + 1 + W_Front2BackFifoEntry,
-    parameter W_Front2BackFifoCombIn =
-        W_Front2BackFifoIn + W_Front2BackFifoReadData,
-    parameter W_Front2BackCombOut    =
-        W_Front2BackFifoOut + 1 + 1 + W_Front2BackFifoEntry + 1,
+    parameter W_Front2BackCombOut    = 2 * W_Front2BackFifoOut,
+    parameter W_BpuOutputPayload     =
+        PC_BITS
+      + 1
+      + PC_BITS
+      + 1
+      + FETCH_WIDTH
+      + W_FrontOutMeta
+      + PC_BITS
+      + 1
+      + 1
+      + PC_BITS
+      + 1
+      + 1
+      + PC_BITS,
     parameter W_FrontTopOut          =
         1
       + (FETCH_WIDTH * PC_BITS)
@@ -309,7 +319,8 @@ module front_top #(
     // 这些 wire 不更新状态，只把上一拍保存的值展开给后续组合逻辑使用。
     wire [W_FrontTopOut-1:0]         front_top_out_default                            = {W_FrontTopOut{1'b0}};
     wire [31:0]                      front_sim_time_init                              = front_sim_time_snapshot + 32'd1;
-    wire [63:0]                      front_stats_cycles_init                          = front_stats_cycles_snapshot + 64'd1;
+    wire [63:0]                      front_stats_cycles_init                          =
+        front_stats_cycles_snapshot + 64'd1;
     wire                             front_state_req_valid_init                       = 1'b0;
     wire [W_BpuIn-1:0]               bpu_in_init                                      = {W_BpuIn{1'b0}};
     wire [W_FetchAddressFifoOut-1:0] fetch_addr_fifo_rd                               = fetch_addr_fifo_rd_snapshot_reg;
@@ -330,9 +341,24 @@ module front_top #(
     wire                             ptab_read_enable_init                            = 1'b0;
     wire                             front2back_read_enable_init                      = 1'b0;
 
+    // 下面的各组 *_input_bundle / *_output_bundle 对应 C++ comb 函数的 input/output 结构体。
+    // front_top 先用可读变量拼包，再从输出包拆回变量；comb_top 内部只桥接到 BSD 层 pi/po。
     wire               global_reset;
     wire               global_refetch;
     wire [PC_BITS-1:0] global_refetch_address;
+    wire [1 + 1 + PC_BITS + 1 + PC_BITS - 1:0] front_global_control_input_bundle = {
+        reset,
+        refetch,
+        refetch_address,
+        predecode_refetch_snapshot,
+        predecode_refetch_address_snapshot
+    };
+    wire [1 + 1 + PC_BITS - 1:0] front_global_control_output_bundle;
+    assign {
+        global_reset,
+        global_refetch,
+        global_refetch_address
+    } = front_global_control_output_bundle;
 
     // 第 1 阶段：全局控制合成。
     // 源码对应 front_global_control_comb：合并外部 reset/refetch 与 predecode 发现的 refetch。
@@ -342,14 +368,8 @@ module front_top #(
         .W_FrontGlobalControlCombIn(1 + 1 + PC_BITS + 1 + PC_BITS),
         .W_FrontGlobalControlCombOut(1 + 1 + PC_BITS)
     ) u_front_global_control_comb_top (
-        .reset(reset),
-        .refetch(refetch),
-        .refetch_address(refetch_address),
-        .predecode_refetch_snapshot(predecode_refetch_snapshot),
-        .predecode_refetch_address_snapshot(predecode_refetch_address_snapshot),
-        .global_reset(global_reset),
-        .global_refetch(global_refetch),
-        .global_refetch_address(global_refetch_address)
+        .front_global_control_input_bundle(front_global_control_input_bundle),
+        .front_global_control_output_bundle(front_global_control_output_bundle)
     );
 
     wire fetch_addr_fifo_read_enable_slot0;
@@ -358,6 +378,26 @@ module front_top #(
     wire inst_fifo_read_enable;
     wire ptab_read_enable;
     wire front2back_read_enable;
+    wire [9 - 1:0] front_read_enable_input_bundle = {
+        FIFO_read_enable,
+        fetch_addr_fifo_empty_latch_snapshot,
+        fifo_empty_latch_snapshot,
+        ptab_empty_latch_snapshot,
+        front2back_fifo_full_latch_snapshot,
+        global_reset,
+        global_refetch,
+        icache_read_ready,
+        icache_read_ready_2
+    };
+    wire [6 - 1:0] front_read_enable_output_bundle;
+    assign {
+        fetch_addr_fifo_read_enable_slot0,
+        fetch_addr_fifo_read_enable_slot1_candidate,
+        predecode_can_run_old,
+        inst_fifo_read_enable,
+        ptab_read_enable,
+        front2back_read_enable
+    } = front_read_enable_output_bundle;
     // 第 2 阶段：读使能生成。
     // 源码对应 front_read_enable_comb：根据后端是否取数、队列空满、ICache ready 和全局清空状态，
     // 决定本拍 fetch address FIFO、instruction FIFO、PTAB 和 front2back FIFO 是否允许读。
@@ -365,21 +405,8 @@ module front_top #(
         .W_FrontReadEnableCombIn(9),
         .W_FrontReadEnableCombOut(6)
     ) u_front_read_enable_comb_top (
-        .FIFO_read_enable(FIFO_read_enable),
-        .fetch_addr_fifo_empty_latch_snapshot(fetch_addr_fifo_empty_latch_snapshot),
-        .fifo_empty_latch_snapshot(fifo_empty_latch_snapshot),
-        .ptab_empty_latch_snapshot(ptab_empty_latch_snapshot),
-        .front2back_fifo_full_latch_snapshot(front2back_fifo_full_latch_snapshot),
-        .global_reset(global_reset),
-        .global_refetch(global_refetch),
-        .icache_read_ready(icache_read_ready),
-        .icache_read_ready_2(icache_read_ready_2),
-        .fetch_addr_fifo_read_enable_slot0(fetch_addr_fifo_read_enable_slot0),
-        .fetch_addr_fifo_read_enable_slot1_candidate(fetch_addr_fifo_read_enable_slot1_candidate),
-        .predecode_can_run_old(predecode_can_run_old),
-        .inst_fifo_read_enable(inst_fifo_read_enable),
-        .ptab_read_enable(ptab_read_enable),
-        .front2back_read_enable(front2back_read_enable)
+        .front_read_enable_input_bundle(front_read_enable_input_bundle),
+        .front_read_enable_output_bundle(front_read_enable_output_bundle)
     );
 
     wire fetch_addr_fifo_reset;
@@ -394,6 +421,30 @@ module front_top #(
     wire front2back_fifo_reset;
     wire front2back_fifo_refetch;
     wire front2back_fifo_read_enable;
+    wire [7 - 1:0] front_read_stage_input_bundle = {
+        refetch,
+        global_reset,
+        global_refetch,
+        fetch_addr_fifo_read_enable_slot0,
+        inst_fifo_read_enable,
+        ptab_read_enable,
+        front2back_read_enable
+    };
+    wire [12 - 1:0] front_read_stage_output_bundle;
+    assign {
+        fetch_addr_fifo_reset,
+        fetch_addr_fifo_refetch,
+        fetch_addr_fifo_read_enable,
+        fifo_reset,
+        fifo_refetch,
+        fifo_read_enable,
+        ptab_reset,
+        ptab_refetch,
+        ptab_out_read_enable,
+        front2back_fifo_reset,
+        front2back_fifo_refetch,
+        front2back_fifo_read_enable
+    } = front_read_stage_output_bundle;
     // 第 3 阶段：把读使能转换为四个队列的控制输入。
     // 源码对应 front_read_stage_input_comb：把 global_reset/global_refetch/read_enable
     // 拆成各 FIFO/PTAB 自己的 reset、refetch、read_enable 信号。
@@ -401,25 +452,8 @@ module front_top #(
         .W_FrontReadStageInputCombIn(7),
         .W_FrontReadStageInputCombOut(12)
     ) u_front_read_stage_input_comb_top (
-        .refetch(refetch),
-        .global_reset(global_reset),
-        .global_refetch(global_refetch),
-        .fetch_addr_fifo_read_enable_slot0(fetch_addr_fifo_read_enable_slot0),
-        .inst_fifo_read_enable(inst_fifo_read_enable),
-        .ptab_read_enable(ptab_read_enable),
-        .front2back_read_enable(front2back_read_enable),
-        .fetch_addr_fifo_reset(fetch_addr_fifo_reset),
-        .fetch_addr_fifo_refetch(fetch_addr_fifo_refetch),
-        .fetch_addr_fifo_read_enable(fetch_addr_fifo_read_enable),
-        .fifo_reset(fifo_reset),
-        .fifo_refetch(fifo_refetch),
-        .fifo_read_enable(fifo_read_enable),
-        .ptab_reset(ptab_reset),
-        .ptab_refetch(ptab_refetch),
-        .ptab_out_read_enable(ptab_out_read_enable),
-        .front2back_fifo_reset(front2back_fifo_reset),
-        .front2back_fifo_refetch(front2back_fifo_refetch),
-        .front2back_fifo_read_enable(front2back_fifo_read_enable)
+        .front_read_stage_input_bundle(front_read_stage_input_bundle),
+        .front_read_stage_output_bundle(front_read_stage_output_bundle)
     );
 
     // 第 4 阶段：构造 BPU 原始输入。
@@ -454,28 +488,36 @@ module front_top #(
     wire               bpu_stall;
     wire               bpu_can_run;
     wire               bpu_icache_ready;
-    wire [W_BpuIn-1:0] bpu_in_after_control;
-    wire [W_BpuIn-1:0] bpu_input_payload;
+    wire [W_BpuIn-1:0]           bpu_in_after_control;
+    wire [W_BpuInputPayload-1:0] bpu_input_payload;
+    wire [W_BpuIn + 2 + 1 + 1 + PC_BITS - 1:0] front_bpu_control_input_bundle = {
+        bpu_in_seed,
+        fetch_addr_fifo_full_latch,
+        ptab_full_latch,
+        global_reset,
+        global_refetch,
+        global_refetch_address
+    };
+    wire [3 + W_BpuIn + W_BpuInputPayload - 1:0] front_bpu_control_output_bundle;
+    assign {
+        bpu_stall,
+        bpu_can_run,
+        bpu_icache_ready,
+        bpu_in_after_control,
+        bpu_input_payload
+    } = front_bpu_control_output_bundle;
     // 第 5 阶段：BPU 运行控制。
     // 源码对应 front_bpu_control_comb：根据 fetch address FIFO/PTAB 是否满和全局 refetch，
     // 判断 BPU 本拍是否可运行，并生成真正送入 bpu_top 的输入包。
     front_bpu_control_comb_top #(
         .PC_BITS(PC_BITS),
         .W_BpuIn(W_BpuIn),
+        .W_BpuInputPayload(W_BpuInputPayload),
         .W_FrontBpuControlCombIn(W_BpuIn + 2 + 1 + 1 + PC_BITS),
-        .W_FrontBpuControlCombOut(3 + W_BpuIn + W_BpuIn)
+        .W_FrontBpuControlCombOut(3 + W_BpuIn + W_BpuInputPayload)
     ) u_front_bpu_control_comb_top (
-        .bpu_in_seed(bpu_in_seed),
-        .fetch_addr_fifo_full_latch(fetch_addr_fifo_full_latch),
-        .ptab_full_latch(ptab_full_latch),
-        .global_reset(global_reset),
-        .global_refetch(global_refetch),
-        .global_refetch_address(global_refetch_address),
-        .bpu_stall(bpu_stall),
-        .bpu_can_run(bpu_can_run),
-        .bpu_icache_ready(bpu_icache_ready),
-        .bpu_in_after_control(bpu_in_after_control),
-        .bpu_input_payload(bpu_input_payload)
+        .front_bpu_control_input_bundle(front_bpu_control_input_bundle),
+        .front_bpu_control_output_bundle(front_bpu_control_output_bundle)
     );
 
     wire [W_BpuOut-1:0] bpu_output_payload;
@@ -558,10 +600,7 @@ module front_top #(
         .W_FetchAddressFifoOut(W_FetchAddressFifoOut),
         .W_FetchAddrCombOut(W_FetchAddrCombOut),
         .FETCH_ADDR_FIFO_SIZE(FETCH_ADDR_FIFO_SIZE),
-        .FETCH_ADDR_FIFO_SIZE_BITS(FETCH_ADDR_FIFO_SIZE_BITS),
-        .W_FetchAddressFifoReadData(W_FetchAddressFifoReadData),
-        .W_FetchAddressFifoCombIn(W_FetchAddressFifoCombIn),
-        .W_FetchAddressFifoCombOut(W_FetchAddrCombOut)
+        .FETCH_ADDR_FIFO_SIZE_BITS(FETCH_ADDR_FIFO_SIZE_BITS)
     ) u_fetch_address_FIFO_comb_top (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -571,22 +610,49 @@ module front_top #(
     );
 
     // 第 8 阶段：predecode。
-    // 源码对应 predecode_comb：把 ICache 返回的指令组和对应 PC 组转成预译码结果。
+    // simulator-front 中 predecode_comb 的正式端口是单条指令粒度：
+    // predecode_read_data = inst_word_t(32) + pc_t(32) = 64。
+    // front_top 会对 FETCH_WIDTH 路指令逐条调用 predecode_comb，
+    // 这里用 generate 展开 16 路，保持每个 predecode_comb_top 的端口仍是 64/34。
     wire [FETCH_WIDTH*PC_BITS-1:0] predecode_fetch_pc_group =
         {FETCH_WIDTH{icache_fetch_pc}};
-    wire [W_PredecodeOut-1:0] predecode_result;
-    predecode_comb_top #(
-        .FETCH_WIDTH(FETCH_WIDTH),
-        .INST_BITS(INST_BITS),
-        .PC_BITS(PC_BITS),
-        .W_PredecodeOut(W_PredecodeOut),
-        .W_PredecodeCombIn(W_PredecodeIn),
-        .W_PredecodeCombOut(W_PredecodeOut)
-    ) u_predecode_comb_top (
-        .icache_fetch_group(icache_fetch_group),
-        .predecode_fetch_pc_group(predecode_fetch_pc_group),
-        .predecode_result(predecode_result)
-    );
+    wire [W_PredecodeGroupIn-1:0] predecode_input_bundle = {
+        icache_fetch_group,
+        predecode_fetch_pc_group
+    };
+    wire [W_PredecodeGroupOut-1:0] predecode_output_bundle;
+    wire [W_PredecodeGroupOut-1:0] predecode_result = predecode_output_bundle;
+
+    genvar predecode_lane;
+    generate
+        for (
+            predecode_lane = 0;
+            predecode_lane < FETCH_WIDTH;
+            predecode_lane = predecode_lane + 1
+        ) begin : g_predecode_lane
+            wire [W_PredecodeIn-1:0] predecode_lane_input;
+            wire [W_PredecodeOut-1:0] predecode_lane_output;
+
+            assign predecode_lane_input = {
+                icache_fetch_group[(predecode_lane + 1) * INST_BITS - 1:predecode_lane * INST_BITS],
+                predecode_fetch_pc_group[(predecode_lane + 1) * PC_BITS - 1:predecode_lane * PC_BITS]
+            };
+
+            assign predecode_output_bundle[(predecode_lane + 1) * W_PredecodeOut - 1:predecode_lane * W_PredecodeOut] =
+                predecode_lane_output;
+
+            predecode_comb_top #(
+                .INST_BITS(INST_BITS),
+                .PC_BITS(PC_BITS),
+                .PREDECODE_TYPE_BITS(PREDECODE_TYPE_BITS),
+                .W_PredecodeCombIn(W_PredecodeIn),
+                .W_PredecodeCombOut(W_PredecodeOut)
+            ) u_predecode_comb_top (
+                .predecode_input_bundle(predecode_lane_input),
+                .predecode_output_bundle(predecode_lane_output)
+            );
+        end
+    endgenerate
 
     // 第 9 阶段：instruction FIFO。
     // 该 FIFO 保存 ICache 返回的指令、有效位、异常位、预译码结果和下一顺序 PC。
@@ -610,13 +676,9 @@ module front_top #(
         .W_InstructionFifoIn(W_InstructionFifoIn),
         .W_InstructionFifoOut(W_InstructionFifoOut),
         .W_InstructionCombOut(W_InstructionCombOut),
-        .W_InstructionFifoLowData(W_PredecodeOut + PC_BITS),
+        .W_InstructionFifoLowData(W_PredecodeGroupOut + PC_BITS),
         .INSTRUCTION_FIFO_SIZE(INSTRUCTION_FIFO_SIZE),
-        .INSTRUCTION_FIFO_SIZE_BITS(INSTRUCTION_FIFO_SIZE_BITS),
-        .W_InstructionFifoEntry(W_InstructionFifoEntry),
-        .W_InstructionFifoReadData(W_InstructionFifoReadData),
-        .W_InstructionFifoCombIn(W_InstructionFifoCombIn),
-        .W_InstructionFifoCombOut(W_InstructionCombOut)
+        .INSTRUCTION_FIFO_SIZE_BITS(INSTRUCTION_FIFO_SIZE_BITS)
     ) u_instruction_FIFO_comb_top (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -628,20 +690,43 @@ module front_top #(
     wire [W_PtabIn-1:0]      ptab_in;
     wire [W_PtabCombOut-1:0] ptab_req;
     wire [W_PtabOut-1:0]     ptab_out = ptab_req[W_PtabOut-1:0];
+    // front_ptab_write_comb 的源码输入是 BPU_TOP::OutputPayload，
+    // 不是 front_IO.h 里的 BPU_out。BPU_out 展开了每条指令的 base PC，
+    // OutputPayload 只保留一个 out_pred_base_pc，并额外带 update_queue_full。
+    wire [W_BpuOutputPayload-1:0] bpu_output_payload_for_ptab = {
+        bpu_output_fetch_address,
+        bpu_output_icache_read_valid,
+        bpu_output_predict_next_fetch_address,
+        bpu_output_ptab_write_enable,
+        bpu_output_predict_dir,
+        bpu_output_meta,
+        bpu_output_predict_base_pc[PC_BITS-1:0],
+        1'b0,
+        bpu_output_two_ahead_valid,
+        bpu_output_two_ahead_target,
+        bpu_output_mini_flush_req,
+        bpu_output_mini_flush_correct,
+        bpu_output_mini_flush_target
+    };
+    wire [W_BpuOutputPayload + 3 - 1:0] front_ptab_write_input_bundle = {
+        bpu_output_payload_for_ptab,
+        global_reset,
+        global_refetch,
+        ~ptab_full_latch
+    };
+    wire [W_PtabIn-1:0] front_ptab_write_output_bundle;
+    assign ptab_in = front_ptab_write_output_bundle;
 
     // 第 10 阶段：PTAB 写入口构造。
     // 源码对应 front_ptab_write_comb：把 BPU 预测方向、next PC、base PC 和元数据整理成 PTAB 写入包。
     front_ptab_write_comb_top #(
-        .W_BpuOut(W_BpuOut),
+        .W_BpuOutputPayload(W_BpuOutputPayload),
         .W_PtabIn(W_PtabIn),
-        .W_FrontPtabWriteCombIn(W_BpuOut + 3),
+        .W_FrontPtabWriteCombIn(W_BpuOutputPayload + 3),
         .W_FrontPtabWriteCombOut(W_PtabIn)
     ) u_front_ptab_write_comb_top (
-        .bpu_output_payload(bpu_output_payload),
-        .global_reset(global_reset),
-        .global_refetch(global_refetch),
-        .ptab_can_write(~ptab_full_latch),
-        .ptab_in(ptab_in)
+        .front_ptab_write_input_bundle(front_ptab_write_input_bundle),
+        .front_ptab_write_output_bundle(front_ptab_write_output_bundle)
     );
 
     // 第 11 阶段：PTAB。
@@ -649,12 +734,9 @@ module front_top #(
     PTAB_comb_top #(
         .W_PtabIn(W_PtabIn),
         .W_PtabOut(W_PtabOut),
+        .W_PtabCombOut(W_PtabCombOut),
         .PTAB_SIZE(PTAB_SIZE),
-        .PTAB_SIZE_BITS(PTAB_SIZE_BITS),
-        .W_PtabEntry(W_PtabEntry),
-        .W_PtabReadData(W_PtabReadData),
-        .W_PtabCombIn(W_PtabCombIn),
-        .W_PtabCombOut(W_PtabCombOut)
+        .PTAB_SIZE_BITS(PTAB_SIZE_BITS)
     ) u_PTAB_comb_top (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -665,6 +747,12 @@ module front_top #(
 
     wire [W_PredecodeCheckerIn-1:0]  checker_in;
     wire [W_PredecodeCheckerOut-1:0] checker_out;
+    wire [W_InstructionFifoOut + W_PtabOut - 1:0] front_checker_input_bundle = {
+        instruction_fifo_out,
+        ptab_out
+    };
+    wire [W_PredecodeCheckerIn-1:0] front_checker_output_bundle;
+    assign checker_in = front_checker_output_bundle;
 
     // 第 12 阶段：checker 输入构造。
     // 源码对应 front_checker_input_comb：把 instruction FIFO 队首和 PTAB 队首拼成 predecode checker 输入。
@@ -675,9 +763,8 @@ module front_top #(
         .W_FrontCheckerInputCombIn(W_InstructionFifoOut + W_PtabOut),
         .W_FrontCheckerInputCombOut(W_PredecodeCheckerIn)
     ) u_front_checker_input_comb_top (
-        .instruction_fifo_out(instruction_fifo_out),
-        .ptab_out(ptab_out),
-        .checker_in(checker_in)
+        .front_checker_input_bundle(front_checker_input_bundle),
+        .front_checker_output_bundle(front_checker_output_bundle)
     );
 
     // 第 13 阶段：predecode checker。
@@ -688,13 +775,26 @@ module front_top #(
         .W_PredecodeCheckerCombIn(W_PredecodeCheckerIn),
         .W_PredecodeCheckerCombOut(W_PredecodeCheckerOut)
     ) u_predecode_checker_comb_top (
-        .checker_in(checker_in),
-        .checker_out(checker_out)
+        .predecode_checker_input_bundle(checker_in),
+        .predecode_checker_output_bundle(checker_out)
     );
 
     wire                           use_front2back_output_bypass = 1'b0;
     wire [W_Front2BackFifoIn-1:0]  front2back_fifo_in;
     wire [W_Front2BackFifoOut-1:0] bypass_front2back_fifo_out;
+    wire [W_InstructionFifoOut + W_PtabOut + W_PredecodeCheckerOut + 1 - 1:0]
+        front_front2back_write_input_bundle = {
+            instruction_fifo_out,
+            ptab_out,
+            checker_out,
+            use_front2back_output_bypass
+        };
+    wire [W_Front2BackFifoIn + W_Front2BackFifoOut - 1:0]
+        front_front2back_write_output_bundle;
+    assign {
+        front2back_fifo_in,
+        bypass_front2back_fifo_out
+    } = front_front2back_write_output_bundle;
 
     // 第 14 阶段：front2back FIFO 写入口构造。
     // 源码对应 front_front2back_write_comb：把指令、预测信息和 checker 结果整理成送后端的队列输入。
@@ -707,12 +807,8 @@ module front_top #(
         .W_FrontFront2backWriteCombIn(W_InstructionFifoOut + W_PtabOut + W_PredecodeCheckerOut + 1),
         .W_FrontFront2backWriteCombOut(W_Front2BackFifoIn + W_Front2BackFifoOut)
     ) u_front_front2back_write_comb_top (
-        .instruction_fifo_out(instruction_fifo_out),
-        .ptab_out(ptab_out),
-        .checker_out(checker_out),
-        .use_front2back_output_bypass(use_front2back_output_bypass),
-        .front2back_fifo_in(front2back_fifo_in),
-        .bypass_front2back_fifo_out(bypass_front2back_fifo_out)
+        .front_front2back_write_input_bundle(front_front2back_write_input_bundle),
+        .front_front2back_write_output_bundle(front_front2back_write_output_bundle)
     );
 
     wire [W_Front2BackCombOut-1:0] front2back_fifo_req;
@@ -725,11 +821,7 @@ module front_top #(
         .W_Front2BackFifoOut(W_Front2BackFifoOut),
         .W_Front2BackCombOut(W_Front2BackCombOut),
         .FRONT2BACK_FIFO_SIZE(FRONT2BACK_FIFO_SIZE),
-        .FRONT2BACK_FIFO_SIZE_BITS(FRONT2BACK_FIFO_SIZE_BITS),
-        .W_Front2BackFifoEntry(W_Front2BackFifoEntry),
-        .W_Front2BackFifoReadData(W_Front2BackFifoReadData),
-        .W_Front2backFifoCombIn(W_Front2BackFifoCombIn),
-        .W_Front2backFifoCombOut(W_Front2BackCombOut)
+        .FRONT2BACK_FIFO_SIZE_BITS(FRONT2BACK_FIFO_SIZE_BITS)
     ) u_front2back_FIFO_comb_top (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -739,6 +831,13 @@ module front_top #(
     );
 
     wire [W_FrontTopOut-1:0] front_top_out_bus;
+    wire [W_Front2BackFifoOut + W_Front2BackFifoOut + 1 - 1:0] front_output_input_bundle = {
+        front2back_fifo_out,
+        bypass_front2back_fifo_out,
+        use_front2back_output_bypass
+    };
+    wire [W_FrontTopOut-1:0] front_output_output_bundle;
+    assign front_top_out_bus = front_output_output_bundle;
     // 第 16 阶段：前端对外输出整理。
     // 源码对应 front_output_comb：选择 front2back FIFO 队首或旁路结果，拆成后端可见的 front.out 字段。
     front_output_comb_top #(
@@ -747,10 +846,8 @@ module front_top #(
         .W_FrontOutputCombIn(W_Front2BackFifoOut + W_Front2BackFifoOut + 1),
         .W_FrontOutputCombOut(W_FrontTopOut)
     ) u_front_output_comb_top (
-        .front2back_fifo_out(front2back_fifo_out),
-        .bypass_front2back_fifo_out(bypass_front2back_fifo_out),
-        .use_front2back_output_bypass(use_front2back_output_bypass),
-        .front_top_out_bus(front_top_out_bus)
+        .front_output_input_bundle(front_output_input_bundle),
+        .front_output_output_bundle(front_output_output_bundle)
     );
     assign {
         FIFO_valid,

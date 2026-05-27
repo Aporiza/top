@@ -8,15 +8,56 @@
 // 3. 组合逻辑先计算本拍 read/write、旁路输出和下一拍 head/tail/count。
 // 4. 时序逻辑在周期末更新 mem/head/tail/count；aresetn 是异步硬复位，reset/refetch 是同步清空。
 
+// -----------------------------------------------------------------------------
+// 端口自查
+// 模块：fetch_address_FIFO_comb
+// 来源：train_IO.h / fifo/fetch_address_FIFO.cpp
+// 配置：simulator-front 默认 large 配置
+// 接口：FetchAddrCombIn(75 bit) -> FetchAddrCombOut(70 bit)
+//
+// 输入 FetchAddrCombIn = 75 bit
+//   = inp 36 bit
+//   + rd  39 bit
+//   = 合计  75 bit
+//
+// 输出 FetchAddrCombOut = 70 bit
+//   = out_regs   35 bit
+//   + clear_fifo  1 bit
+//   + push_en     1 bit
+//   + push_data  32 bit
+//   + pop_en      1 bit
+//   = 合计         70 bit
+//
+// 关键结构展开：
+//   inp      : fetch_address_FIFO_in        36 bit
+//   rd       : fetch_address_FIFO_read_data 39 bit
+//   out_regs : fetch_address_FIFO_out       35 bit
+//
+// 配置口径：
+//   FETCH_WIDTH            = 16
+//   COMMIT_WIDTH           = 8
+//   TN_MAX                 = 4
+//   BPU_BANK_NUM           = 16
+//   TAGE_IDX_WIDTH         = 12
+//   TAGE_TAG_WIDTH         = 8
+//   TAGE_SC_PATH_BITS      = 16
+//   BPU_SCL_META_NTABLE    = 8
+//   BPU_SCL_META_IDX_BITS  = 16
+//   BPU_LOOP_META_IDX_BITS = 16
+//   BPU_LOOP_META_TAG_BITS = 16
+//   tage_reset_ctr_t = TAGE_IDX_WIDTH + 11 = 23
+//   tage_path_hist_t  = TAGE_SC_PATH_BITS = 16
+//
+// 自查确认：fetch_address_FIFO_comb Input Bits = 75, Output Bits = 70。
+// 完整字段来源见 front_end/port_width_audit/details 对应文件。
+// -----------------------------------------------------------------------------
+
 module fetch_address_FIFO_comb_top #(
-    parameter W_FetchAddressFifoIn       = 36,  // 实际： reset/refetch/read/write + fetch_addr_t(32)
-    parameter W_FetchAddressFifoOut      = 35,  // 实际： full/empty/read_valid + fetch_addr_t(32)
-    parameter W_FetchAddrCombOut         = 70,  // 实际： FetchAddrCombOut
-    parameter FETCH_ADDR_FIFO_SIZE       = 32,  // 实际： frontend_feature_config.h
-    parameter FETCH_ADDR_FIFO_SIZE_BITS  = 6,   // 实际： clog2(FETCH_ADDR_FIFO_SIZE + 1)
-    parameter W_FetchAddressFifoReadData = FETCH_ADDR_FIFO_SIZE_BITS + 1 + (W_FetchAddressFifoOut - 3),
-    parameter W_FetchAddressFifoCombIn   = W_FetchAddressFifoIn + W_FetchAddressFifoReadData,  // 实际： 75
-    parameter W_FetchAddressFifoCombOut  = W_FetchAddrCombOut    // 实际： 70
+    parameter W_FetchAddressFifoIn       = 36,  // 实际：reset/refetch/read/write + fetch_addr_t(32)
+    parameter W_FetchAddressFifoOut      = 35,  // 实际：full/empty/read_valid + fetch_addr_t(32)
+    parameter W_FetchAddrCombOut         = 70,  // 实际：FetchAddrCombOut
+    parameter FETCH_ADDR_FIFO_SIZE       = 32,  // 实际：frontend_feature_config.h
+    parameter FETCH_ADDR_FIFO_SIZE_BITS  = 6    // 实际：clog2(FETCH_ADDR_FIFO_SIZE + 1)
 ) (
     input  wire                             aclk,
     input  wire                             aresetn,
@@ -26,6 +67,11 @@ module fetch_address_FIFO_comb_top #(
 );
 
     localparam W_FetchAddressPayload = W_FetchAddressFifoOut - 3;
+    localparam W_FetchAddressFifoReadData =
+        FETCH_ADDR_FIFO_SIZE_BITS + 1 + W_FetchAddressPayload;
+    localparam W_FetchAddressFifoCombIn =
+        W_FetchAddressFifoIn + W_FetchAddressFifoReadData;
+    localparam W_FetchAddressFifoCombOut = W_FetchAddrCombOut;
 
     wire [W_FetchAddressFifoReadData-1:0] fetch_addr_fifo_read_data_view;
     wire                                  fetch_addr_fifo_head_valid_view;
@@ -53,10 +99,7 @@ module fetch_address_FIFO_comb_top #(
         .W_FetchAddressFifoIn(W_FetchAddressFifoIn),
         .W_FetchAddressFifoOut(W_FetchAddressFifoOut),
         .FETCH_ADDR_FIFO_SIZE(FETCH_ADDR_FIFO_SIZE),
-        .FETCH_ADDR_FIFO_SIZE_BITS(FETCH_ADDR_FIFO_SIZE_BITS),
-        .W_FetchAddressFifoReadData(W_FetchAddressFifoReadData),
-        .W_FetchAddressFifoCombIn(W_FetchAddressFifoCombIn),
-        .W_FetchAddressFifoCombOut(W_FetchAddressFifoCombOut)
+        .FETCH_ADDR_FIFO_SIZE_BITS(FETCH_ADDR_FIFO_SIZE_BITS)
     ) u_fetch_address_FIFO_comb_bsd_top (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -69,21 +112,21 @@ endmodule
 // BSD 层：这里已经是可综合 FIFO RTL。
 // 后续若调整 FIFO 行为，应优先对照 simulator-front 的 push/pop/clear 请求模型修改本层。
 module fetch_address_FIFO_comb_bsd_top #(
-    parameter W_FetchAddressFifoIn       = 36,  // 实际： reset/refetch/read/write + fetch_addr_t(32)
-    parameter W_FetchAddressFifoOut      = 35,  // 实际： full/empty/read_valid + fetch_addr_t(32)
-    parameter FETCH_ADDR_FIFO_SIZE       = 32,  // 实际： frontend_feature_config.h
-    parameter FETCH_ADDR_FIFO_SIZE_BITS  = 6,   // 实际： clog2(FETCH_ADDR_FIFO_SIZE + 1)
-    parameter W_FetchAddressFifoReadData = FETCH_ADDR_FIFO_SIZE_BITS + 1 + (W_FetchAddressFifoOut - 3),
-    parameter W_FetchAddressFifoCombIn   = 75,  // 实际： FetchAddrCombIn
-    parameter W_FetchAddressFifoCombOut  = 70   // 实际： FetchAddrCombOut
+    parameter W_FetchAddressFifoIn       = 36,  // 实际：reset/refetch/read/write + fetch_addr_t(32)
+    parameter W_FetchAddressFifoOut      = 35,  // 实际：full/empty/read_valid + fetch_addr_t(32)
+    parameter FETCH_ADDR_FIFO_SIZE       = 32,  // 实际：frontend_feature_config.h
+    parameter FETCH_ADDR_FIFO_SIZE_BITS  = 6    // 实际：clog2(FETCH_ADDR_FIFO_SIZE + 1)
 ) (
     input  wire                                    aclk,
     input  wire                                    aresetn,
-    input  wire [W_FetchAddressFifoCombIn-1:0]     pi,
-    output wire [W_FetchAddressFifoCombOut-1:0]    po
+    input  wire [W_FetchAddressFifoIn + FETCH_ADDR_FIFO_SIZE_BITS + 1 + (W_FetchAddressFifoOut - 3) - 1:0] pi,
+    output wire [(2 * W_FetchAddressFifoOut) - 1:0] po
 );
 
     localparam W_FetchAddressPayload = W_FetchAddressFifoOut - 3;
+    localparam W_FetchAddressFifoReadData =
+        FETCH_ADDR_FIFO_SIZE_BITS + 1 + W_FetchAddressPayload;
+    localparam W_FetchAddressFifoCombOut = 2 * W_FetchAddressFifoOut;
     localparam W_FetchAddressCtrlOut = W_FetchAddressFifoCombOut - W_FetchAddressFifoOut;
     localparam PTR_BITS = 5;  // FETCH_ADDR_FIFO_SIZE=32
 

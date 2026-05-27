@@ -20,16 +20,57 @@
 // 3. 组合逻辑先计算本拍 read/write、旁路输出和下一拍 head/tail/count。
 // 4. 时序逻辑在周期末更新 mem/head/tail/count；aresetn 是异步硬复位，reset/refetch 是同步清空。
 
+// -----------------------------------------------------------------------------
+// 端口自查
+// 模块：front2back_FIFO_comb
+// 来源：train_IO.h / fifo/front2back_FIFO.cpp
+// 配置：simulator-front 默认 large 配置
+// 接口：Front2BackCombIn(10796 bit) -> Front2BackCombOut(10790 bit)
+//
+// 输入 Front2BackCombIn = 10796 bit
+//   = inp  5396 bit
+//   + rd   5400 bit
+//   = 合计  10796 bit
+//
+// 输出 Front2BackCombOut = 10790 bit
+//   = out_regs    5395 bit
+//   + clear_fifo     1 bit
+//   + push_en        1 bit
+//   + push_entry  5392 bit
+//   + pop_en         1 bit
+//   = 合计         10790 bit
+//
+// 关键结构展开：
+//   inp        : front2back_FIFO_in        5396 bit
+//   rd         : front2back_FIFO_read_data 5400 bit
+//   out_regs   : front2back_FIFO_out       5395 bit
+//   push_entry : front2back_FIFO_entry     5392 bit
+//
+// 配置口径：
+//   FETCH_WIDTH            = 16
+//   COMMIT_WIDTH           = 8
+//   TN_MAX                 = 4
+//   BPU_BANK_NUM           = 16
+//   TAGE_IDX_WIDTH         = 12
+//   TAGE_TAG_WIDTH         = 8
+//   TAGE_SC_PATH_BITS      = 16
+//   BPU_SCL_META_NTABLE    = 8
+//   BPU_SCL_META_IDX_BITS  = 16
+//   BPU_LOOP_META_IDX_BITS = 16
+//   BPU_LOOP_META_TAG_BITS = 16
+//   tage_reset_ctr_t = TAGE_IDX_WIDTH + 11 = 23
+//   tage_path_hist_t  = TAGE_SC_PATH_BITS = 16
+//
+// 自查确认：front2back_FIFO_comb Input Bits = 10796, Output Bits = 10790。
+// 完整字段来源见 front_end/port_width_audit/details 对应文件。
+// -----------------------------------------------------------------------------
+
 module front2back_FIFO_comb_top #(
-    parameter W_Front2BackFifoIn       = 5396,   // 实际： front2back_FIFO_in
-    parameter W_Front2BackFifoOut      = 5395,   // 实际： front2back_FIFO_out
-    parameter W_Front2BackCombOut      = 10790,  // 实际： Front2BackCombOut
-    parameter FRONT2BACK_FIFO_SIZE     = 64,     // 实际： frontend_feature_config.h
-    parameter FRONT2BACK_FIFO_SIZE_BITS = 7,     // 实际： clog2(FRONT2BACK_FIFO_SIZE + 1)
-    parameter W_Front2BackFifoEntry    = W_Front2BackFifoOut - 3,
-    parameter W_Front2BackFifoReadData = FRONT2BACK_FIFO_SIZE_BITS + 1 + W_Front2BackFifoEntry,
-    parameter W_Front2backFifoCombIn   = W_Front2BackFifoIn + W_Front2BackFifoReadData,  // 实际： 10796
-    parameter W_Front2backFifoCombOut  = W_Front2BackCombOut    // 实际： 10790
+    parameter W_Front2BackFifoIn       = 5396,   // 实际：front2back_FIFO_in
+    parameter W_Front2BackFifoOut      = 5395,   // 实际：front2back_FIFO_out
+    parameter W_Front2BackCombOut      = 10790,  // 实际：Front2BackCombOut
+    parameter FRONT2BACK_FIFO_SIZE     = 64,     // 实际：frontend_feature_config.h
+    parameter FRONT2BACK_FIFO_SIZE_BITS = 7      // 实际：clog2(FRONT2BACK_FIFO_SIZE + 1)
 ) (
     input  wire                           aclk,
     input  wire                           aresetn,
@@ -39,6 +80,11 @@ module front2back_FIFO_comb_top #(
 );
 
     localparam W_Front2BackPayload = W_Front2BackFifoOut - 3;
+    localparam W_Front2BackFifoReadData =
+        FRONT2BACK_FIFO_SIZE_BITS + 1 + W_Front2BackPayload;
+    localparam W_Front2backFifoCombIn =
+        W_Front2BackFifoIn + W_Front2BackFifoReadData;
+    localparam W_Front2backFifoCombOut = W_Front2BackCombOut;
 
     wire [W_Front2BackFifoReadData-1:0] front2back_fifo_read_data_view;
     wire                                front2back_fifo_head_valid_view;
@@ -66,11 +112,7 @@ module front2back_FIFO_comb_top #(
         .W_Front2BackFifoIn(W_Front2BackFifoIn),
         .W_Front2BackFifoOut(W_Front2BackFifoOut),
         .FRONT2BACK_FIFO_SIZE(FRONT2BACK_FIFO_SIZE),
-        .FRONT2BACK_FIFO_SIZE_BITS(FRONT2BACK_FIFO_SIZE_BITS),
-        .W_Front2BackFifoEntry(W_Front2BackFifoEntry),
-        .W_Front2BackFifoReadData(W_Front2BackFifoReadData),
-        .W_Front2backFifoCombIn(W_Front2backFifoCombIn),
-        .W_Front2backFifoCombOut(W_Front2backFifoCombOut)
+        .FRONT2BACK_FIFO_SIZE_BITS(FRONT2BACK_FIFO_SIZE_BITS)
     ) u_front2back_FIFO_comb_bsd_top (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -83,22 +125,21 @@ endmodule
 // BSD 层：这里已经是可综合 FIFO RTL。
 // 后续若调整 FIFO 行为，应优先对照 simulator-front 的 push/pop/clear 请求模型修改本层。
 module front2back_FIFO_comb_bsd_top #(
-    parameter W_Front2BackFifoIn       = 5396,   // 实际： front2back_FIFO_in
-    parameter W_Front2BackFifoOut      = 5395,   // 实际： front2back_FIFO_out
-    parameter FRONT2BACK_FIFO_SIZE     = 64,     // 实际： frontend_feature_config.h
-    parameter FRONT2BACK_FIFO_SIZE_BITS = 7,     // 实际： clog2(FRONT2BACK_FIFO_SIZE + 1)
-    parameter W_Front2BackFifoEntry    = W_Front2BackFifoOut - 3,
-    parameter W_Front2BackFifoReadData = FRONT2BACK_FIFO_SIZE_BITS + 1 + W_Front2BackFifoEntry,
-    parameter W_Front2backFifoCombIn   = 10796,  // 实际： Front2BackCombIn
-    parameter W_Front2backFifoCombOut  = 10790   // 实际： Front2BackCombOut
+    parameter W_Front2BackFifoIn       = 5396,   // 实际：front2back_FIFO_in
+    parameter W_Front2BackFifoOut      = 5395,   // 实际：front2back_FIFO_out
+    parameter FRONT2BACK_FIFO_SIZE     = 64,     // 实际：frontend_feature_config.h
+    parameter FRONT2BACK_FIFO_SIZE_BITS = 7      // 实际：clog2(FRONT2BACK_FIFO_SIZE + 1)
 ) (
     input  wire                                   aclk,
     input  wire                                   aresetn,
-    input  wire [W_Front2backFifoCombIn-1:0]      pi,
-    output wire [W_Front2backFifoCombOut-1:0]     po
+    input  wire [W_Front2BackFifoIn + FRONT2BACK_FIFO_SIZE_BITS + 1 + (W_Front2BackFifoOut - 3) - 1:0] pi,
+    output wire [(2 * W_Front2BackFifoOut) - 1:0] po
 );
 
     localparam W_Front2BackPayload = W_Front2BackFifoOut - 3;
+    localparam W_Front2BackFifoReadData =
+        FRONT2BACK_FIFO_SIZE_BITS + 1 + W_Front2BackPayload;
+    localparam W_Front2backFifoCombOut = 2 * W_Front2BackFifoOut;
     localparam W_Front2BackCtrlOut = W_Front2backFifoCombOut - W_Front2BackFifoOut;
     localparam PTR_BITS = 6;  // FRONT2BACK_FIFO_SIZE=64
 

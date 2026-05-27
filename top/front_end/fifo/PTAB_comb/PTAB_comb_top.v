@@ -8,15 +8,60 @@
 // 3. 组合逻辑先计算本拍写入、读出、dummy 项和 mini flush 相关请求。
 // 4. 时序逻辑在周期末更新 mem/dummy_mem/head/tail/count；aresetn 是异步硬复位，reset/refetch 是同步清空。
 
+// -----------------------------------------------------------------------------
+// 端口自查
+// 模块：PTAB_comb
+// 来源：train_IO.h / PTAB.cpp
+// 配置：simulator-front 默认 large 配置
+// 接口：PtabCombIn(9710 bit) -> PtabCombOut(14555 bit)
+//
+// 输入 PtabCombIn = 9710 bit
+//   = inp 4853 bit
+//   + rd  4857 bit
+//   = 合计  9710 bit
+//
+// 输出 PtabCombOut = 14555 bit
+//   = out_regs          4851 bit
+//   + clear_ptab           1 bit
+//   + push_write_en        1 bit
+//   + push_write_entry  4850 bit
+//   + push_dummy_en        1 bit
+//   + push_dummy_entry  4850 bit
+//   + pop_en               1 bit
+//   = 合计               14555 bit
+//
+// 关键结构展开：
+//   inp              : PTAB_in        4853 bit
+//   rd               : PTAB_read_data 4857 bit
+//   out_regs         : PTAB_out       4851 bit
+//   push_write_entry : PTAB_entry     4850 bit
+//   push_dummy_entry : PTAB_entry     4850 bit
+//
+// 配置口径：
+//   FETCH_WIDTH            = 16
+//   COMMIT_WIDTH           = 8
+//   TN_MAX                 = 4
+//   BPU_BANK_NUM           = 16
+//   TAGE_IDX_WIDTH         = 12
+//   TAGE_TAG_WIDTH         = 8
+//   TAGE_SC_PATH_BITS      = 16
+//   BPU_SCL_META_NTABLE    = 8
+//   BPU_SCL_META_IDX_BITS  = 16
+//   BPU_LOOP_META_IDX_BITS = 16
+//   BPU_LOOP_META_TAG_BITS = 16
+//   tage_reset_ctr_t = TAGE_IDX_WIDTH + 11 = 23
+//   tage_path_hist_t  = TAGE_SC_PATH_BITS = 16
+//
+// 自查确认：PTAB_comb Input Bits = 9710, Output Bits = 14555。
+// 完整字段来源见 front_end/port_width_audit/details 对应文件。
+// -----------------------------------------------------------------------------
+
 module PTAB_comb_top #(
-    parameter W_PtabIn       = 4853,   // 实际： PTAB_in
-    parameter W_PtabOut      = 4851,   // 实际： PTAB_out
-    parameter PTAB_SIZE      = 32,     // 实际： frontend_feature_config.h
-    parameter PTAB_SIZE_BITS = 6,      // 实际： clog2(PTAB_SIZE + 1)
-    parameter W_PtabEntry    = W_PtabOut - 1,
-    parameter W_PtabReadData = PTAB_SIZE_BITS + 1 + W_PtabEntry,
-    parameter W_PtabCombIn   = W_PtabIn + W_PtabReadData,  // 实际： 9710
-    parameter W_PtabCombOut  = W_PtabOut + 1 + 1 + W_PtabEntry + 1 + W_PtabEntry + 1  // 实际： 14555
+    parameter W_PtabIn       = 4853,   // 实际：PTAB_in
+    parameter W_PtabOut      = 4851,   // 实际：PTAB_out
+    parameter W_PtabCombOut  = 14555,  // 实际：PtabCombOut
+    parameter PTAB_SIZE      = 32,     // 实际：frontend_feature_config.h
+    parameter PTAB_SIZE_BITS = 6       // 实际：clog2(PTAB_SIZE + 1)
 ) (
     input  wire                     aclk,
     input  wire                     aresetn,
@@ -26,6 +71,11 @@ module PTAB_comb_top #(
 );
 
     localparam W_PtabPayload = W_PtabOut - 3;
+    localparam W_PtabEntry = W_PtabOut - 1;
+    localparam W_PtabReadData = PTAB_SIZE_BITS + 1 + W_PtabEntry;
+    localparam W_PtabCombIn = W_PtabIn + W_PtabReadData;
+    localparam W_PtabCombOutLocal =
+        W_PtabOut + 1 + 1 + W_PtabEntry + 1 + W_PtabEntry + 1;
 
     wire [W_PtabReadData-1:0] ptab_read_data_view;
     wire [W_PtabEntry-1:0]    ptab_head_entry_view;
@@ -48,7 +98,7 @@ module PTAB_comb_top #(
     // 连接层把语义化输入和 PTAB 队首快照打包成 BSD pi。
     // read_data_view 对应 simulator-front 中 seq_read 看到的 PTAB head_valid/head_entry。
     wire [W_PtabCombIn-1:0]  pi;
-    wire [W_PtabCombOut-1:0] po;
+    wire [W_PtabCombOutLocal-1:0] po;
 
     assign pi = {
         ptab_in,
@@ -60,12 +110,9 @@ module PTAB_comb_top #(
     PTAB_comb_bsd_top #(
         .W_PtabIn(W_PtabIn),
         .W_PtabOut(W_PtabOut),
+        .W_PtabCombOut(W_PtabCombOut),
         .PTAB_SIZE(PTAB_SIZE),
-        .PTAB_SIZE_BITS(PTAB_SIZE_BITS),
-        .W_PtabEntry(W_PtabEntry),
-        .W_PtabReadData(W_PtabReadData),
-        .W_PtabCombIn(W_PtabCombIn),
-        .W_PtabCombOut(W_PtabCombOut)
+        .PTAB_SIZE_BITS(PTAB_SIZE_BITS)
     ) u_PTAB_comb_bsd_top (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -78,23 +125,24 @@ endmodule
 // BSD 层：这里已经是可综合 PTAB 队列 RTL。
 // 后续若调整 PTAB 行为，应优先对照 simulator-front 的 push/pop/clear/dummy 请求模型修改本层。
 module PTAB_comb_bsd_top #(
-    parameter W_PtabIn       = 4853,   // 实际： PTAB_in
-    parameter W_PtabOut      = 4851,   // 实际： PTAB_out
-    parameter PTAB_SIZE      = 32,     // 实际： frontend_feature_config.h
-    parameter PTAB_SIZE_BITS = 6,      // 实际： clog2(PTAB_SIZE + 1)
-    parameter W_PtabEntry    = W_PtabOut - 1,
-    parameter W_PtabReadData = PTAB_SIZE_BITS + 1 + W_PtabEntry,
-    parameter W_PtabCombIn   = 9710,   // 实际： PtabCombIn
-    parameter W_PtabCombOut  = 14555   // 实际： PtabCombOut
+    parameter W_PtabIn       = 4853,   // 实际：PTAB_in
+    parameter W_PtabOut      = 4851,   // 实际：PTAB_out
+    parameter W_PtabCombOut  = 14555,  // 实际：PtabCombOut
+    parameter PTAB_SIZE      = 32,     // 实际：frontend_feature_config.h
+    parameter PTAB_SIZE_BITS = 6       // 实际：clog2(PTAB_SIZE + 1)
 ) (
     input  wire                         aclk,
     input  wire                         aresetn,
-    input  wire [W_PtabCombIn-1:0]      pi,
-    output wire [W_PtabCombOut-1:0]     po
+    input  wire [W_PtabIn + PTAB_SIZE_BITS + 1 + (W_PtabOut - 1) - 1:0] pi,
+    output wire [W_PtabCombOut-1:0] po
 );
 
     localparam W_PtabPayload = W_PtabOut - 3;
-    localparam W_PtabCtrlOut = W_PtabCombOut - W_PtabOut;
+    localparam W_PtabEntry = W_PtabOut - 1;
+    localparam W_PtabReadData = PTAB_SIZE_BITS + 1 + W_PtabEntry;
+    localparam W_PtabCombOutLocal =
+        W_PtabOut + 1 + 1 + W_PtabEntry + 1 + W_PtabEntry + 1;
+    localparam W_PtabCtrlOut = W_PtabCombOutLocal - W_PtabOut;
     localparam PTR_BITS = 5;  // PTAB_SIZE=32
 
     wire [W_PtabIn-1:0]       ptab_in;

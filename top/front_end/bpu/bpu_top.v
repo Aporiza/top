@@ -36,8 +36,8 @@ module bpu_top #(
     parameter NLP_TABLE_SIZE          = 4096,
     parameter NLP_CONF_BITS           = 2,
     parameter RESET_PC                = 32'h0000_0000,
-    parameter W_BpuIn                 = 2739,  // 实际： 2739, 来自 front_top W_BpuIn
-    parameter W_BpuOut                = 4949    // 实际： 4949, 来自 front_top W_BpuOut
+    parameter W_BpuIn                 = 2739,  // 实际：2739, 来自 front_top W_BpuIn
+    parameter W_BpuOut                = 4949    // 实际：4949, 来自 front_top W_BpuOut
 ) (
     input  wire                aclk,
     input  wire                aresetn,
@@ -86,7 +86,8 @@ module bpu_top #(
     localparam W_BpuPreReadReqCombOut         = 875;    // BPU_TOP::BpuPreReadReqCombOut
     localparam W_TypePredictorPreReadCombIn   = 816;    // TypePredictor::InputPayload
     localparam W_TypePredictorPreReadCombOut  = 672;    // TypePredictor::PreReadCombOut
-    localparam W_TagePreReadCombIn            = 2511;   // TAGE_TOP::TagePreReadCombIn
+    // tage_reset_ctr_t 按 TAGE_IDX_WIDTH + 11 计算，不按 wire32_t 计算。
+    localparam W_TagePreReadCombIn            = 2528;   // TAGE_TOP::TagePreReadCombIn
     localparam W_TagePreReadCombOut           = 579;    // TAGE_TOP::TagePreReadCombOut
     localparam W_BtbPreReadCombIn             = 105;    // BTB_TOP::BtbPreReadCombIn
     localparam W_BtbPreReadCombOut            = 228;    // BTB_TOP::BtbPreReadCombOut
@@ -94,7 +95,7 @@ module bpu_top #(
     localparam W_BpuPostReadReqCombOut        = 22509;  // BPU_TOP::BpuPostReadReqCombOut
     localparam W_TypePredCombIn               = 2448;   // TypePredictor::TypePredCombIn
     localparam W_TypePredCombOut              = 376;    // TypePredictor::TypePredCombOut
-    localparam W_TageCombIn                   = 3312;   // TAGE_TOP::TageCombIn
+    localparam W_TageCombIn                   = 3329;   // TAGE_TOP::TageCombIn，tage_path_hist_t 按 TAGE_SC_PATH_BITS 计算
     localparam W_TageCombOut                  = 1932;   // TAGE_TOP::TageCombOut
     localparam W_BtbPostReadReqCombIn         = 2264;   // BTB_TOP::BtbPostReadReqCombIn
     localparam W_BtbPostReadReqCombOut        = 45;     // BTB_TOP::BtbPostReadReqCombOut

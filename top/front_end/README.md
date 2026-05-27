@@ -27,7 +27,7 @@ simulator-front
 | 模拟器基准 | 已切换 | 前端包统一以 `simulator-front` 为源码依据。 |
 | 配置核对 | 已完成 | `simulator-front/include/config.h` 与旧 `simulator-ff/include/config.h` 无差异。 |
 | FIFO/PTAB 口径 | 已更新 | 按 `simulator-front` 的 `push/pop/clear req` 周期末写回模型描述和实现。 |
-| BPU 接口口径 | 已更新 | BPU comb 输入按显式字段/语义 bundle 组织，上层变量端口连接，最后一层保留 `pi/po`。 |
+| wrapper 接口口径 | 已更新 | 外层 `*_comb_top` 统一收 `xxx_input_bundle/xxx_output_bundle`，父级先用语义变量拼包；只有 `*_comb_bsd_top` 保留 `pi/po`。 |
 | HTML 说明 | 已更新 | 路径图和执行流说明中的源码依据已改为 `simulator-front`。 |
 | 扫描脚本 | 已更新 | `top/tools/scan_simulator_interfaces.py` 默认优先识别 `simulator-front`。 |
 | 扫描结果 | 已生成 | 新结果位于 `top/docs/generated_front/`。 |
@@ -61,7 +61,7 @@ front_top 直接连接 14 个前端 comb wrapper 和 1 个 bpu_top，bpu_top 内
 当前包已经完成：
 
 - `front_top.v` 顶层连线、接口位宽和阶段注释更新。
-- 27 个 comb wrapper 与 `*_bsd_top` 交付层统一为“上层变量端口，BSD 层 pi/po”的格式。
+- 27 个 comb wrapper 与 `*_bsd_top` 交付层统一为“父级语义变量拼 bundle，BSD 层 pi/po”的格式。
 - 4 个 FIFO/PTAB 已经在前端包内用普通 Verilog 实现，不再等待外部 BSD 代码。
 - BPU 顶层状态寄存器壳已补齐，后续真实 BPU/TAGE/BTB/TypePredictor 组合逻辑仍需在对应 `*_bsd_top` 内补。
 - 已在服务器用 VCS 对 `filelist.f` 做端口编译检查，`front_top` 被识别为顶层，compile/elab/link 通过。
@@ -88,7 +88,6 @@ front_top 直接连接 14 个前端 comb wrapper 和 1 个 bpu_top，bpu_top 内
 | `front_top_interactive.html` | 27 个 comb 单元路径交互图。点击路径可查看相关模块和源码依据。 |
 | `front_top_execution_flow.html` | 前端执行顺序说明图。 |
 | `front_oracle_execution_flow.html` | Oracle 理想预测路径说明。当前 simulator-front 主线启用 BPU，该页只用于解释模拟器里的理想 BPU/Oracle 参考路径。 |
-| `state_register_audit.md` | 前端寄存器、FIFO/PTAB 状态和 BPU 状态缺口自查。 |
 
 ## 2. 当前结论
 
@@ -158,6 +157,7 @@ front_top 直接连接 14 个前端 comb wrapper 和 1 个 bpu_top，bpu_top 内
 | `front-end/front_module.h` | FIFO/PTAB read snapshot 只暴露 `size/head_valid/head_entry` | RTL 需要保存完整队列状态，组合读取只向外提供队首快照。 |
 | `front-end/train_IO.h` | `FrontReadStageInputCombOut` 拆成 reset/refetch/read_enable 字段 | `front_read_stage_input_comb` 不再直接输出四个完整 FIFO 输入结构体。 |
 | `front-end/BPU/BPU.h` | BPU comb 输入从 `InputPayload + ReadData` 拆成显式字段 | BPU wrapper 的变量级端口应保持显式信号/语义 bundle，最后一层再拼 `pi/po`。 |
+| `front-end/train_IO.h` / `BPU.h` | `FrontBpuControlCombOut` 为 `3 + BPU_in + BPU_TOP::InputPayload` | `BPU_TOP::InputPayload` 比 `BPU_in` 少 `reset` 位，因此该 comb 输出为 `3 + 2739 + 2738 = 5480`。 |
 | FIFO/PTAB cpp | 新增模型类并改为 `seq_write(req)` | `fetch_address_FIFO`、`instruction_FIFO`、`PTAB`、`front2back_FIFO` 四个模块需要直接实现 Verilog FIFO/PTAB 状态。 |
 
 因此，本次切换到 `simulator-front` 不要求重算全局位宽，但要求文档、源码依据、FIFO/PTAB 行为说明都按新的请求式写回模型描述。
@@ -237,7 +237,7 @@ front_top 直接连接 14 个前端 comb wrapper 和 1 个 bpu_top，bpu_top 内
 ## 6. BSD 逻辑实现要求
 
 前端 comb wrapper 的接口格式与后端保持一致：父级 `front_top.v` / `bpu_top.v`
-连接语义变量端口，只有 `xxx_comb_bsd_top` 这一层保留 `pi/po`。
+先用可读变量拼成 `xxx_input_bundle`，再从 `xxx_output_bundle` 拆回语义变量；只有 `xxx_comb_bsd_top` 这一层保留 `pi/po`。
 
 每个 comb 文件当前结构类似：
 
@@ -246,21 +246,14 @@ module xxx_comb_top #(
     parameter W_XxxCombIn  = 1234,  // actual: 1234, from front_top/bpu_top ...
     parameter W_XxxCombOut = 5678   // actual: 5678, from front_top/bpu_top ...
 ) (
-    input  wire                    named_control,
-    input  wire [W_XxxPayload-1:0] named_input_bundle,
-    output wire [W_XxxResult-1:0]  named_output_bundle
+    input  wire [W_XxxCombIn-1:0]  xxx_input_bundle,
+    output wire [W_XxxCombOut-1:0] xxx_output_bundle
 );
     wire [W_XxxCombIn-1:0]  pi;
     wire [W_XxxCombOut-1:0] po;
 
-    assign pi = {
-        named_control,
-        named_input_bundle
-    };
-
-    assign {
-        named_output_bundle
-    } = po;
+    assign pi = xxx_input_bundle;
+    assign xxx_output_bundle = po;
 
     xxx_comb_bsd_top u_xxx_comb_bsd_top (
         .pi(pi),
@@ -272,8 +265,8 @@ endmodule
 实现要求：
 
 1. 保留 `xxx_comb_top` 作为连接壳。
-2. `front_top.v`、`bpu_top.v` 调用 comb 时使用变量端口，例如 `.named_input_bundle(named_input_bundle)`。
-3. `xxx_comb_top` 内部只负责把变量端口拼成 `pi`，并把 `po` 拆回变量输出。
+2. `front_top.v`、`bpu_top.v` 调用 comb 前先用变量拼成输入 bundle，再从输出 bundle 拆回变量。
+3. `xxx_comb_top` 内部只负责把 `xxx_input_bundle` 接到 `pi`，并把 `po` 接回 `xxx_output_bundle`。
 4. `xxx_comb_bsd_top` 对外统一使用 `pi/po`，组员后续在这一层补真实组合逻辑。
 5. 顶层参数不要写统一占位 `64`，应写当前 simulator-front 配置下的实际默认值，并在注释里标出来源。
 6. 保持 `front_top.v` 和 `bpu_top.v` 的大框架连线稳定。
@@ -336,11 +329,11 @@ BPU 内部 comb 修正后的位宽如下：
 |---|---:|---:|---|
 | `bpu_pre_read_req_comb` | 369 | 875 | `BPU_TOP::BpuPreReadReqCombIn/Out` |
 | `type_predictor_pre_read_comb` | 816 | 672 | `TypePredictor::InputPayload / PreReadCombOut` |
-| `tage_pre_read_comb` | 2511 | 579 | `TAGE_TOP::TagePreReadCombIn/Out` |
+| `tage_pre_read_comb` | 2528 | 579 | `TAGE_TOP::TagePreReadCombIn/Out`，`tage_reset_ctr_t` 按 `TAGE_IDX_WIDTH + 11` 计算 |
 | `btb_pre_read_comb` | 105 | 228 | `BTB_TOP::BtbPreReadCombIn/Out` |
 | `bpu_post_read_req_comb` | 7332 | 22509 | `BPU_TOP::BpuPostReadReqCombIn/Out` |
 | `type_pred_comb` | 2448 | 376 | `TypePredictor::TypePredCombIn/Out` |
-| `tage_comb` | 3312 | 1932 | `TAGE_TOP::TageCombIn/Out` |
+| `tage_comb` | 3329 | 1932 | `TAGE_TOP::TageCombIn/Out`，`tage_path_hist_t` 按 `TAGE_SC_PATH_BITS` 计算 |
 | `btb_post_read_req_comb` | 2264 | 45 | `BTB_TOP::BtbPostReadReqCombIn/Out` |
 | `btb_comb` | 2264 | 1089 | `BTB_TOP::BtbCombIn/Out` |
 | `bpu_submodule_bind_comb` | 1856 | 1680 | `BPU_TOP::BpuSubmoduleBindCombIn/Out` |
@@ -349,6 +342,15 @@ BPU 内部 comb 修正后的位宽如下：
 | `bpu_queue_comb` | 3152 | 3281 | `BPU_TOP::BpuQueueCombIn/Out` |
 
 `W_BpuOut=4949` 仍保留为 `front_top` 接收 BPU 对外输出的总线宽度，但不再作为 BPU 内部所有 comb 的占位宽度。
+
+完整端口展开目录见 `port_width_audit/README.md`。该目录由
+`python top/tools/scan_frontend_comb_ports.py simulator-front --annotate-rtl top/front_end`
+从 `simulator-front` 源码生成，包含 27 个 comb 的输入/输出字段、位宽和源码位置。
+同一命令也会把“端口自查”注释写入每个 comb 的 `*_top.v`，注释格式为：
+正式端口总宽、输入字段拆分、输出字段拆分、关键结构体展开、large 配置口径和自查确认。
+如果只需要集中复查端口，不改 RTL 注释，运行：
+`python top/tools/scan_frontend_ports.py`
+会在 `front_end` 根目录生成 `前端端口自查汇总.md`，把 27 个 comb 的端口自查集中到一个 Markdown 文件里，便于整体验收和人工复查。
 
 尚未完成的功能性验证：
 

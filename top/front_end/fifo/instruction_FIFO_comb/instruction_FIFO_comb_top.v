@@ -8,17 +8,58 @@
 // 3. 组合逻辑先计算本拍 read/write、旁路输出和下一拍 head/tail/count。
 // 4. 时序逻辑在周期末更新 mem/head/tail/count；aresetn 是异步硬复位，reset/refetch 是同步清空。
 
+// -----------------------------------------------------------------------------
+// 端口自查
+// 模块：instruction_FIFO_comb
+// 来源：train_IO.h / fifo/instruction_FIFO.cpp
+// 配置：simulator-front 默认 large 配置
+// 接口：InstructionCombIn(3275 bit) -> InstructionCombOut(3270 bit)
+//
+// 输入 InstructionCombIn = 3275 bit
+//   = inp 1636 bit
+//   + rd  1639 bit
+//   = 合计  3275 bit
+//
+// 输出 InstructionCombOut = 3270 bit
+//   = out_regs   1635 bit
+//   + clear_fifo    1 bit
+//   + push_en       1 bit
+//   + push_entry 1632 bit
+//   + pop_en        1 bit
+//   = 合计         3270 bit
+//
+// 关键结构展开：
+//   inp        : instruction_FIFO_in        1636 bit
+//   rd         : instruction_FIFO_read_data 1639 bit
+//   out_regs   : instruction_FIFO_out       1635 bit
+//   push_entry : instruction_FIFO_entry     1632 bit
+//
+// 配置口径：
+//   FETCH_WIDTH            = 16
+//   COMMIT_WIDTH           = 8
+//   TN_MAX                 = 4
+//   BPU_BANK_NUM           = 16
+//   TAGE_IDX_WIDTH         = 12
+//   TAGE_TAG_WIDTH         = 8
+//   TAGE_SC_PATH_BITS      = 16
+//   BPU_SCL_META_NTABLE    = 8
+//   BPU_SCL_META_IDX_BITS  = 16
+//   BPU_LOOP_META_IDX_BITS = 16
+//   BPU_LOOP_META_TAG_BITS = 16
+//   tage_reset_ctr_t = TAGE_IDX_WIDTH + 11 = 23
+//   tage_path_hist_t  = TAGE_SC_PATH_BITS = 16
+//
+// 自查确认：instruction_FIFO_comb Input Bits = 3275, Output Bits = 3270。
+// 完整字段来源见 front_end/port_width_audit/details 对应文件。
+// -----------------------------------------------------------------------------
+
 module instruction_FIFO_comb_top #(
-    parameter W_InstructionFifoIn       = 1636,  // 实际： instruction_FIFO_in
-    parameter W_InstructionFifoOut      = 1635,  // 实际： instruction_FIFO_out
-    parameter W_InstructionCombOut      = 3270,  // 实际： InstructionCombOut
-    parameter W_InstructionFifoLowData  = 576,   // 实际： predecode_result + seq_next_pc
-    parameter INSTRUCTION_FIFO_SIZE     = 32,    // 实际： frontend_feature_config.h
-    parameter INSTRUCTION_FIFO_SIZE_BITS = 6,    // 实际： clog2(INSTRUCTION_FIFO_SIZE + 1)
-    parameter W_InstructionFifoEntry    = W_InstructionFifoOut - 3,
-    parameter W_InstructionFifoReadData = INSTRUCTION_FIFO_SIZE_BITS + 1 + W_InstructionFifoEntry,
-    parameter W_InstructionFifoCombIn   = W_InstructionFifoIn + W_InstructionFifoReadData,  // 实际： 3275
-    parameter W_InstructionFifoCombOut  = W_InstructionCombOut    // 实际： 3270
+    parameter W_InstructionFifoIn       = 1636,  // 实际：instruction_FIFO_in
+    parameter W_InstructionFifoOut      = 1635,  // 实际：instruction_FIFO_out
+    parameter W_InstructionCombOut      = 3270,  // 实际：InstructionCombOut
+    parameter W_InstructionFifoLowData  = 576,   // 实际：predecode_result + seq_next_pc
+    parameter INSTRUCTION_FIFO_SIZE     = 32,    // 实际：frontend_feature_config.h
+    parameter INSTRUCTION_FIFO_SIZE_BITS = 6     // 实际：clog2(INSTRUCTION_FIFO_SIZE + 1)
 ) (
     input  wire                            aclk,
     input  wire                            aresetn,
@@ -28,6 +69,11 @@ module instruction_FIFO_comb_top #(
 );
 
     localparam W_InstructionPayload = W_InstructionFifoOut - 3;
+    localparam W_InstructionFifoReadData =
+        INSTRUCTION_FIFO_SIZE_BITS + 1 + W_InstructionPayload;
+    localparam W_InstructionFifoCombIn =
+        W_InstructionFifoIn + W_InstructionFifoReadData;
+    localparam W_InstructionFifoCombOut = W_InstructionCombOut;
 
     wire [W_InstructionFifoReadData-1:0] fifo_read_data_view;
     wire                                 fifo_head_valid_view;
@@ -56,11 +102,7 @@ module instruction_FIFO_comb_top #(
         .W_InstructionFifoOut(W_InstructionFifoOut),
         .W_InstructionFifoLowData(W_InstructionFifoLowData),
         .INSTRUCTION_FIFO_SIZE(INSTRUCTION_FIFO_SIZE),
-        .INSTRUCTION_FIFO_SIZE_BITS(INSTRUCTION_FIFO_SIZE_BITS),
-        .W_InstructionFifoEntry(W_InstructionFifoEntry),
-        .W_InstructionFifoReadData(W_InstructionFifoReadData),
-        .W_InstructionFifoCombIn(W_InstructionFifoCombIn),
-        .W_InstructionFifoCombOut(W_InstructionFifoCombOut)
+        .INSTRUCTION_FIFO_SIZE_BITS(INSTRUCTION_FIFO_SIZE_BITS)
     ) u_instruction_FIFO_comb_bsd_top (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -73,23 +115,22 @@ endmodule
 // BSD 层：这里已经是可综合 FIFO RTL。
 // 后续若调整 FIFO 行为，应优先对照 simulator-front 的 push/pop/clear 请求模型修改本层。
 module instruction_FIFO_comb_bsd_top #(
-    parameter W_InstructionFifoIn       = 1636,  // 实际： instruction_FIFO_in
-    parameter W_InstructionFifoOut      = 1635,  // 实际： instruction_FIFO_out
-    parameter W_InstructionFifoLowData  = 576,   // 实际： predecode_result + seq_next_pc
-    parameter INSTRUCTION_FIFO_SIZE     = 32,    // 实际： frontend_feature_config.h
-    parameter INSTRUCTION_FIFO_SIZE_BITS = 6,    // 实际： clog2(INSTRUCTION_FIFO_SIZE + 1)
-    parameter W_InstructionFifoEntry    = W_InstructionFifoOut - 3,
-    parameter W_InstructionFifoReadData = INSTRUCTION_FIFO_SIZE_BITS + 1 + W_InstructionFifoEntry,
-    parameter W_InstructionFifoCombIn   = 3275,  // 实际： InstructionCombIn
-    parameter W_InstructionFifoCombOut  = 3270   // 实际： InstructionCombOut
+    parameter W_InstructionFifoIn       = 1636,  // 实际：instruction_FIFO_in
+    parameter W_InstructionFifoOut      = 1635,  // 实际：instruction_FIFO_out
+    parameter W_InstructionFifoLowData  = 576,   // 实际：predecode_result + seq_next_pc
+    parameter INSTRUCTION_FIFO_SIZE     = 32,    // 实际：frontend_feature_config.h
+    parameter INSTRUCTION_FIFO_SIZE_BITS = 6     // 实际：clog2(INSTRUCTION_FIFO_SIZE + 1)
 ) (
     input  wire                                   aclk,
     input  wire                                   aresetn,
-    input  wire [W_InstructionFifoCombIn-1:0]     pi,
-    output wire [W_InstructionFifoCombOut-1:0]    po
+    input  wire [W_InstructionFifoIn + INSTRUCTION_FIFO_SIZE_BITS + 1 + (W_InstructionFifoOut - 3) - 1:0] pi,
+    output wire [(2 * W_InstructionFifoOut) - 1:0] po
 );
 
     localparam W_InstructionPayload = W_InstructionFifoOut - 3;
+    localparam W_InstructionFifoReadData =
+        INSTRUCTION_FIFO_SIZE_BITS + 1 + W_InstructionPayload;
+    localparam W_InstructionFifoCombOut = 2 * W_InstructionFifoOut;
     localparam W_InstructionHighData = W_InstructionPayload - W_InstructionFifoLowData;
     localparam W_InstructionCtrlOut = W_InstructionFifoCombOut - W_InstructionFifoOut;
     localparam PTR_BITS = 5;  // INSTRUCTION_FIFO_SIZE=32
