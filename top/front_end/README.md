@@ -45,6 +45,32 @@ simulator-front
 - 已执行 `git diff --check -- top/front_end top/tools`，未发现空白格式问题。
 - 已确认旧模拟器 hash 无残留；`simulator-ff` 仅在本文档的版本差异对比处保留。
 
+### 0.1 上推汇报口径
+
+可直接汇报：
+
+```text
+本次上推 front_end/front_top 前端训练框架，源码依据已统一到 simulator-front 默认配置。
+front_top 直接连接 14 个前端 comb wrapper 和 1 个 bpu_top，bpu_top 内部再连接 13 个 BPU comb wrapper，合计 27 个正式 comb 训练单元。
+四个 FIFO/PTAB 已按 simulator-front 的请求式写回模型在前端包内实现为普通 Verilog RTL；其余非 FIFO/PTAB 的 bsd_top 仍是组合逻辑占位，后续由对应模块负责人补真实逻辑。
+服务器 VCS 已完成 filelist.f 端口编译检查，front_top 被识别为顶层，compile/elab/link 通过。VCS 的 Unsupported Linux/kernel 是环境 warning，不是 RTL 端口错误。
+```
+
+本次上推的是 `top/front_end` 前端训练框架，源码依据统一为 `simulator-front` 默认配置。`front_top.v` 作为前端总入口，直接连接 14 个前端 comb wrapper 和 1 个 `bpu_top`；`bpu_top` 内部继续连接 13 个 BPU comb wrapper，合计覆盖 27 个正式 comb 训练单元。
+
+当前包已经完成：
+
+- `front_top.v` 顶层连线、接口位宽和阶段注释更新。
+- 27 个 comb wrapper 与 `*_bsd_top` 交付层统一为“上层变量端口，BSD 层 pi/po”的格式。
+- 4 个 FIFO/PTAB 已经在前端包内用普通 Verilog 实现，不再等待外部 BSD 代码。
+- BPU 顶层状态寄存器壳已补齐，后续真实 BPU/TAGE/BTB/TypePredictor 组合逻辑仍需在对应 `*_bsd_top` 内补。
+- 已在服务器用 VCS 对 `filelist.f` 做端口编译检查，`front_top` 被识别为顶层，compile/elab/link 通过。
+
+需要说明：
+
+- VCS 的 `Unsupported Linux version/kernel` 是工具版本和服务器系统版本不匹配的环境 warning，不是 RTL 端口错误。
+- 这次检查证明模块名、端口连接、文件清单和明显位宽能通过 VCS 编译展开；由于多数非 FIFO/PTAB 的 `*_bsd_top` 仍是零输出占位，当前还不能宣称功能仿真正确。
+
 ## 1. 当前交付内容
 
 前端包当前交付的是一套可继续补 RTL 逻辑的前端训练框架：
@@ -217,8 +243,8 @@ simulator-front
 
 ```verilog
 module xxx_comb_top #(
-    parameter integer W_XxxCombIn  = 1234,  // actual: 1234, from front_top/bpu_top ...
-    parameter integer W_XxxCombOut = 5678   // actual: 5678, from front_top/bpu_top ...
+    parameter W_XxxCombIn  = 1234,  // actual: 1234, from front_top/bpu_top ...
+    parameter W_XxxCombOut = 5678   // actual: 5678, from front_top/bpu_top ...
 ) (
     input  wire                    named_control,
     input  wire [W_XxxPayload-1:0] named_input_bundle,
@@ -289,11 +315,74 @@ front.step_bpu()
 - `bpu/bpu_top.v` 已补 BPU 顶层状态寄存器壳，复位初值参考 `BPU_TOP::reset_internal_all()`。
 - `front_top_interactive.html` 和 `front_top_execution_flow.html` 已按 27 个 comb 路径整理。
 - 前后端接口按 simulator-front 配置去掉旧版 `commit_stall/front_stall` 残留。
+- 已重新核对 FIFO/PTAB comb 的 `CombIn/CombOut` 位宽，输入包按 `输入请求 + 队首快照` 计算，输出包按 `状态输出 + 请求输出` 计算。
+- 已重新核对 BPU 内部 13 个 comb 的接口位宽，`bpu_top.v` 不再把所有 BPU 子 comb 都传成 `W_BpuOut=4949`。
+- 已检查 FIFO/PTAB RTL 写法：未使用 `function/endfunction`、`+:` 索引切片、`do_clear = reset || refetch`，`reset` 与 `refetch` 在时序分支中分开处理。
+
+### 8.1 本轮位宽修正
+
+FIFO/PTAB 修正后的位宽如下：
+
+| 模块 | `CombIn` | `CombOut` | 说明 |
+|---|---:|---:|---|
+| `fetch_address_FIFO_comb` | 75 | 70 | `36 + (6 + 1 + 32)`，输出为控制位和 35 位 FIFO 输出。 |
+| `instruction_FIFO_comb` | 3275 | 3270 | `1636 + (6 + 1 + 1632)`，输出为控制位和 1635 位 FIFO 输出。 |
+| `PTAB_comb` | 9710 | 14555 | `4853 + (6 + 1 + 4850)`，输出包含 PTAB 输出、写回请求和 dummy 请求。 |
+| `front2back_FIFO_comb` | 10796 | 10790 | `5396 + (7 + 1 + 5392)`，输出为控制位和 5395 位 FIFO 输出。 |
+
+BPU 内部 comb 修正后的位宽如下：
+
+| 模块 | `CombIn` | `CombOut` | 源码依据 |
+|---|---:|---:|---|
+| `bpu_pre_read_req_comb` | 369 | 875 | `BPU_TOP::BpuPreReadReqCombIn/Out` |
+| `type_predictor_pre_read_comb` | 816 | 672 | `TypePredictor::InputPayload / PreReadCombOut` |
+| `tage_pre_read_comb` | 2511 | 579 | `TAGE_TOP::TagePreReadCombIn/Out` |
+| `btb_pre_read_comb` | 105 | 228 | `BTB_TOP::BtbPreReadCombIn/Out` |
+| `bpu_post_read_req_comb` | 7332 | 22509 | `BPU_TOP::BpuPostReadReqCombIn/Out` |
+| `type_pred_comb` | 2448 | 376 | `TypePredictor::TypePredCombIn/Out` |
+| `tage_comb` | 3312 | 1932 | `TAGE_TOP::TageCombIn/Out` |
+| `btb_post_read_req_comb` | 2264 | 45 | `BTB_TOP::BtbPostReadReqCombIn/Out` |
+| `btb_comb` | 2264 | 1089 | `BTB_TOP::BtbCombIn/Out` |
+| `bpu_submodule_bind_comb` | 1856 | 1680 | `BPU_TOP::BpuSubmoduleBindCombIn/Out` |
+| `bpu_predict_main_comb` | 5798 | 6502 | `BPU_TOP::BpuPredictMainCombIn/Out` |
+| `bpu_hist_comb` | 6944 | 5935 | `BPU_TOP::BpuHistCombIn/Out` |
+| `bpu_queue_comb` | 3152 | 3281 | `BPU_TOP::BpuQueueCombIn/Out` |
+
+`W_BpuOut=4949` 仍保留为 `front_top` 接收 BPU 对外输出的总线宽度，但不再作为 BPU 内部所有 comb 的占位宽度。
 
 尚未完成的功能性验证：
 
-- 当前环境未安装 `iverilog/verilator/yosys`，所以还没有做完整 Verilog 编译。
 - 非 FIFO/PTAB 的 `*_bsd_top` 多数仍是零输出占位，BPU 顶层状态壳已有，但真实 next-state、TAGE/BTB/TypePredictor 表项更新还未接入，补真实逻辑前不能认为功能正确。
+
+### 8.2 服务器 VCS 检查命令
+
+服务器上先手动 source 对应 EDA 环境脚本，再进入前端目录。当前只需要做 VCS 端口编译检查，不需要 DC 综合。
+
+```bash
+source /centos7/eda-tools/eda-software/synopsys/source-scripts/bash_eda04
+export SNPSLMD_LICENSE_FILE=27000@eda-10
+export LM_LICENSE_FILE=27000@eda-10
+cd /nfs_global/I/qimeng3/yechijun/front_end
+mkdir -p build/vcs_port_check
+vcs -full64 -sverilog +lint=TFIPC-L -timescale=1ns/1ps -top front_top -f filelist.f -Mdir=build/vcs_port_check/csrc -o build/vcs_port_check/simv -l build/vcs_port_check/vcs_compile.log
+```
+
+已跑通结果：
+
+```text
+Top Level Modules:
+       front_top
+/nfs_global/I/qimeng3/yechijun/front_end/build/vcs_port_check/simv up to date
+CPU time: .318 seconds to compile + .191 seconds to elab + .097 seconds to link
+```
+
+如果需要确认日志里没有 VCS error，可在 `front_end` 目录执行：
+
+```bash
+grep -n "Error-" build/vcs_port_check/vcs_compile.log
+```
+
+该检查只能说明 Verilog 文件能被工具读取、模块名、端口连接和明显位宽基本对齐；它不等同于功能仿真。当前非 FIFO/PTAB 的多数 `*_bsd_top` 仍是占位逻辑，所以即使检查通过，也只能说明框架可继续接入和编译检查，不能说明前端功能已经正确。
 
 ## 9. 文件查看顺序
 

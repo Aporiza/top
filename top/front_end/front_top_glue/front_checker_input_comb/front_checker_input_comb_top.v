@@ -1,23 +1,25 @@
-// Formal frontend comb boundary: front_checker_input_comb.
-// Source: simulator-front/front-end/front_top.cpp, front_checker_input_comb.
-// Role: checker input construction from instruction FIFO and PTAB output.
+// 前端正式 comb 边界： front_checker_input_comb.
+// 源码依据： simulator-front/front-end/front_top.cpp, front_checker_input_comb.
+// 作用：根据 instruction FIFO 和 PTAB 输出生成 checker 输入包。
 //
-// The parent module connects this wrapper with semantic variable ports.
-// Only the BSD implementation layer keeps the packed pi/po interface.
+// 文件结构：
+// 1. *_comb_top 是可读连接层，父模块使用具名变量/语义 bundle 连接。
+// 2. 本层只按源码字段顺序打包 pi、拆包 po，不在这里实现真实算法。
+// 3. *_comb_bsd_top 是后续补真实组合逻辑的交付层，对外统一保持 pi/po。
 
 module front_checker_input_comb_top #(
-    parameter integer W_InstructionFifoOut       = 1635,  // actual: 1635, from front_top W_InstructionFifoOut
-    parameter integer W_PtabOut                  = 4851,  // actual: 4851, from front_top W_PtabOut
-    parameter integer W_PredecodeCheckerIn       = 624,  // actual: 624, from front_top W_PredecodeCheckerIn
-    parameter integer W_FrontCheckerInputCombIn  = W_InstructionFifoOut + W_PtabOut,  // actual: 6486, W_InstructionFifoOut + W_PtabOut
-    parameter integer W_FrontCheckerInputCombOut = W_PredecodeCheckerIn    // actual: 624, W_PredecodeCheckerIn
+    parameter W_InstructionFifoOut       = 1635,  // 实际： 1635, 来自 front_top W_InstructionFifoOut
+    parameter W_PtabOut                  = 4851,  // 实际： 4851, 来自 front_top W_PtabOut
+    parameter W_PredecodeCheckerIn       = 624,  // 实际： 624, 来自 front_top W_PredecodeCheckerIn
+    parameter W_FrontCheckerInputCombIn  = W_InstructionFifoOut + W_PtabOut,  // 实际： 6486, W_InstructionFifoOut + W_PtabOut
+    parameter W_FrontCheckerInputCombOut = W_PredecodeCheckerIn    // 实际： 624, W_PredecodeCheckerIn
 ) (
     input  wire [W_InstructionFifoOut-1:0] instruction_fifo_out,
     input  wire [W_PtabOut-1:0]            ptab_out,
     output wire [W_PredecodeCheckerIn-1:0] checker_in
 );
 
-    // Packed pi/po bridge for the BSD implementation layer.
+    // BSD 实现层的 pi/po 打包桥接。
     wire [W_FrontCheckerInputCombIn-1:0]  pi;
     wire [W_FrontCheckerInputCombOut-1:0] po;
     assign pi = {
@@ -40,13 +42,14 @@ module front_checker_input_comb_top #(
 endmodule
 
 module front_checker_input_comb_bsd_top #(
-    parameter integer W_FrontCheckerInputCombIn  = 6486,  // actual: 6486, W_InstructionFifoOut + W_PtabOut
-    parameter integer W_FrontCheckerInputCombOut = 624    // actual: 624, W_PredecodeCheckerIn
+    parameter W_FrontCheckerInputCombIn  = 6486,  // 实际： 6486, W_InstructionFifoOut + W_PtabOut
+    parameter W_FrontCheckerInputCombOut = 624    // 实际： 624, W_PredecodeCheckerIn
 ) (
     input  wire [W_FrontCheckerInputCombIn-1:0]  pi,
     output wire [W_FrontCheckerInputCombOut-1:0] po
 );
 
+    // 当前是占位输出；后续真实 BSD 组合逻辑应替换这一行。
     assign po = {W_FrontCheckerInputCombOut{1'b0}};
 
 endmodule
