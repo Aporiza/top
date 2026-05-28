@@ -3,6 +3,65 @@
 //   IsuOut = {iss2prf, iss2dis, iss_awake}
 // Issue queues and wakeup slots are private implementation state.
 
+// -----------------------------------------------------------------------------
+// 后端端口自查
+// 模块：isu_top
+// 文件：isu/isu_top.v:65
+// 来源：当前 back_end RTL module 声明
+// BSD 层：isu_bsd_top，实例名 u_isu_bsd_top，当前仓库未提供定义
+//
+// 输入端口：5 个，合计 9286 bit
+// 输出端口：3 个，合计 5335 bit
+//
+// 参数：
+//   DECODE_WIDTH          = 8  // 8
+//   PRF_IDX_WIDTH         = 11  // 11
+//   ROB_IDX_WIDTH         = 11  // 11
+//   STQ_IDX_WIDTH         = 9  // 9
+//   LDQ_IDX_WIDTH         = 9  // 9
+//   BR_TAG_WIDTH          = 6  // 6
+//   BR_MASK_WIDTH         = 64  // 64
+//   CSR_IDX_WIDTH         = 12  // 12
+//   FTQ_IDX_WIDTH         = 8  // 8
+//   FTQ_OFFSET_WIDTH      = 4  // 4
+//   UOP_TYPE_WIDTH        = 5  // 5
+//   IQ_NUM                = 5  // 5
+//   MAX_UOP_TYPE          = 18  // 18
+//   IQ_READY_NUM_WIDTH    = 11  // 11
+//   MAX_IQ_DISPATCH_WIDTH = DECODE_WIDTH  // 8
+//   LSU_LOAD_WB_WIDTH     = 4  // 4
+//   MAX_WAKEUP_PORTS      = 16  // 16
+//   ISSUE_WIDTH           = 24  // 24
+//   W_DisIssUop           = (3 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 3 + 2 + 2 + 3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH + CSR_IDX_WIDTH + ROB_IDX_WIDTH + STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + 1 + UOP_TYPE_WIDTH  // 213
+//   W_DisIssIO            = IQ_NUM * MAX_IQ_DISPATCH_WIDTH * (1 + W_DisIssUop)  // 8560
+//   W_WakeInfo            = 1 + PRF_IDX_WIDTH  // 12
+//   W_PrfAwakeIO          = LSU_LOAD_WB_WIDTH * W_WakeInfo  // 48
+//   W_ExeIssIO            = ISSUE_WIDTH * MAX_UOP_TYPE  // 432
+//   W_RobBroadcastIO      = 7 + 5 + 32 + 32 + ROB_IDX_WIDTH + 1 + ROB_IDX_WIDTH + 1  // 100
+//   W_DecBroadcastIO      = 1 + BR_MASK_WIDTH + BR_TAG_WIDTH + ROB_IDX_WIDTH + BR_MASK_WIDTH  // 146
+//   W_IssPrfUop           = (3 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 3 + 2 + 3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH + CSR_IDX_WIDTH + ROB_IDX_WIDTH + STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + 1 + UOP_TYPE_WIDTH  // 211
+//   W_IssPrfIO            = ISSUE_WIDTH * (1 + W_IssPrfUop)  // 5088
+//   W_IssDisIO            = IQ_NUM * IQ_READY_NUM_WIDTH  // 55
+//   W_IssAwakeIO          = MAX_WAKEUP_PORTS * W_WakeInfo  // 192
+//   W_IsuIn               = W_DisIssIO + W_PrfAwakeIO + W_ExeIssIO + W_RobBroadcastIO + W_DecBroadcastIO  // 9286
+//   W_IsuOut              = W_IssPrfIO + W_IssDisIO + W_IssAwakeIO  // 5335
+//
+// 输入端口：
+//   dis2iss    [W_DisIssIO-1:0]        8560 bit
+//   prf_awake  [W_PrfAwakeIO-1:0]      48 bit
+//   exe2iss    [W_ExeIssIO-1:0]        432 bit
+//   rob_bcast  [W_RobBroadcastIO-1:0]  100 bit
+//   dec_bcast  [W_DecBroadcastIO-1:0]  146 bit
+//
+// 输出端口：
+//   iss2prf    [W_IssPrfIO-1:0]    5088 bit
+//   iss2dis    [W_IssDisIO-1:0]    55 bit
+//   iss_awake  [W_IssAwakeIO-1:0]  192 bit
+//
+// BSD 层端口：当前仓库只实例化该 bsd_top，未提供 module 定义。
+// 后续补 bsd_top 时，需要保持实例名和 pi/po 连接一致。
+// -----------------------------------------------------------------------------
+
 module isu_top #(
     parameter integer DECODE_WIDTH          = 8,
     parameter integer PRF_IDX_WIDTH       = 11,

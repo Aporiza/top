@@ -3,6 +3,66 @@
 //   PrfOut = {prf2exe, prf_awake, ftq_prf_pc_req}
 // reg_file[PRF_NUM], bypass/equal logic and read/write slices are internal.
 
+// -----------------------------------------------------------------------------
+// 后端端口自查
+// 模块：prf_top
+// 文件：prf/prf_top.v:66
+// 来源：当前 back_end RTL module 声明
+// BSD 层：prf_bsd_top，实例名 u_prf_bsd_top，当前仓库未提供定义
+//
+// 输入端口：5 个，合计 12294 bit
+// 输出端口：3 个，合计 8412 bit
+//
+// 参数：
+//   ISSUE_WIDTH         = 24  // 24
+//   TOTAL_FU_COUNT      = 30  // 30
+//   LSU_LOAD_WB_WIDTH   = 4  // 4
+//   PRF_IDX_WIDTH       = 11  // 11
+//   ROB_IDX_WIDTH       = 11  // 11
+//   STQ_IDX_WIDTH       = 9  // 9
+//   LDQ_IDX_WIDTH       = 9  // 9
+//   BR_TAG_WIDTH        = 6  // 6
+//   BR_MASK_WIDTH       = 64  // 64
+//   CSR_IDX_WIDTH       = 12  // 12
+//   FTQ_IDX_WIDTH       = 8  // 8
+//   FTQ_OFFSET_WIDTH    = 4  // 4
+//   UOP_TYPE_WIDTH      = 5  // 5
+//   MAX_UOP_TYPE        = 18  // 18
+//   FTQ_PRF_PC_PORT_NUM = 12  // 12
+//   W_IssPrfUop         = (3 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 3 + 2 + 3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH + CSR_IDX_WIDTH + ROB_IDX_WIDTH + STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + 1 + UOP_TYPE_WIDTH  // 211
+//   W_IssPrfIO          = ISSUE_WIDTH * (1 + W_IssPrfUop)  // 5088
+//   W_ExePrfWbUop       = PRF_IDX_WIDTH + 32 + BR_MASK_WIDTH + 1 + UOP_TYPE_WIDTH  // 113
+//   W_ExePrfEntry       = 1 + W_ExePrfWbUop  // 114
+//   W_ExePrfIO          = (ISSUE_WIDTH + TOTAL_FU_COUNT) * W_ExePrfEntry  // 6156
+//   W_DecBroadcastIO    = 1 + BR_MASK_WIDTH + BR_TAG_WIDTH + ROB_IDX_WIDTH + BR_MASK_WIDTH  // 146
+//   W_RobBroadcastIO    = 7 + 5 + 32 + 32 + ROB_IDX_WIDTH + 1 + ROB_IDX_WIDTH + 1  // 100
+//   W_FtqPcReadReq      = 1 + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH  // 13
+//   W_FtqPcReadResp     = 1 + 1 + 32 + 1 + 32  // 67
+//   W_FtqPrfPcReqIO     = FTQ_PRF_PC_PORT_NUM * W_FtqPcReadReq  // 156
+//   W_FtqPrfPcRespIO    = FTQ_PRF_PC_PORT_NUM * W_FtqPcReadResp  // 804
+//   W_WakeInfo          = 1 + PRF_IDX_WIDTH  // 12
+//   W_PrfAwakeIO        = LSU_LOAD_WB_WIDTH * W_WakeInfo  // 48
+//   W_PrfExeUop         = 32 + 1 + 1 + 32 + (3 * PRF_IDX_WIDTH) + 64 + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 3 + 2 + 3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH + CSR_IDX_WIDTH + ROB_IDX_WIDTH + STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + 1 + UOP_TYPE_WIDTH  // 341
+//   W_PrfExeIO          = ISSUE_WIDTH * (1 + W_PrfExeUop)  // 8208
+//   W_PrfIn             = W_IssPrfIO + W_ExePrfIO + W_DecBroadcastIO + W_RobBroadcastIO + W_FtqPrfPcRespIO  // 12294
+//   W_PrfOut            = W_PrfExeIO + W_PrfAwakeIO + W_FtqPrfPcReqIO  // 8412
+//
+// 输入端口：
+//   iss2prf          [W_IssPrfIO-1:0]        5088 bit
+//   exe2prf          [W_ExePrfIO-1:0]        6156 bit
+//   dec_bcast        [W_DecBroadcastIO-1:0]  146 bit
+//   rob_bcast        [W_RobBroadcastIO-1:0]  100 bit
+//   ftq_prf_pc_resp  [W_FtqPrfPcRespIO-1:0]  804 bit
+//
+// 输出端口：
+//   prf2exe         [W_PrfExeIO-1:0]       8208 bit
+//   prf_awake       [W_PrfAwakeIO-1:0]     48 bit
+//   ftq_prf_pc_req  [W_FtqPrfPcReqIO-1:0]  156 bit
+//
+// BSD 层端口：当前仓库只实例化该 bsd_top，未提供 module 定义。
+// 后续补 bsd_top 时，需要保持实例名和 pi/po 连接一致。
+// -----------------------------------------------------------------------------
+
 module prf_top #(
     parameter integer ISSUE_WIDTH            = 24,
     parameter integer TOTAL_FU_COUNT         = 30,

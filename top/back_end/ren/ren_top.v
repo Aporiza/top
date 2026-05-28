@@ -3,6 +3,59 @@
 //   RenOut = {ren2dec, ren2dis}
 // RAT, free-list and checkpoint registers remain internal to rename.
 
+// -----------------------------------------------------------------------------
+// 后端端口自查
+// 模块：ren_top
+// 文件：ren/ren_top.v:59
+// 来源：当前 back_end RTL module 声明
+// BSD 层：ren_bsd_top，实例名 u_ren_bsd_top，当前仓库未提供定义
+//
+// 输入端口：5 个，合计 2831 bit
+// 输出端口：2 个，合计 2025 bit
+//
+// 参数：
+//   DECODE_WIDTH        = 8  // 8
+//   AREG_IDX_WIDTH      = 6  // 6
+//   PRF_IDX_WIDTH       = 11  // 11
+//   ROB_IDX_WIDTH       = 11  // 11
+//   STQ_IDX_WIDTH       = 9  // 9
+//   LDQ_IDX_WIDTH       = 9  // 9
+//   BR_TAG_WIDTH        = 6  // 6
+//   BR_MASK_WIDTH       = 64  // 64
+//   CSR_IDX_WIDTH       = 12  // 12
+//   FTQ_IDX_WIDTH       = 8  // 8
+//   FTQ_OFFSET_WIDTH    = 4  // 4
+//   INST_TYPE_WIDTH     = 5  // 5
+//   ROB_CPLT_MASK_WIDTH = 3  // 3
+//   COMMIT_WIDTH        = DECODE_WIDTH  // 8
+//   W_DecRenInst        = 32 + (3 * AREG_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + INST_TYPE_WIDTH + 3 + 1 + 2 + 3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH + CSR_IDX_WIDTH + (2 * ROB_CPLT_MASK_WIDTH) + 2  // 206
+//   W_DecRenIO          = DECODE_WIDTH * (W_DecRenInst + 1)  // 1656
+//   W_DecBroadcastIO    = 1 + BR_MASK_WIDTH + BR_TAG_WIDTH + ROB_IDX_WIDTH + BR_MASK_WIDTH  // 146
+//   W_DisRenIO          = 1  // 1
+//   W_RobBroadcastIO    = 7 + 5 + 32 + 32 + ROB_IDX_WIDTH + 1 + ROB_IDX_WIDTH + 1  // 100
+//   W_RobCommitInst     = 32 + AREG_IDX_WIDTH + (2 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 2 + 1 + 7 + ROB_IDX_WIDTH + 1 + STQ_IDX_WIDTH + 1 + 4 + INST_TYPE_WIDTH + 1  // 115
+//   W_RobCommitIO       = COMMIT_WIDTH * (1 + W_RobCommitInst)  // 928
+//   W_RenDecIO          = 1  // 1
+//   W_RenDisInst        = 32 + (3 * AREG_IDX_WIDTH) + (4 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + INST_TYPE_WIDTH + 3 + 1 + 2 + 2 + 3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH + CSR_IDX_WIDTH + (2 * ROB_CPLT_MASK_WIDTH) + 2  // 252
+//   W_RenDisIO          = DECODE_WIDTH * (W_RenDisInst + 1)  // 2024
+//   W_RenIn             = W_DecRenIO + W_DecBroadcastIO + W_DisRenIO + W_RobBroadcastIO + W_RobCommitIO  // 2831
+//   W_RenOut            = W_RenDecIO + W_RenDisIO  // 2025
+//
+// 输入端口：
+//   dec2ren     [W_DecRenIO-1:0]        1656 bit
+//   dec_bcast   [W_DecBroadcastIO-1:0]  146 bit
+//   dis2ren     [W_DisRenIO-1:0]        1 bit
+//   rob_bcast   [W_RobBroadcastIO-1:0]  100 bit
+//   rob_commit  [W_RobCommitIO-1:0]     928 bit
+//
+// 输出端口：
+//   ren2dec  [W_RenDecIO-1:0]  1 bit
+//   ren2dis  [W_RenDisIO-1:0]  2024 bit
+//
+// BSD 层端口：当前仓库只实例化该 bsd_top，未提供 module 定义。
+// 后续补 bsd_top 时，需要保持实例名和 pi/po 连接一致。
+// -----------------------------------------------------------------------------
+
 module ren_top #(
     parameter integer DECODE_WIDTH        = 8,
     parameter integer AREG_IDX_WIDTH      = 6,

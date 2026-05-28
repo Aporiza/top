@@ -129,6 +129,7 @@ module fetch_address_FIFO_comb_bsd_top #(
     localparam W_FetchAddressFifoCombOut = 2 * W_FetchAddressFifoOut;
     localparam W_FetchAddressCtrlOut = W_FetchAddressFifoCombOut - W_FetchAddressFifoOut;
     localparam PTR_BITS = 5;  // FETCH_ADDR_FIFO_SIZE=32
+    localparam [PTR_BITS-1:0] FETCH_ADDR_FIFO_LAST_PTR = {PTR_BITS{1'b1}};
 
     wire [W_FetchAddressFifoIn-1:0]       fifo_in;
     wire [W_FetchAddressFifoReadData-1:0] unused_fifo_read_data;
@@ -221,7 +222,7 @@ module fetch_address_FIFO_comb_bsd_top #(
         end else if (refetch) begin
             fifo_head_next = {PTR_BITS{1'b0}};
         end else if (pop_existing) begin
-            if (fifo_head == (FETCH_ADDR_FIFO_SIZE - 1)) begin
+            if (fifo_head == FETCH_ADDR_FIFO_LAST_PTR) begin
                 fifo_head_next = {PTR_BITS{1'b0}};
             end else begin
                 fifo_head_next = fifo_head + 1'b1;
@@ -236,7 +237,7 @@ module fetch_address_FIFO_comb_bsd_top #(
         end else if (refetch) begin
             fifo_tail_next = {PTR_BITS{1'b0}};
         end else if (store_write) begin
-            if (fifo_tail == (FETCH_ADDR_FIFO_SIZE - 1)) begin
+            if (fifo_tail == FETCH_ADDR_FIFO_LAST_PTR) begin
                 fifo_tail_next = {PTR_BITS{1'b0}};
             end else begin
                 fifo_tail_next = fifo_tail + 1'b1;

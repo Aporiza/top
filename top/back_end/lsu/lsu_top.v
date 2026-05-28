@@ -5,6 +5,93 @@
 // LDQ/STQ entries, address/data RAMs, MMIO state and replay bookkeeping remain
 // private to LSU.
 
+// -----------------------------------------------------------------------------
+// 后端端口自查
+// 模块：lsu_top
+// 文件：lsu/lsu_top.v:95
+// 来源：当前 back_end RTL module 声明
+// BSD 层：lsu_bsd_top，实例名 u_lsu_bsd_top，当前仓库未提供定义
+//
+// 输入端口：9 个，合计 5203 bit
+// 输出端口：6 个，合计 2513 bit
+//
+// 参数：
+//   DECODE_WIDTH           = 8  // 8
+//   COMMIT_WIDTH           = DECODE_WIDTH  // 8
+//   AREG_IDX_WIDTH         = 6  // 6
+//   PRF_IDX_WIDTH          = 11  // 11
+//   ROB_IDX_WIDTH          = 11  // 11
+//   STQ_IDX_WIDTH          = 9  // 9
+//   LDQ_IDX_WIDTH          = 9  // 9
+//   BR_TAG_WIDTH           = 6  // 6
+//   BR_MASK_WIDTH          = 64  // 64
+//   FTQ_IDX_WIDTH          = 8  // 8
+//   FTQ_OFFSET_WIDTH       = 4  // 4
+//   INST_TYPE_WIDTH        = 5  // 5
+//   UOP_TYPE_WIDTH         = 5  // 5
+//   LSU_LDU_COUNT          = 4  // 4
+//   LSU_STA_COUNT          = 4  // 4
+//   LSU_AGU_COUNT          = 8  // 8
+//   LSU_SDU_COUNT          = 4  // 4
+//   LSU_LOAD_WB_WIDTH      = LSU_LDU_COUNT  // 4
+//   LSU_LDU_WIDTH          = 2  // 2
+//   MAX_STQ_DISPATCH_WIDTH = DECODE_WIDTH  // 8
+//   MAX_LDQ_DISPATCH_WIDTH = DECODE_WIDTH  // 8
+//   ROB_NUM                = 2048  // 2048
+//   W_STQ_COUNT            = 10  // 10
+//   W_LDQ_COUNT            = 10  // 10
+//   W_RobCommitInst        = 32 + AREG_IDX_WIDTH + (2 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 2 + 1 + 7 + ROB_IDX_WIDTH + 1 + STQ_IDX_WIDTH + 1 + 4 + INST_TYPE_WIDTH + 1  // 115
+//   W_RobCommitIO          = COMMIT_WIDTH * (1 + W_RobCommitInst)  // 928
+//   W_RobBroadcastIO       = 7 + 5 + 32 + 32 + ROB_IDX_WIDTH + 1 + ROB_IDX_WIDTH + 1  // 100
+//   W_DecBroadcastIO       = 1 + BR_MASK_WIDTH + BR_TAG_WIDTH + ROB_IDX_WIDTH + BR_MASK_WIDTH  // 146
+//   W_CsrStatusIO          = 32 + 32 + 32 + 2  // 98
+//   W_DisLsuIO             = MAX_STQ_DISPATCH_WIDTH * (1 + BR_MASK_WIDTH + 3 + ROB_IDX_WIDTH + 1 + 1) + MAX_LDQ_DISPATCH_WIDTH * (1 + LDQ_IDX_WIDTH + BR_MASK_WIDTH + ROB_IDX_WIDTH + 1)  // 1336
+//   W_ExeLsuReqUop         = 32 + PRF_IDX_WIDTH + 3 + 7 + 1 + BR_MASK_WIDTH + ROB_IDX_WIDTH + STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + 1 + 1 + UOP_TYPE_WIDTH  // 155
+//   W_ExeLsuIO             = (LSU_AGU_COUNT + LSU_SDU_COUNT) * (1 + W_ExeLsuReqUop)  // 1872
+//   W_PeripheralRespIO     = 1 + 1 + 32  // 34
+//   W_LoadResp             = 1 + 32 + 32 + 2  // 67
+//   W_StoreResp            = 1 + 2 + 32  // 35
+//   W_DCacheRespPorts      = (LSU_LDU_COUNT * W_LoadResp) + (LSU_STA_COUNT * W_StoreResp)  // 408
+//   W_DcacheLsuIO          = W_DCacheRespPorts + 1  // 409
+//   W_MMUResp              = 1 + 32 + 2  // 35
+//   W_MMULsuIO             = (W_MMUResp * LSU_LDU_COUNT) + (W_MMUResp * LSU_STA_COUNT)  // 280
+//   W_LsuDisIO             = STQ_IDX_WIDTH + 1 + W_STQ_COUNT + W_LDQ_COUNT + (LDQ_IDX_WIDTH * MAX_LDQ_DISPATCH_WIDTH) + MAX_LDQ_DISPATCH_WIDTH  // 110
+//   W_LsuRobIO             = 1  // 1
+//   W_LsuExeRespUop        = 32 + 32 + PRF_IDX_WIDTH + BR_MASK_WIDTH + ROB_IDX_WIDTH + 1 + 2 + UOP_TYPE_WIDTH + 1  // 159
+//   W_LsuExeIO             = (LSU_LOAD_WB_WIDTH + LSU_STA_COUNT) * (1 + W_LsuExeRespUop)  // 1280
+//   W_PeripheralReqIO      = 1 + 1 + 32 + 32 + 3  // 69
+//   W_LoadReq              = 1 + 32 + 32 + 1  // 66
+//   W_StoreReq             = 1 + 32 + 32 + 8 + 32 + 1  // 106
+//   W_DCacheReqPorts       = (LSU_LDU_COUNT * W_LoadReq) + (LSU_STA_COUNT * W_StoreReq)  // 688
+//   W_LsuDcacheIO          = W_DCacheReqPorts + LSU_LDU_WIDTH + 1  // 691
+//   W_MMUReq               = 1 + 32  // 33
+//   W_LsuMMUIO             = (W_MMUReq * LSU_LDU_COUNT) + (W_MMUReq * LSU_STA_COUNT) + W_CsrStatusIO  // 362
+//   W_LsuIn                = W_RobCommitIO + W_RobBroadcastIO + W_DecBroadcastIO + W_CsrStatusIO + W_DisLsuIO + W_ExeLsuIO + W_PeripheralRespIO + W_DcacheLsuIO + W_MMULsuIO  // 5203
+//   W_LsuOut               = W_LsuDisIO + W_LsuRobIO + W_LsuExeIO + W_PeripheralReqIO + W_LsuDcacheIO + W_LsuMMUIO  // 2513
+//
+// 输入端口：
+//   rob_commit       [W_RobCommitIO-1:0]       928 bit
+//   rob_bcast        [W_RobBroadcastIO-1:0]    100 bit
+//   dec_bcast        [W_DecBroadcastIO-1:0]    146 bit
+//   csr_status       [W_CsrStatusIO-1:0]       98 bit
+//   dis2lsu          [W_DisLsuIO-1:0]          1336 bit
+//   exe2lsu          [W_ExeLsuIO-1:0]          1872 bit
+//   peripheral_resp  [W_PeripheralRespIO-1:0]  34 bit
+//   dcache2lsu       [W_DcacheLsuIO-1:0]       409 bit
+//   mmu2lsu_io       [W_MMULsuIO-1:0]          280 bit
+//
+// 输出端口：
+//   lsu2dis         [W_LsuDisIO-1:0]         110 bit
+//   lsu2rob         [W_LsuRobIO-1:0]         1 bit
+//   lsu2exe         [W_LsuExeIO-1:0]         1280 bit
+//   peripheral_req  [W_PeripheralReqIO-1:0]  69 bit
+//   lsu2dcache      [W_LsuDcacheIO-1:0]      691 bit
+//   lsu2mmu_io      [W_LsuMMUIO-1:0]         362 bit
+//
+// BSD 层端口：当前仓库只实例化该 bsd_top，未提供 module 定义。
+// 后续补 bsd_top 时，需要保持实例名和 pi/po 连接一致。
+// -----------------------------------------------------------------------------
+
 module lsu_top #(
     parameter integer DECODE_WIDTH           = 8,
     parameter integer COMMIT_WIDTH           = DECODE_WIDTH,

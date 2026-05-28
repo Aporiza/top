@@ -3,6 +3,50 @@
 //   CsrOut = {csr2exe, csr2rob, csr2front, csr_status}
 // CSR_RegFile, privilege register and CSR write-back staging are internal.
 
+// -----------------------------------------------------------------------------
+// 后端端口自查
+// 模块：csr_top
+// 文件：csr/csr_top.v:50
+// 来源：当前 back_end RTL module 声明
+// BSD 层：csr_bsd_top，实例名 u_csr_bsd_top，当前仓库未提供定义
+//
+// 输入端口：3 个，合计 180 bit
+// 输出端口：10 个，合计 357 bit
+//
+// 参数：
+//   ROB_IDX_WIDTH    = 11  // 11
+//   BR_MASK_WIDTH    = 64  // 64
+//   W_ExeCsrIO       = 1 + 1 + 12 + 32 + 32  // 78
+//   W_RobCsrIO       = 2  // 2
+//   W_RobBroadcastIO = 7 + 5 + 32 + 32 + ROB_IDX_WIDTH + 1 + ROB_IDX_WIDTH + 1  // 100
+//   W_CsrExeIO       = 32  // 32
+//   W_CsrRobIO       = 1  // 1
+//   W_CsrFrontIO     = 32 + 32  // 64
+//   W_CsrStatusIO    = 32 + 32 + 32 + 2  // 98
+//   W_CsrIn          = W_ExeCsrIO + W_RobCsrIO + W_RobBroadcastIO  // 180
+//   W_CsrOut         = W_CsrExeIO + W_CsrRobIO + W_CsrFrontIO + W_CsrStatusIO  // 195
+//
+// 输入端口：
+//   exe2csr    [W_ExeCsrIO-1:0]        78 bit
+//   rob2csr    [W_RobCsrIO-1:0]        2 bit
+//   rob_bcast  [W_RobBroadcastIO-1:0]  100 bit
+//
+// 输出端口：
+//   csr2exe               [W_CsrExeIO-1:0]     32 bit
+//   csr2rob               [W_CsrRobIO-1:0]     1 bit
+//   csr2front             [W_CsrFrontIO-1:0]   64 bit
+//   csr_status            [W_CsrStatusIO-1:0]  98 bit
+//   csr2front_epc         [31:0]               32 bit
+//   csr2front_trap_pc     [31:0]               32 bit
+//   csr_status_sstatus    [31:0]               32 bit
+//   csr_status_mstatus    [31:0]               32 bit
+//   csr_status_satp       [31:0]               32 bit
+//   csr_status_privilege  [1:0]                2 bit
+//
+// BSD 层端口：当前仓库只实例化该 bsd_top，未提供 module 定义。
+// 后续补 bsd_top 时，需要保持实例名和 pi/po 连接一致。
+// -----------------------------------------------------------------------------
+
 module csr_top #(
     parameter integer ROB_IDX_WIDTH       = 11,
     parameter integer BR_MASK_WIDTH    = 64,

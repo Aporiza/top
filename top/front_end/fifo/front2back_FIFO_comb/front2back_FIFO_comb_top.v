@@ -142,6 +142,7 @@ module front2back_FIFO_comb_bsd_top #(
     localparam W_Front2backFifoCombOut = 2 * W_Front2BackFifoOut;
     localparam W_Front2BackCtrlOut = W_Front2backFifoCombOut - W_Front2BackFifoOut;
     localparam PTR_BITS = 6;  // FRONT2BACK_FIFO_SIZE=64
+    localparam [PTR_BITS-1:0] FRONT2BACK_FIFO_LAST_PTR = {PTR_BITS{1'b1}};
 
     wire [W_Front2BackFifoIn-1:0]       fifo_in;
     wire [W_Front2BackFifoReadData-1:0] unused_fifo_read_data;
@@ -234,7 +235,7 @@ module front2back_FIFO_comb_bsd_top #(
         end else if (refetch) begin
             fifo_head_next = {PTR_BITS{1'b0}};
         end else if (pop_existing) begin
-            if (fifo_head == (FRONT2BACK_FIFO_SIZE - 1)) begin
+            if (fifo_head == FRONT2BACK_FIFO_LAST_PTR) begin
                 fifo_head_next = {PTR_BITS{1'b0}};
             end else begin
                 fifo_head_next = fifo_head + 1'b1;
@@ -249,7 +250,7 @@ module front2back_FIFO_comb_bsd_top #(
         end else if (refetch) begin
             fifo_tail_next = {PTR_BITS{1'b0}};
         end else if (store_write) begin
-            if (fifo_tail == (FRONT2BACK_FIFO_SIZE - 1)) begin
+            if (fifo_tail == FRONT2BACK_FIFO_LAST_PTR) begin
                 fifo_tail_next = {PTR_BITS{1'b0}};
             end else begin
                 fifo_tail_next = fifo_tail + 1'b1;

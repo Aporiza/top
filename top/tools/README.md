@@ -78,6 +78,7 @@ top/docs/generated
 ```powershell
 python top/tools/scan_frontend_ports.py
 python top/tools/scan_backend_ports.py
+python top/tools/scan_backend_ports.py --annotate-rtl
 ```
 
 输出：

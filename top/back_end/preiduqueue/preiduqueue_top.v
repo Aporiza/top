@@ -4,6 +4,82 @@
 //   PreIduQueueOut = {pre2front, issue, ftq_prf_pc_resp, ftq_rob_pc_resp}
 // Internal FTQ, instruction buffers and slice logic are not top-level ports.
 
+// -----------------------------------------------------------------------------
+// 后端端口自查
+// 模块：preiduqueue_top
+// 文件：preiduqueue/preiduqueue_top.v:83
+// 来源：当前 back_end RTL module 声明
+// BSD 层：preiduqueue_bsd_top，实例名 u_preiduqueue_bsd_top，当前仓库未提供定义
+//
+// 输入端口：7 个，合计 7199 bit
+// 输出端口：6 个，合计 1537 bit
+//
+// 参数：
+//   FETCH_WIDTH              = 16  // 16
+//   DECODE_WIDTH             = 8  // 8
+//   COMMIT_WIDTH             = DECODE_WIDTH  // 8
+//   AREG_IDX_WIDTH           = 6  // 6
+//   PRF_IDX_WIDTH            = 11  // 11
+//   ROB_IDX_WIDTH            = 11  // 11
+//   STQ_IDX_WIDTH            = 9  // 9
+//   LDQ_IDX_WIDTH            = 9  // 9
+//   BR_TAG_WIDTH             = 6  // 6
+//   BR_MASK_WIDTH            = 64  // 64
+//   CSR_IDX_WIDTH            = 12  // 12
+//   FTQ_IDX_WIDTH            = 8  // 8
+//   FTQ_OFFSET_WIDTH         = 4  // 4
+//   INST_TYPE_WIDTH          = 5  // 5
+//   ROB_CPLT_MASK_WIDTH      = 3  // 3
+//   BPU_SCL_META_NTABLE      = 8  // 8
+//   BPU_SCL_META_IDX_BITS    = 16  // 16
+//   tage_scl_meta_sum_t_BITS = 16  // 16
+//   BPU_LOOP_META_IDX_BITS   = 16  // 16
+//   BPU_LOOP_META_TAG_BITS   = 16  // 16
+//   TN_MAX                   = 4  // 4
+//   TAGE_IDX_WIDTH           = 12  // 12
+//   TAGE_TAG_WIDTH           = 8  // 8
+//   pcpn_t_BITS              = 3  // 3
+//   FTQ_PRF_PC_PORT_NUM      = 12  // 12
+//   FTQ_ROB_PC_PORT_NUM      = 1  // 1
+//   W_InstructionBufferEntry = 1 + 32 + 32 + 1 + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1  // 79
+//   W_FrontPreIO             = (32 * FETCH_WIDTH) + (32 * FETCH_WIDTH) + FETCH_WIDTH + FETCH_WIDTH + FETCH_WIDTH + (pcpn_t_BITS * FETCH_WIDTH) + (pcpn_t_BITS * FETCH_WIDTH) + (32 * FETCH_WIDTH) + (TAGE_IDX_WIDTH * FETCH_WIDTH * TN_MAX) + (TAGE_TAG_WIDTH * FETCH_WIDTH * TN_MAX) + FETCH_WIDTH + FETCH_WIDTH + (tage_scl_meta_sum_t_BITS * FETCH_WIDTH) + (BPU_SCL_META_NTABLE * BPU_SCL_META_IDX_BITS * FETCH_WIDTH) + FETCH_WIDTH + FETCH_WIDTH + FETCH_WIDTH + (BPU_LOOP_META_IDX_BITS * FETCH_WIDTH) + (BPU_LOOP_META_TAG_BITS * FETCH_WIDTH) + FETCH_WIDTH  // 5872
+//   W_IduConsumeIO           = DECODE_WIDTH  // 8
+//   W_RobBroadcastIO         = 7 + 5 + 32 + 32 + ROB_IDX_WIDTH + 1 + ROB_IDX_WIDTH + 1  // 100
+//   W_RobCommitInst          = 32 + AREG_IDX_WIDTH + (2 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 2 + 1 + 7 + ROB_IDX_WIDTH + 1 + STQ_IDX_WIDTH + 1 + 4 + INST_TYPE_WIDTH + 1  // 115
+//   W_RobCommitIO            = COMMIT_WIDTH * (1 + W_RobCommitInst)  // 928
+//   W_ExuIdIO                = 1 + 32 + ROB_IDX_WIDTH + BR_TAG_WIDTH + FTQ_IDX_WIDTH + BR_MASK_WIDTH  // 122
+//   W_FtqPcReadReq           = 1 + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH  // 13
+//   W_FtqPcReadResp          = 1 + 1 + 32 + 1 + 32  // 67
+//   W_FtqPrfPcReqIO          = FTQ_PRF_PC_PORT_NUM * W_FtqPcReadReq  // 156
+//   W_FtqPrfPcRespIO         = FTQ_PRF_PC_PORT_NUM * W_FtqPcReadResp  // 804
+//   W_FtqRobPcReqIO          = FTQ_ROB_PC_PORT_NUM * W_FtqPcReadReq  // 13
+//   W_FtqRobPcRespIO         = FTQ_ROB_PC_PORT_NUM * W_FtqPcReadResp  // 67
+//   W_PreFrontIO             = FETCH_WIDTH + 1  // 17
+//   W_PreIssueIO             = W_InstructionBufferEntry * DECODE_WIDTH  // 632
+//   W_PreIduQueueIn          = W_FrontPreIO + W_IduConsumeIO + W_RobBroadcastIO + W_RobCommitIO + W_ExuIdIO + W_FtqPrfPcReqIO + W_FtqRobPcReqIO  // 7199
+//   W_PreIduQueueOut         = W_PreFrontIO + W_PreIssueIO + W_FtqPrfPcRespIO + W_FtqRobPcRespIO  // 1520
+//
+// 输入端口：
+//   front2pre       [W_FrontPreIO-1:0]      5872 bit
+//   idu_consume     [W_IduConsumeIO-1:0]    8 bit
+//   rob_bcast       [W_RobBroadcastIO-1:0]  100 bit
+//   rob_commit      [W_RobCommitIO-1:0]     928 bit
+//   idu_br_latch    [W_ExuIdIO-1:0]         122 bit
+//   ftq_prf_pc_req  [W_FtqPrfPcReqIO-1:0]   156 bit
+//   ftq_rob_pc_req  [W_FtqRobPcReqIO-1:0]   13 bit
+//
+// 输出端口：
+//   pre2front        [W_PreFrontIO-1:0]      17 bit
+//   pre_issue        [W_PreIssueIO-1:0]      632 bit
+//   ftq_prf_pc_resp  [W_FtqPrfPcRespIO-1:0]  804 bit
+//   ftq_rob_pc_resp  [W_FtqRobPcRespIO-1:0]  67 bit
+//   pre2front_fire   [FETCH_WIDTH-1:0]       16 bit
+//   pre2front_ready  1                       1 bit
+//
+// BSD 层端口：当前仓库只实例化该 bsd_top，未提供 module 定义。
+// 后续补 bsd_top 时，需要保持实例名和 pi/po 连接一致。
+// -----------------------------------------------------------------------------
+
 module preiduqueue_top #(
     parameter integer FETCH_WIDTH              = 16,
     parameter integer DECODE_WIDTH             = 8,

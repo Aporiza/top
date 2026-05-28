@@ -144,6 +144,7 @@ module PTAB_comb_bsd_top #(
         W_PtabOut + 1 + 1 + W_PtabEntry + 1 + W_PtabEntry + 1;
     localparam W_PtabCtrlOut = W_PtabCombOutLocal - W_PtabOut;
     localparam PTR_BITS = 5;  // PTAB_SIZE=32
+    localparam [PTR_BITS-1:0] PTAB_LAST_PTR = {PTR_BITS{1'b1}};
 
     wire [W_PtabIn-1:0]       ptab_in;
     wire [W_PtabReadData-1:0] unused_ptab_read_data;
@@ -191,6 +192,7 @@ module PTAB_comb_bsd_top #(
     reg output_dummy;
     reg [W_PtabPayload-1:0] output_payload;
     reg [W_PtabOut-1:0] out_regs;
+    localparam [W_PtabCtrlOut-1:0] PTAB_CTRL_ZERO = 0;
 
     // 第二阶段：组合判断本拍读写请求。
     always @(*) begin
@@ -284,7 +286,7 @@ module PTAB_comb_bsd_top #(
     // 第三阶段：组合计算下一拍指针和计数。
     always @(*) begin
         ptab_tail_plus_one = ptab_tail;
-        if (ptab_tail == (PTAB_SIZE - 1)) begin
+        if (ptab_tail == PTAB_LAST_PTR) begin
             ptab_tail_plus_one = {PTR_BITS{1'b0}};
         end else begin
             ptab_tail_plus_one = ptab_tail + 1'b1;
@@ -293,7 +295,7 @@ module PTAB_comb_bsd_top #(
 
     always @(*) begin
         ptab_tail_plus_two = ptab_tail_plus_one;
-        if (ptab_tail_plus_one == (PTAB_SIZE - 1)) begin
+        if (ptab_tail_plus_one == PTAB_LAST_PTR) begin
             ptab_tail_plus_two = {PTR_BITS{1'b0}};
         end else begin
             ptab_tail_plus_two = ptab_tail_plus_one + 1'b1;
@@ -314,7 +316,7 @@ module PTAB_comb_bsd_top #(
         end else if (refetch) begin
             ptab_head_next = {PTR_BITS{1'b0}};
         end else if (pop_existing) begin
-            if (ptab_head == (PTAB_SIZE - 1)) begin
+            if (ptab_head == PTAB_LAST_PTR) begin
                 ptab_head_next = {PTR_BITS{1'b0}};
             end else begin
                 ptab_head_next = ptab_head + 1'b1;
@@ -412,7 +414,7 @@ module PTAB_comb_bsd_top #(
     end
 
     assign po = {
-        {W_PtabCtrlOut{1'b0}},
+        PTAB_CTRL_ZERO,
         out_regs
     };
 

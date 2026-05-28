@@ -9,6 +9,198 @@
 // implementation.  The top level shows module-to-module wiring; each module
 // top further splits its local input/output buses before calling bsd_top.
 
+// -----------------------------------------------------------------------------
+// 后端端口自查
+// 模块：back_top
+// 文件：back_top.v:204
+// 来源：当前 back_end RTL module 声明
+// BSD 层：无直接 bsd_top
+//
+// 输入端口：23 个，合计 6595 bit
+// 输出端口：15 个，合计 3585 bit
+//
+// 参数：
+//   FETCH_WIDTH              = 16  // 16
+//   DECODE_WIDTH             = 8  // 8
+//   COMMIT_WIDTH             = DECODE_WIDTH  // 8
+//   AREG_IDX_WIDTH           = 6  // 6
+//   PRF_IDX_WIDTH            = 11  // 11
+//   ROB_IDX_WIDTH            = 11  // 11
+//   STQ_IDX_WIDTH            = 9  // 9
+//   LDQ_IDX_WIDTH            = 9  // 9
+//   BR_TAG_WIDTH             = 6  // 6
+//   BR_MASK_WIDTH            = 64  // 64
+//   CSR_IDX_WIDTH            = 12  // 12
+//   FTQ_IDX_WIDTH            = 8  // 8
+//   FTQ_OFFSET_WIDTH         = 4  // 4
+//   INST_TYPE_WIDTH          = 5  // 5
+//   UOP_TYPE_WIDTH           = 5  // 5
+//   ROB_CPLT_MASK_WIDTH      = 3  // 3
+//   IQ_NUM                   = 5  // 5
+//   MAX_UOP_TYPE             = 18  // 18
+//   BPU_SCL_META_NTABLE      = 8  // 8
+//   BPU_SCL_META_IDX_BITS    = 16  // 16
+//   tage_scl_meta_sum_t_BITS = 16  // 16
+//   BPU_LOOP_META_IDX_BITS   = 16  // 16
+//   BPU_LOOP_META_TAG_BITS   = 16  // 16
+//   TN_MAX                   = 4  // 4
+//   TAGE_IDX_WIDTH           = 12  // 12
+//   TAGE_TAG_WIDTH           = 8  // 8
+//   pcpn_t_BITS              = 3  // 3
+//   IQ_READY_NUM_WIDTH       = 11  // 11
+//   MAX_IQ_DISPATCH_WIDTH    = DECODE_WIDTH  // 8
+//   MAX_STQ_DISPATCH_WIDTH   = DECODE_WIDTH  // 8
+//   MAX_LDQ_DISPATCH_WIDTH   = DECODE_WIDTH  // 8
+//   MAX_WAKEUP_PORTS         = 16  // 16
+//   ISSUE_WIDTH              = 24  // 24
+//   TOTAL_FU_COUNT           = 30  // 30
+//   FTQ_PRF_PC_PORT_NUM      = 12  // 12
+//   FTQ_ROB_PC_PORT_NUM      = 1  // 1
+//   ROB_NUM                  = 2048  // 2048
+//   LSU_LDU_COUNT            = 4  // 4
+//   LSU_STA_COUNT            = 4  // 4
+//   LSU_AGU_COUNT            = 8  // 8
+//   LSU_SDU_COUNT            = 4  // 4
+//   LSU_LOAD_WB_WIDTH        = LSU_LDU_COUNT  // 4
+//   LSU_LDU_WIDTH            = 2  // 2
+//   W_STQ_COUNT              = 10  // 10
+//   W_LDQ_COUNT              = 10  // 10
+//   W_InstructionBufferEntry = 1 + 32 + 32 + 1 + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1  // 79
+//   W_InstInfo               = 32 + (3 * AREG_IDX_WIDTH) + (4 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 2 + 3 + 2 + 2 + 3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH + CSR_IDX_WIDTH + ROB_IDX_WIDTH + STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + (2 * ROB_CPLT_MASK_WIDTH) + 1 + 6 + INST_TYPE_WIDTH  // 288
+//   W_InstEntry              = 1 + W_InstInfo  // 289
+//   W_BackCommitInfo         = W_InstInfo  // 288
+//   W_BackCommitEntry        = 1 + W_BackCommitInfo  // 289
+//   W_DecRenInst             = 32 + (3 * AREG_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + INST_TYPE_WIDTH + 3 + 1 + 2 + 3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH + CSR_IDX_WIDTH + (2 * ROB_CPLT_MASK_WIDTH) + 2  // 206
+//   W_DecRenIO               = DECODE_WIDTH * (W_DecRenInst + 1)  // 1656
+//   W_RenDecIO               = 1  // 1
+//   W_IduConsumeIO           = DECODE_WIDTH  // 8
+//   W_PreFrontIO             = FETCH_WIDTH + 1  // 17
+//   W_DecBroadcastIO         = 1 + BR_MASK_WIDTH + BR_TAG_WIDTH + ROB_IDX_WIDTH + BR_MASK_WIDTH  // 146
+//   W_FtqPcReadReq           = 1 + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH  // 13
+//   W_FtqPcReadResp          = 1 + 1 + 32 + 1 + 32  // 67
+//   W_FtqPrfPcReqIO          = FTQ_PRF_PC_PORT_NUM * W_FtqPcReadReq  // 156
+//   W_FtqPrfPcRespIO         = FTQ_PRF_PC_PORT_NUM * W_FtqPcReadResp  // 804
+//   W_FtqRobPcReqIO          = FTQ_ROB_PC_PORT_NUM * W_FtqPcReadReq  // 13
+//   W_FtqRobPcRespIO         = FTQ_ROB_PC_PORT_NUM * W_FtqPcReadResp  // 67
+//   W_PreIssueIO             = W_InstructionBufferEntry * DECODE_WIDTH  // 632
+//   W_RobCommitInst          = 32 + AREG_IDX_WIDTH + (2 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 2 + 1 + 7 + ROB_IDX_WIDTH + 1 + STQ_IDX_WIDTH + 1 + 4 + INST_TYPE_WIDTH + 1  // 115
+//   W_RobCommitIO            = COMMIT_WIDTH * (1 + W_RobCommitInst)  // 928
+//   W_RobBroadcastIO         = 7 + 5 + 32 + 32 + ROB_IDX_WIDTH + 1 + ROB_IDX_WIDTH + 1  // 100
+//   W_RobDisIO               = 3 + ROB_IDX_WIDTH + 1  // 15
+//   W_DisRobInst             = 32 + (2 * AREG_IDX_WIDTH) + (2 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 2 + INST_TYPE_WIDTH + 1 + 1 + 3 + 7 + 32 + BR_MASK_WIDTH + ROB_IDX_WIDTH + STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + (2 * ROB_CPLT_MASK_WIDTH) + 1 + 3  // 234
+//   W_DisRobIO               = DECODE_WIDTH * (W_DisRobInst + 1 + 1)  // 1888
+//   W_RenDisInst             = 32 + (3 * AREG_IDX_WIDTH) + (4 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + INST_TYPE_WIDTH + 3 + 1 + 2 + 2 + 3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH + CSR_IDX_WIDTH + (2 * ROB_CPLT_MASK_WIDTH) + 2  // 252
+//   W_RenDisIO               = DECODE_WIDTH * (W_RenDisInst + 1)  // 2024
+//   W_DisRenIO               = 1  // 1
+//   W_WakeInfo               = 1 + PRF_IDX_WIDTH  // 12
+//   W_PrfAwakeIO             = LSU_LOAD_WB_WIDTH * W_WakeInfo  // 48
+//   W_IssAwakeIO             = MAX_WAKEUP_PORTS * W_WakeInfo  // 192
+//   W_DisIssUop              = (3 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 3 + 2 + 2 + 3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH + CSR_IDX_WIDTH + ROB_IDX_WIDTH + STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + 1 + UOP_TYPE_WIDTH  // 213
+//   W_DisIssIO               = IQ_NUM * MAX_IQ_DISPATCH_WIDTH * (1 + W_DisIssUop)  // 8560
+//   W_IssDisIO               = IQ_NUM * IQ_READY_NUM_WIDTH  // 55
+//   W_IssPrfUop              = (3 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 3 + 2 + 3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH + CSR_IDX_WIDTH + ROB_IDX_WIDTH + STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + 1 + UOP_TYPE_WIDTH  // 211
+//   W_IssPrfIO               = ISSUE_WIDTH * (1 + W_IssPrfUop)  // 5088
+//   W_PrfExeUop              = 32 + 1 + 1 + 32 + (3 * PRF_IDX_WIDTH) + 64 + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 3 + 2 + 3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH + CSR_IDX_WIDTH + ROB_IDX_WIDTH + STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + 1 + UOP_TYPE_WIDTH  // 341
+//   W_PrfExeIO               = ISSUE_WIDTH * (1 + W_PrfExeUop)  // 8208
+//   W_ExePrfWbUop            = PRF_IDX_WIDTH + 32 + BR_MASK_WIDTH + 1 + UOP_TYPE_WIDTH  // 113
+//   W_ExePrfEntry            = 1 + W_ExePrfWbUop  // 114
+//   W_ExePrfIO               = (ISSUE_WIDTH + TOTAL_FU_COUNT) * W_ExePrfEntry  // 6156
+//   W_ExeIssIO               = ISSUE_WIDTH * MAX_UOP_TYPE  // 432
+//   W_ExuIdIO                = 1 + 32 + ROB_IDX_WIDTH + BR_TAG_WIDTH + FTQ_IDX_WIDTH + BR_MASK_WIDTH  // 122
+//   W_ExuRobUop              = 32 + 32 + ROB_IDX_WIDTH + 2 + 3 + UOP_TYPE_WIDTH + 1  // 86
+//   W_ExuRobIO               = ISSUE_WIDTH * (1 + W_ExuRobUop)  // 2088
+//   W_ExeCsrIO               = 1 + 1 + 12 + 32 + 32  // 78
+//   W_CsrExeIO               = 32  // 32
+//   W_CsrRobIO               = 1  // 1
+//   W_RobCsrIO               = 2  // 2
+//   W_CsrFrontIO             = 32 + 32  // 64
+//   W_CsrStatusIO            = 32 + 32 + 32 + 2  // 98
+//   W_DisLsuIO               = MAX_STQ_DISPATCH_WIDTH * (1 + BR_MASK_WIDTH + 3 + ROB_IDX_WIDTH + 1 + 1) + MAX_LDQ_DISPATCH_WIDTH * (1 + LDQ_IDX_WIDTH + BR_MASK_WIDTH + ROB_IDX_WIDTH + 1)  // 1336
+//   W_LsuDisIO               = STQ_IDX_WIDTH + 1 + W_STQ_COUNT + W_LDQ_COUNT + (LDQ_IDX_WIDTH * MAX_LDQ_DISPATCH_WIDTH) + MAX_LDQ_DISPATCH_WIDTH  // 110
+//   W_ExeLsuReqUop           = 32 + PRF_IDX_WIDTH + 3 + 7 + 1 + BR_MASK_WIDTH + ROB_IDX_WIDTH + STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + 1 + 1 + UOP_TYPE_WIDTH  // 155
+//   W_ExeLsuIO               = (LSU_AGU_COUNT + LSU_SDU_COUNT) * (1 + W_ExeLsuReqUop)  // 1872
+//   W_LsuExeRespUop          = 32 + 32 + PRF_IDX_WIDTH + BR_MASK_WIDTH + ROB_IDX_WIDTH + 1 + 2 + UOP_TYPE_WIDTH + 1  // 159
+//   W_LsuExeIO               = (LSU_LOAD_WB_WIDTH + LSU_STA_COUNT) * (1 + W_LsuExeRespUop)  // 1280
+//   W_LsuRobIO               = 1  // 1
+//   W_PeripheralReqIO        = 1 + 1 + 32 + 32 + 3  // 69
+//   W_PeripheralRespIO       = 1 + 1 + 32  // 34
+//   W_LoadReq                = 1 + 32 + 32 + 1  // 66
+//   W_StoreReq               = 1 + 32 + 32 + 8 + 32 + 1  // 106
+//   W_LoadResp               = 1 + 32 + 32 + 2  // 67
+//   W_StoreResp              = 1 + 2 + 32  // 35
+//   W_DCacheReqPorts         = (LSU_LDU_COUNT * W_LoadReq) + (LSU_STA_COUNT * W_StoreReq)  // 688
+//   W_DCacheRespPorts        = (LSU_LDU_COUNT * W_LoadResp) + (LSU_STA_COUNT * W_StoreResp)  // 408
+//   W_LsuDcacheIO            = W_DCacheReqPorts + LSU_LDU_WIDTH + 1  // 691
+//   W_DcacheLsuIO            = W_DCacheRespPorts + 1  // 409
+//   W_MMUReq                 = 1 + 32  // 33
+//   W_MMUResp                = 1 + 32 + 2  // 35
+//   W_LsuMMUIO               = (W_MMUReq * LSU_LDU_COUNT) + (W_MMUReq * LSU_STA_COUNT) + W_CsrStatusIO  // 362
+//   W_MMULsuIO               = (W_MMUResp * LSU_LDU_COUNT) + (W_MMUResp * LSU_STA_COUNT)  // 280
+//   W_FrontPreIO             = (32 * FETCH_WIDTH) + (32 * FETCH_WIDTH) + FETCH_WIDTH + FETCH_WIDTH + FETCH_WIDTH + (pcpn_t_BITS * FETCH_WIDTH) + (pcpn_t_BITS * FETCH_WIDTH) + (32 * FETCH_WIDTH) + (TAGE_IDX_WIDTH * FETCH_WIDTH * TN_MAX) + (TAGE_TAG_WIDTH * FETCH_WIDTH * TN_MAX) + FETCH_WIDTH + FETCH_WIDTH + (tage_scl_meta_sum_t_BITS * FETCH_WIDTH) + (BPU_SCL_META_NTABLE * BPU_SCL_META_IDX_BITS * FETCH_WIDTH) + FETCH_WIDTH + FETCH_WIDTH + FETCH_WIDTH + (BPU_LOOP_META_IDX_BITS * FETCH_WIDTH) + (BPU_LOOP_META_TAG_BITS * FETCH_WIDTH) + FETCH_WIDTH  // 5872
+//   W_PreIduQueueIn          = W_FrontPreIO + W_IduConsumeIO + W_RobBroadcastIO + W_RobCommitIO + W_ExuIdIO + W_FtqPrfPcReqIO + W_FtqRobPcReqIO  // 7199
+//   W_PreIduQueueOut         = W_PreFrontIO + W_PreIssueIO + W_FtqPrfPcRespIO + W_FtqRobPcRespIO  // 1520
+//   W_IduIn                  = W_PreIssueIO + W_RenDecIO + W_RobBroadcastIO + W_ExuIdIO  // 855
+//   W_IduOut                 = W_DecRenIO + W_DecBroadcastIO + W_IduConsumeIO + W_ExuIdIO  // 1932
+//   W_RenIn                  = W_DecRenIO + W_DecBroadcastIO + W_DisRenIO + W_RobBroadcastIO + W_RobCommitIO  // 2831
+//   W_RenOut                 = W_RenDecIO + W_RenDisIO  // 2025
+//   W_DisIn                  = W_RenDisIO + W_RobDisIO + W_IssDisIO + W_LsuDisIO + W_PrfAwakeIO + W_IssAwakeIO + W_RobBroadcastIO + W_DecBroadcastIO  // 2690
+//   W_DisOut                 = W_DisRenIO + W_DisRobIO + W_DisIssIO + W_DisLsuIO  // 11785
+//   W_IsuIn                  = W_DisIssIO + W_PrfAwakeIO + W_ExeIssIO + W_RobBroadcastIO + W_DecBroadcastIO  // 9286
+//   W_IsuOut                 = W_IssPrfIO + W_IssDisIO + W_IssAwakeIO  // 5335
+//   W_PrfIn                  = W_IssPrfIO + W_ExePrfIO + W_DecBroadcastIO + W_RobBroadcastIO + W_FtqPrfPcRespIO  // 12294
+//   W_PrfOut                 = W_PrfExeIO + W_PrfAwakeIO + W_FtqPrfPcReqIO  // 8412
+//   W_ExuIn                  = W_PrfExeIO + W_DecBroadcastIO + W_RobBroadcastIO + W_CsrExeIO + W_LsuExeIO + W_CsrStatusIO  // 9864
+//   W_ExuOut                 = W_ExePrfIO + W_ExeIssIO + W_ExeCsrIO + W_ExeLsuIO + W_ExuIdIO + W_ExuRobIO  // 10748
+//   W_RobIn                  = W_DisRobIO + W_CsrRobIO + W_LsuRobIO + W_DecBroadcastIO + W_ExuRobIO + W_FtqRobPcRespIO  // 4191
+//   W_RobOut                 = W_RobDisIO + W_RobCsrIO + W_RobCommitIO + W_RobBroadcastIO + W_FtqRobPcReqIO  // 1058
+//   W_CsrIn                  = W_ExeCsrIO + W_RobCsrIO + W_RobBroadcastIO  // 180
+//   W_CsrOut                 = W_CsrExeIO + W_CsrRobIO + W_CsrFrontIO + W_CsrStatusIO  // 195
+//   W_LsuIn                  = W_RobCommitIO + W_RobBroadcastIO + W_DecBroadcastIO + W_CsrStatusIO + W_DisLsuIO + W_ExeLsuIO + W_PeripheralRespIO + W_DcacheLsuIO + W_MMULsuIO  // 5203
+//   W_LsuOut                 = W_LsuDisIO + W_LsuRobIO + W_LsuExeIO + W_PeripheralReqIO + W_LsuDcacheIO + W_LsuMMUIO  // 2513
+//
+// 输入端口：
+//   front2pre_inst                        [(32 * FETCH_WIDTH)-1:0]                                           512 bit
+//   front2pre_pc                          [(32 * FETCH_WIDTH)-1:0]                                           512 bit
+//   front2pre_valid                       [FETCH_WIDTH-1:0]                                                  16 bit
+//   front2pre_predict_dir                 [FETCH_WIDTH-1:0]                                                  16 bit
+//   front2pre_alt_pred                    [FETCH_WIDTH-1:0]                                                  16 bit
+//   front2pre_altpcpn                     [(pcpn_t_BITS * FETCH_WIDTH)-1:0]                                  48 bit
+//   front2pre_pcpn                        [(pcpn_t_BITS * FETCH_WIDTH)-1:0]                                  48 bit
+//   front2pre_predict_next_fetch_address  [(32 * FETCH_WIDTH)-1:0]                                           512 bit
+//   front2pre_tage_idx                    [(TAGE_IDX_WIDTH * FETCH_WIDTH * TN_MAX)-1:0]                      768 bit
+//   front2pre_tage_tag                    [(TAGE_TAG_WIDTH * FETCH_WIDTH * TN_MAX)-1:0]                      512 bit
+//   front2pre_sc_used                     [FETCH_WIDTH-1:0]                                                  16 bit
+//   front2pre_sc_pred                     [FETCH_WIDTH-1:0]                                                  16 bit
+//   front2pre_sc_sum                      [(tage_scl_meta_sum_t_BITS * FETCH_WIDTH)-1:0]                     256 bit
+//   front2pre_sc_idx                      [(BPU_SCL_META_NTABLE * BPU_SCL_META_IDX_BITS * FETCH_WIDTH)-1:0]  2048 bit
+//   front2pre_loop_used                   [FETCH_WIDTH-1:0]                                                  16 bit
+//   front2pre_loop_hit                    [FETCH_WIDTH-1:0]                                                  16 bit
+//   front2pre_loop_pred                   [FETCH_WIDTH-1:0]                                                  16 bit
+//   front2pre_loop_idx                    [(BPU_LOOP_META_IDX_BITS * FETCH_WIDTH)-1:0]                       256 bit
+//   front2pre_loop_tag                    [(BPU_LOOP_META_TAG_BITS * FETCH_WIDTH)-1:0]                       256 bit
+//   front2pre_page_fault_inst             [FETCH_WIDTH-1:0]                                                  16 bit
+//   peripheral_resp                       [W_PeripheralRespIO-1:0]                                           34 bit
+//   dcache2lsu                            [W_DcacheLsuIO-1:0]                                                409 bit
+//   mmu2lsu_io                            [W_MMULsuIO-1:0]                                                   280 bit
+//
+// 输出端口：
+//   mispred         1                                         1 bit
+//   stall           1                                         1 bit
+//   flush           1                                         1 bit
+//   fence_i         1                                         1 bit
+//   itlb_flush      1                                         1 bit
+//   fire            [FETCH_WIDTH-1:0]                         16 bit
+//   redirect_pc     [31:0]                                    32 bit
+//   commit_entry    [(W_BackCommitEntry * COMMIT_WIDTH)-1:0]  2312 bit
+//   sstatus         [31:0]                                    32 bit
+//   mstatus         [31:0]                                    32 bit
+//   satp            [31:0]                                    32 bit
+//   privilege       [1:0]                                     2 bit
+//   peripheral_req  [W_PeripheralReqIO-1:0]                   69 bit
+//   lsu2dcache      [W_LsuDcacheIO-1:0]                       691 bit
+//   lsu2mmu_io      [W_LsuMMUIO-1:0]                          362 bit
+// -----------------------------------------------------------------------------
+
 module back_top #(
     // ---------------------------------------------------------------------
     // Core/backend shape constants.

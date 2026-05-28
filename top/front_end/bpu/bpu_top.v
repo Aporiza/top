@@ -240,6 +240,27 @@ module bpu_top #(
     wire [W_BpuQueueCombIn-1:0]            bpu_queue_input_bundle;
     wire [W_BpuQueueCombOut-1:0]           bpu_queue_payload;
 
+    // BPU 内部路由临时总线。
+    // 当前各 BSD 逻辑仍是占位实现，部分下游 comb 只需要上游大 bundle 的局部字段。
+    // 这里先显式拼成 route bundle，再按目标输入宽度取低位，避免 Verilog 隐式截断。
+    // 后续真实 BSD 字段拆分完成后，应把这些 route bundle 替换成按源码字段名拼接的输入。
+    wire [W_TypePredictorPreReadCombOut + W_BpuPostReadReqCombOut - 1:0]
+        type_pred_route_bundle;
+    wire [W_TagePreReadCombOut + W_BpuPostReadReqCombOut - 1:0]
+        tage_route_bundle;
+    wire [W_BtbPreReadCombOut + W_BpuPostReadReqCombOut - 1:0]
+        btb_post_read_req_route_bundle;
+    wire [W_BtbPostReadReqCombOut + W_BpuPostReadReqCombOut - 1:0]
+        btb_route_bundle;
+    wire [W_TypePredCombOut + W_TageCombOut + W_BtbCombOut - 1:0]
+        bpu_submodule_bind_route_bundle;
+    wire [W_BpuSubmoduleBindCombOut + W_TypePredCombOut + W_TageCombOut + W_BtbCombOut + W_BpuPostReadReqCombOut - 1:0]
+        bpu_predict_main_route_bundle;
+    wire [W_BpuPredictMainCombOut + W_TypePredCombOut + W_BpuPostReadReqCombOut + W_BpuIn - 1:0]
+        bpu_hist_route_bundle;
+    wire [W_BpuPredictMainCombOut + W_BpuIn - 1:0]
+        bpu_queue_route_bundle;
+
     // 组合链路输入拼接。
     // 这里仍是变量级 bundle，不直接暴露 pi/po；pi/po 只在各 comb wrapper 的 BSD 层出现。
     assign bpu_pre_read_req_input_bundle = bpu_in[W_BpuPreReadReqCombIn-1:0];
@@ -254,44 +275,62 @@ module bpu_top #(
         {(W_BpuPostReadReqCombIn-W_BpuPreReadReqCombOut){1'b0}},
         bpu_pre_read_req_payload
     };
-    assign type_pred_input_bundle = {
+    assign type_pred_route_bundle = {
         type_predictor_pre_read_payload,
         bpu_post_read_req_payload
     };
-    assign tage_input_bundle = {
+    assign type_pred_input_bundle = type_pred_route_bundle[W_TypePredCombIn-1:0];
+
+    assign tage_route_bundle = {
         tage_pre_read_payload,
         bpu_post_read_req_payload
     };
-    assign btb_post_read_req_input_bundle = {
+    assign tage_input_bundle = tage_route_bundle[W_TageCombIn-1:0];
+
+    assign btb_post_read_req_route_bundle = {
         btb_pre_read_payload,
         bpu_post_read_req_payload
     };
-    assign btb_input_bundle = {
+    assign btb_post_read_req_input_bundle =
+        btb_post_read_req_route_bundle[W_BtbPostReadReqCombIn-1:0];
+
+    assign btb_route_bundle = {
         btb_post_read_req_payload,
         bpu_post_read_req_payload
     };
-    assign bpu_submodule_bind_input_bundle = {
+    assign btb_input_bundle = btb_route_bundle[W_BtbCombIn-1:0];
+
+    assign bpu_submodule_bind_route_bundle = {
         type_pred_payload,
         tage_payload,
         btb_payload
     };
-    assign bpu_predict_main_input_bundle = {
+    assign bpu_submodule_bind_input_bundle =
+        bpu_submodule_bind_route_bundle[W_BpuSubmoduleBindCombIn-1:0];
+
+    assign bpu_predict_main_route_bundle = {
         bpu_submodule_bind_payload,
         type_pred_payload,
         tage_payload,
         btb_payload,
         bpu_post_read_req_payload
     };
-    assign bpu_hist_input_bundle = {
+    assign bpu_predict_main_input_bundle =
+        bpu_predict_main_route_bundle[W_BpuPredictMainCombIn-1:0];
+
+    assign bpu_hist_route_bundle = {
         bpu_predict_main_payload,
         type_pred_payload,
         bpu_post_read_req_payload,
         bpu_in
     };
-    assign bpu_queue_input_bundle = {
+    assign bpu_hist_input_bundle = bpu_hist_route_bundle[W_BpuHistCombIn-1:0];
+
+    assign bpu_queue_route_bundle = {
         bpu_predict_main_payload,
         bpu_in
     };
+    assign bpu_queue_input_bundle = bpu_queue_route_bundle[W_BpuQueueCombIn-1:0];
 
     // 第 1 组：预读请求阶段。
     // BPU 先生成统一预读请求，再分别送 TypePredictor/TAGE/BTB。

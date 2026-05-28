@@ -91,7 +91,9 @@ module front_front2back_write_comb_bsd_top #(
     output wire [W_FrontFront2backWriteCombOut-1:0] po
 );
 
+    localparam [W_FrontFront2backWriteCombOut-1:0] FRONT_FRONT2BACK_WRITE_ZERO = 0;
+
     // 当前是占位输出；后续真实 BSD 组合逻辑应替换这一行。
-    assign po = {W_FrontFront2backWriteCombOut{1'b0}};
+    assign po = FRONT_FRONT2BACK_WRITE_ZERO;
 
 endmodule

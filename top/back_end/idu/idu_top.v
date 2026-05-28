@@ -5,6 +5,69 @@
 // BackTop.cpp reads idu->br_latch; this wrapper keeps that crossing packed in
 // IduOut instead of exposing a separate non-aggregate port.
 
+// -----------------------------------------------------------------------------
+// 后端端口自查
+// 模块：idu_top
+// 文件：idu/idu_top.v:71
+// 来源：当前 back_end RTL module 声明
+// BSD 层：idu_bsd_top，实例名 u_idu_bsd_top，当前仓库未提供定义
+//
+// 输入端口：4 个，合计 855 bit
+// 输出端口：15 个，合计 2200 bit
+//
+// 参数：
+//   DECODE_WIDTH             = 8  // 8
+//   AREG_IDX_WIDTH           = 6  // 6
+//   PRF_IDX_WIDTH            = 11  // 11
+//   ROB_IDX_WIDTH            = 11  // 11
+//   STQ_IDX_WIDTH            = 9  // 9
+//   LDQ_IDX_WIDTH            = 9  // 9
+//   BR_TAG_WIDTH             = 6  // 6
+//   BR_MASK_WIDTH            = 64  // 64
+//   CSR_IDX_WIDTH            = 12  // 12
+//   FTQ_IDX_WIDTH            = 8  // 8
+//   FTQ_OFFSET_WIDTH         = 4  // 4
+//   INST_TYPE_WIDTH          = 5  // 5
+//   ROB_CPLT_MASK_WIDTH      = 3  // 3
+//   W_InstructionBufferEntry = 1 + 32 + 32 + 1 + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1  // 79
+//   W_PreIssueIO             = W_InstructionBufferEntry * DECODE_WIDTH  // 632
+//   W_RenDecIO               = 1  // 1
+//   W_RobBroadcastIO         = 7 + 5 + 32 + 32 + ROB_IDX_WIDTH + 1 + ROB_IDX_WIDTH + 1  // 100
+//   W_ExuIdIO                = 1 + 32 + ROB_IDX_WIDTH + BR_TAG_WIDTH + FTQ_IDX_WIDTH + BR_MASK_WIDTH  // 122
+//   W_DecRenInst             = 32 + (3 * AREG_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + INST_TYPE_WIDTH + 3 + 1 + 2 + 3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH + CSR_IDX_WIDTH + (2 * ROB_CPLT_MASK_WIDTH) + 2  // 206
+//   W_DecRenIO               = DECODE_WIDTH * (W_DecRenInst + 1)  // 1656
+//   W_DecBroadcastIO         = 1 + BR_MASK_WIDTH + BR_TAG_WIDTH + ROB_IDX_WIDTH + BR_MASK_WIDTH  // 146
+//   W_IduConsumeIO           = DECODE_WIDTH  // 8
+//   W_IduIn                  = W_PreIssueIO + W_RenDecIO + W_RobBroadcastIO + W_ExuIdIO  // 855
+//   W_IduOut                 = W_DecRenIO + W_DecBroadcastIO + W_IduConsumeIO + W_ExuIdIO  // 1932
+//
+// 输入端口：
+//   pre_issue  [W_PreIssueIO-1:0]      632 bit
+//   ren2dec    [W_RenDecIO-1:0]        1 bit
+//   rob_bcast  [W_RobBroadcastIO-1:0]  100 bit
+//   exu2id     [W_ExuIdIO-1:0]         122 bit
+//
+// 输出端口：
+//   dec2ren                        [W_DecRenIO-1:0]        1656 bit
+//   dec_bcast                      [W_DecBroadcastIO-1:0]  146 bit
+//   idu_consume                    [W_IduConsumeIO-1:0]    8 bit
+//   idu_br_latch                   [W_ExuIdIO-1:0]         122 bit
+//   dec_bcast_mispred              1                       1 bit
+//   dec_bcast_br_mask              [BR_MASK_WIDTH-1:0]     64 bit
+//   dec_bcast_br_id                [BR_TAG_WIDTH-1:0]      6 bit
+//   dec_bcast_redirect_rob_idx     [ROB_IDX_WIDTH-1:0]     11 bit
+//   dec_bcast_clear_mask           [BR_MASK_WIDTH-1:0]     64 bit
+//   idu_br_latch_mispred           1                       1 bit
+//   idu_br_latch_redirect_pc       [31:0]                  32 bit
+//   idu_br_latch_redirect_rob_idx  [ROB_IDX_WIDTH-1:0]     11 bit
+//   idu_br_latch_br_id             [BR_TAG_WIDTH-1:0]      6 bit
+//   idu_br_latch_ftq_idx           [FTQ_IDX_WIDTH-1:0]     8 bit
+//   idu_br_latch_clear_mask        [BR_MASK_WIDTH-1:0]     64 bit
+//
+// BSD 层端口：当前仓库只实例化该 bsd_top，未提供 module 定义。
+// 后续补 bsd_top 时，需要保持实例名和 pi/po 连接一致。
+// -----------------------------------------------------------------------------
+
 module idu_top #(
     parameter integer DECODE_WIDTH             = 8,
     parameter integer AREG_IDX_WIDTH           = 6,

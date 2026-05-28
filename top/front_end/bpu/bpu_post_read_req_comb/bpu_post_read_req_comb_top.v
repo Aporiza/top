@@ -61,8 +61,7 @@
 //   BPU_SCL_META_IDX_BITS  = 16
 //   BPU_LOOP_META_IDX_BITS = 16
 //   BPU_LOOP_META_TAG_BITS = 16
-//   tage_reset_ct
-r_t = TAGE_IDX_WIDTH + 11 = 23
+//   tage_reset_ctr_t = TAGE_IDX_WIDTH + 11 = 23
 //   tage_path_hist_t  = TAGE_SC_PATH_BITS = 16
 //
 // 自查确认：bpu_post_read_req_comb Input Bits = 7332, Output Bits = 22509。
@@ -102,7 +101,9 @@ module bpu_post_read_req_comb_bsd_top #(
     output wire [W_BpuPostReadReqCombOut-1:0] po
 );
 
+    localparam [W_BpuPostReadReqCombOut-1:0] BPU_POST_READ_REQ_ZERO = 0;
+
     // 当前是占位输出；后续真实 BSD 组合逻辑应替换这一行。
-    assign po = {W_BpuPostReadReqCombOut{1'b0}};
+    assign po = BPU_POST_READ_REQ_ZERO;
 
 endmodule

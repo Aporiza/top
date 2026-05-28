@@ -3,6 +3,93 @@
 //   RobOut = {rob2dis, rob2csr, rob_commit, rob_bcast, ftq_pc_req}
 // ROB entries, head/tail pointers and commit row storage stay internal.
 
+// -----------------------------------------------------------------------------
+// 后端端口自查
+// 模块：rob_top
+// 文件：rob/rob_top.v:93
+// 来源：当前 back_end RTL module 声明
+// BSD 层：rob_bsd_top，实例名 u_rob_bsd_top，当前仓库未提供定义
+//
+// 输入端口：6 个，合计 4191 bit
+// 输出端口：23 个，合计 1158 bit
+//
+// 参数：
+//   DECODE_WIDTH        = 8  // 8
+//   COMMIT_WIDTH        = DECODE_WIDTH  // 8
+//   AREG_IDX_WIDTH      = 6  // 6
+//   PRF_IDX_WIDTH       = 11  // 11
+//   ROB_IDX_WIDTH       = 11  // 11
+//   STQ_IDX_WIDTH       = 9  // 9
+//   LDQ_IDX_WIDTH       = 9  // 9
+//   BR_TAG_WIDTH        = 6  // 6
+//   BR_MASK_WIDTH       = 64  // 64
+//   CSR_IDX_WIDTH       = 12  // 12
+//   FTQ_IDX_WIDTH       = 8  // 8
+//   FTQ_OFFSET_WIDTH    = 4  // 4
+//   INST_TYPE_WIDTH     = 5  // 5
+//   UOP_TYPE_WIDTH      = 5  // 5
+//   ROB_CPLT_MASK_WIDTH = 3  // 3
+//   ISSUE_WIDTH         = 24  // 24
+//   ROB_NUM             = 2048  // 2048
+//   FTQ_ROB_PC_PORT_NUM = 1  // 1
+//   W_InstInfo          = 32 + (3 * AREG_IDX_WIDTH) + (4 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 2 + 3 + 2 + 2 + 3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH + CSR_IDX_WIDTH + ROB_IDX_WIDTH + STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + (2 * ROB_CPLT_MASK_WIDTH) + 1 + 6 + INST_TYPE_WIDTH  // 288
+//   W_InstEntry         = 1 + W_InstInfo  // 289
+//   W_DisRobInst        = 32 + (2 * AREG_IDX_WIDTH) + (2 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 2 + INST_TYPE_WIDTH + 1 + 1 + 3 + 7 + 32 + BR_MASK_WIDTH + ROB_IDX_WIDTH + STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + (2 * ROB_CPLT_MASK_WIDTH) + 1 + 3  // 234
+//   W_DisRobIO          = DECODE_WIDTH * (W_DisRobInst + 1 + 1)  // 1888
+//   W_CsrRobIO          = 1  // 1
+//   W_LsuRobIO          = 1  // 1
+//   W_DecBroadcastIO    = 1 + BR_MASK_WIDTH + BR_TAG_WIDTH + ROB_IDX_WIDTH + BR_MASK_WIDTH  // 146
+//   W_ExuRobUop         = 32 + 32 + ROB_IDX_WIDTH + 2 + 3 + UOP_TYPE_WIDTH + 1  // 86
+//   W_ExuRobIO          = ISSUE_WIDTH * (1 + W_ExuRobUop)  // 2088
+//   W_FtqPcReadReq      = 1 + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH  // 13
+//   W_FtqPcReadResp     = 1 + 1 + 32 + 1 + 32  // 67
+//   W_FtqRobPcReqIO     = FTQ_ROB_PC_PORT_NUM * W_FtqPcReadReq  // 13
+//   W_FtqRobPcRespIO    = FTQ_ROB_PC_PORT_NUM * W_FtqPcReadResp  // 67
+//   W_RobDisIO          = 3 + ROB_IDX_WIDTH + 1  // 15
+//   W_RobCsrIO          = 2  // 2
+//   W_RobCommitInst     = 32 + AREG_IDX_WIDTH + (2 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 2 + 1 + 7 + ROB_IDX_WIDTH + 1 + STQ_IDX_WIDTH + 1 + 4 + INST_TYPE_WIDTH + 1  // 115
+//   W_RobCommitIO       = COMMIT_WIDTH * (1 + W_RobCommitInst)  // 928
+//   W_RobBroadcastIO    = 7 + 5 + 32 + 32 + ROB_IDX_WIDTH + 1 + ROB_IDX_WIDTH + 1  // 100
+//   W_RobIn             = W_DisRobIO + W_CsrRobIO + W_LsuRobIO + W_DecBroadcastIO + W_ExuRobIO + W_FtqRobPcRespIO  // 4191
+//   W_RobOut            = W_RobDisIO + W_RobCsrIO + W_RobCommitIO + W_RobBroadcastIO + W_FtqRobPcReqIO  // 1058
+//
+// 输入端口：
+//   dis2rob          [W_DisRobIO-1:0]        1888 bit
+//   csr2rob          [W_CsrRobIO-1:0]        1 bit
+//   lsu2rob          [W_LsuRobIO-1:0]        1 bit
+//   dec_bcast        [W_DecBroadcastIO-1:0]  146 bit
+//   exu2rob          [W_ExuRobIO-1:0]        2088 bit
+//   ftq_rob_pc_resp  [W_FtqRobPcRespIO-1:0]  67 bit
+//
+// 输出端口：
+//   rob2dis                            [W_RobDisIO-1:0]        15 bit
+//   rob2csr                            [W_RobCsrIO-1:0]        2 bit
+//   rob_commit                         [W_RobCommitIO-1:0]     928 bit
+//   rob_bcast                          [W_RobBroadcastIO-1:0]  100 bit
+//   ftq_rob_pc_req                     [W_FtqRobPcReqIO-1:0]   13 bit
+//   rob_bcast_flush                    1                       1 bit
+//   rob_bcast_mret                     1                       1 bit
+//   rob_bcast_sret                     1                       1 bit
+//   rob_bcast_ecall                    1                       1 bit
+//   rob_bcast_exception                1                       1 bit
+//   rob_bcast_fence                    1                       1 bit
+//   rob_bcast_fence_i                  1                       1 bit
+//   rob_bcast_page_fault_inst          1                       1 bit
+//   rob_bcast_page_fault_load          1                       1 bit
+//   rob_bcast_page_fault_store         1                       1 bit
+//   rob_bcast_illegal_inst             1                       1 bit
+//   rob_bcast_interrupt                1                       1 bit
+//   rob_bcast_trap_val                 [31:0]                  32 bit
+//   rob_bcast_pc                       [31:0]                  32 bit
+//   rob_bcast_head_rob_idx             [ROB_IDX_WIDTH-1:0]     11 bit
+//   rob_bcast_head_valid               1                       1 bit
+//   rob_bcast_head_incomplete_rob_idx  [ROB_IDX_WIDTH-1:0]     11 bit
+//   rob_bcast_head_incomplete_valid    1                       1 bit
+//
+// BSD 层端口：当前仓库只实例化该 bsd_top，未提供 module 定义。
+// 后续补 bsd_top 时，需要保持实例名和 pi/po 连接一致。
+// -----------------------------------------------------------------------------
+
 module rob_top #(
     parameter integer DECODE_WIDTH        = 8,
     parameter integer COMMIT_WIDTH        = DECODE_WIDTH,

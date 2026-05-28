@@ -134,6 +134,7 @@ module instruction_FIFO_comb_bsd_top #(
     localparam W_InstructionHighData = W_InstructionPayload - W_InstructionFifoLowData;
     localparam W_InstructionCtrlOut = W_InstructionFifoCombOut - W_InstructionFifoOut;
     localparam PTR_BITS = 5;  // INSTRUCTION_FIFO_SIZE=32
+    localparam [PTR_BITS-1:0] INSTRUCTION_FIFO_LAST_PTR = {PTR_BITS{1'b1}};
 
     wire [W_InstructionFifoIn-1:0]       fifo_in;
     wire [W_InstructionFifoReadData-1:0] unused_fifo_read_data;
@@ -237,7 +238,7 @@ module instruction_FIFO_comb_bsd_top #(
         end else if (refetch) begin
             fifo_head_next = {PTR_BITS{1'b0}};
         end else if (pop_existing) begin
-            if (fifo_head == (INSTRUCTION_FIFO_SIZE - 1)) begin
+            if (fifo_head == INSTRUCTION_FIFO_LAST_PTR) begin
                 fifo_head_next = {PTR_BITS{1'b0}};
             end else begin
                 fifo_head_next = fifo_head + 1'b1;
@@ -252,7 +253,7 @@ module instruction_FIFO_comb_bsd_top #(
         end else if (refetch) begin
             fifo_tail_next = {PTR_BITS{1'b0}};
         end else if (store_write) begin
-            if (fifo_tail == (INSTRUCTION_FIFO_SIZE - 1)) begin
+            if (fifo_tail == INSTRUCTION_FIFO_LAST_PTR) begin
                 fifo_tail_next = {PTR_BITS{1'b0}};
             end else begin
                 fifo_tail_next = fifo_tail + 1'b1;

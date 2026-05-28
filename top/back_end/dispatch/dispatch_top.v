@@ -4,6 +4,79 @@
 //   DisOut = {dis2ren, dis2rob, dis2iss, dis2lsu}
 // Busy-table, dispatch cache and allocation bookkeeping remain internal.
 
+// -----------------------------------------------------------------------------
+// 后端端口自查
+// 模块：dispatch_top
+// 文件：dispatch/dispatch_top.v:80
+// 来源：当前 back_end RTL module 声明
+// BSD 层：dispatch_bsd_top，实例名 u_dispatch_bsd_top，当前仓库未提供定义
+//
+// 输入端口：8 个，合计 2690 bit
+// 输出端口：4 个，合计 11785 bit
+//
+// 参数：
+//   DECODE_WIDTH           = 8  // 8
+//   AREG_IDX_WIDTH         = 6  // 6
+//   PRF_IDX_WIDTH          = 11  // 11
+//   ROB_IDX_WIDTH          = 11  // 11
+//   STQ_IDX_WIDTH          = 9  // 9
+//   LDQ_IDX_WIDTH          = 9  // 9
+//   BR_TAG_WIDTH           = 6  // 6
+//   BR_MASK_WIDTH          = 64  // 64
+//   CSR_IDX_WIDTH          = 12  // 12
+//   FTQ_IDX_WIDTH          = 8  // 8
+//   FTQ_OFFSET_WIDTH       = 4  // 4
+//   INST_TYPE_WIDTH        = 5  // 5
+//   UOP_TYPE_WIDTH         = 5  // 5
+//   ROB_CPLT_MASK_WIDTH    = 3  // 3
+//   IQ_NUM                 = 5  // 5
+//   IQ_READY_NUM_WIDTH     = 11  // 11
+//   MAX_IQ_DISPATCH_WIDTH  = DECODE_WIDTH  // 8
+//   MAX_STQ_DISPATCH_WIDTH = DECODE_WIDTH  // 8
+//   MAX_LDQ_DISPATCH_WIDTH = DECODE_WIDTH  // 8
+//   LSU_LOAD_WB_WIDTH      = 4  // 4
+//   MAX_WAKEUP_PORTS       = 16  // 16
+//   W_STQ_COUNT            = 10  // 10
+//   W_LDQ_COUNT            = 10  // 10
+//   W_RenDisInst           = 32 + (3 * AREG_IDX_WIDTH) + (4 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + INST_TYPE_WIDTH + 3 + 1 + 2 + 2 + 3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH + CSR_IDX_WIDTH + (2 * ROB_CPLT_MASK_WIDTH) + 2  // 252
+//   W_RenDisIO             = DECODE_WIDTH * (W_RenDisInst + 1)  // 2024
+//   W_RobDisIO             = 3 + ROB_IDX_WIDTH + 1  // 15
+//   W_IssDisIO             = IQ_NUM * IQ_READY_NUM_WIDTH  // 55
+//   W_LsuDisIO             = STQ_IDX_WIDTH + 1 + W_STQ_COUNT + W_LDQ_COUNT + (LDQ_IDX_WIDTH * MAX_LDQ_DISPATCH_WIDTH) + MAX_LDQ_DISPATCH_WIDTH  // 110
+//   W_WakeInfo             = 1 + PRF_IDX_WIDTH  // 12
+//   W_PrfAwakeIO           = LSU_LOAD_WB_WIDTH * W_WakeInfo  // 48
+//   W_IssAwakeIO           = MAX_WAKEUP_PORTS * W_WakeInfo  // 192
+//   W_RobBroadcastIO       = 7 + 5 + 32 + 32 + ROB_IDX_WIDTH + 1 + ROB_IDX_WIDTH + 1  // 100
+//   W_DecBroadcastIO       = 1 + BR_MASK_WIDTH + BR_TAG_WIDTH + ROB_IDX_WIDTH + BR_MASK_WIDTH  // 146
+//   W_DisRenIO             = 1  // 1
+//   W_DisRobInst           = 32 + (2 * AREG_IDX_WIDTH) + (2 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 2 + INST_TYPE_WIDTH + 1 + 1 + 3 + 7 + 32 + BR_MASK_WIDTH + ROB_IDX_WIDTH + STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + (2 * ROB_CPLT_MASK_WIDTH) + 1 + 3  // 234
+//   W_DisRobIO             = DECODE_WIDTH * (W_DisRobInst + 1 + 1)  // 1888
+//   W_DisIssUop            = (3 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 3 + 2 + 2 + 3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH + CSR_IDX_WIDTH + ROB_IDX_WIDTH + STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + 1 + UOP_TYPE_WIDTH  // 213
+//   W_DisIssIO             = IQ_NUM * MAX_IQ_DISPATCH_WIDTH * (1 + W_DisIssUop)  // 8560
+//   W_DisLsuIO             = MAX_STQ_DISPATCH_WIDTH * (1 + BR_MASK_WIDTH + 3 + ROB_IDX_WIDTH + 1 + 1) + MAX_LDQ_DISPATCH_WIDTH * (1 + LDQ_IDX_WIDTH + BR_MASK_WIDTH + ROB_IDX_WIDTH + 1)  // 1336
+//   W_DisIn                = W_RenDisIO + W_RobDisIO + W_IssDisIO + W_LsuDisIO + W_PrfAwakeIO + W_IssAwakeIO + W_RobBroadcastIO + W_DecBroadcastIO  // 2690
+//   W_DisOut               = W_DisRenIO + W_DisRobIO + W_DisIssIO + W_DisLsuIO  // 11785
+//
+// 输入端口：
+//   ren2dis    [W_RenDisIO-1:0]        2024 bit
+//   rob2dis    [W_RobDisIO-1:0]        15 bit
+//   iss2dis    [W_IssDisIO-1:0]        55 bit
+//   lsu2dis    [W_LsuDisIO-1:0]        110 bit
+//   prf_awake  [W_PrfAwakeIO-1:0]      48 bit
+//   iss_awake  [W_IssAwakeIO-1:0]      192 bit
+//   rob_bcast  [W_RobBroadcastIO-1:0]  100 bit
+//   dec_bcast  [W_DecBroadcastIO-1:0]  146 bit
+//
+// 输出端口：
+//   dis2ren  [W_DisRenIO-1:0]  1 bit
+//   dis2rob  [W_DisRobIO-1:0]  1888 bit
+//   dis2iss  [W_DisIssIO-1:0]  8560 bit
+//   dis2lsu  [W_DisLsuIO-1:0]  1336 bit
+//
+// BSD 层端口：当前仓库只实例化该 bsd_top，未提供 module 定义。
+// 后续补 bsd_top 时，需要保持实例名和 pi/po 连接一致。
+// -----------------------------------------------------------------------------
+
 module dispatch_top #(
     parameter integer DECODE_WIDTH           = 8,
     parameter integer AREG_IDX_WIDTH         = 6,

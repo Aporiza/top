@@ -4,6 +4,75 @@
 // Fu2ExuIO/Exu2FuIO are self-connected inside Exu.cpp and are not expanded at
 // the backend top boundary.
 
+// -----------------------------------------------------------------------------
+// 后端端口自查
+// 模块：exu_top
+// 文件：exu/exu_top.v:76
+// 来源：当前 back_end RTL module 声明
+// BSD 层：exu_bsd_top，实例名 u_exu_bsd_top，当前仓库未提供定义
+//
+// 输入端口：6 个，合计 9864 bit
+// 输出端口：6 个，合计 10748 bit
+//
+// 参数：
+//   ISSUE_WIDTH       = 24  // 24
+//   TOTAL_FU_COUNT    = 30  // 30
+//   PRF_IDX_WIDTH     = 11  // 11
+//   ROB_IDX_WIDTH     = 11  // 11
+//   STQ_IDX_WIDTH     = 9  // 9
+//   LDQ_IDX_WIDTH     = 9  // 9
+//   BR_TAG_WIDTH      = 6  // 6
+//   BR_MASK_WIDTH     = 64  // 64
+//   CSR_IDX_WIDTH     = 12  // 12
+//   FTQ_IDX_WIDTH     = 8  // 8
+//   FTQ_OFFSET_WIDTH  = 4  // 4
+//   UOP_TYPE_WIDTH    = 5  // 5
+//   MAX_UOP_TYPE      = 18  // 18
+//   LSU_LOAD_WB_WIDTH = 4  // 4
+//   LSU_STA_COUNT     = 4  // 4
+//   LSU_AGU_COUNT     = 8  // 8
+//   LSU_SDU_COUNT     = 4  // 4
+//   W_PrfExeUop       = 32 + 1 + 1 + 32 + (3 * PRF_IDX_WIDTH) + 64 + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 3 + 2 + 3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH + CSR_IDX_WIDTH + ROB_IDX_WIDTH + STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + 1 + UOP_TYPE_WIDTH  // 341
+//   W_PrfExeIO        = ISSUE_WIDTH * (1 + W_PrfExeUop)  // 8208
+//   W_DecBroadcastIO  = 1 + BR_MASK_WIDTH + BR_TAG_WIDTH + ROB_IDX_WIDTH + BR_MASK_WIDTH  // 146
+//   W_RobBroadcastIO  = 7 + 5 + 32 + 32 + ROB_IDX_WIDTH + 1 + ROB_IDX_WIDTH + 1  // 100
+//   W_CsrExeIO        = 32  // 32
+//   W_LsuExeRespUop   = 32 + 32 + PRF_IDX_WIDTH + BR_MASK_WIDTH + ROB_IDX_WIDTH + 1 + 2 + UOP_TYPE_WIDTH + 1  // 159
+//   W_LsuExeIO        = (LSU_LOAD_WB_WIDTH + LSU_STA_COUNT) * (1 + W_LsuExeRespUop)  // 1280
+//   W_CsrStatusIO     = 32 + 32 + 32 + 2  // 98
+//   W_ExePrfWbUop     = PRF_IDX_WIDTH + 32 + BR_MASK_WIDTH + 1 + UOP_TYPE_WIDTH  // 113
+//   W_ExePrfEntry     = 1 + W_ExePrfWbUop  // 114
+//   W_ExePrfIO        = (ISSUE_WIDTH + TOTAL_FU_COUNT) * W_ExePrfEntry  // 6156
+//   W_ExeIssIO        = ISSUE_WIDTH * MAX_UOP_TYPE  // 432
+//   W_ExeCsrIO        = 1 + 1 + 12 + 32 + 32  // 78
+//   W_ExeLsuReqUop    = 32 + PRF_IDX_WIDTH + 3 + 7 + 1 + BR_MASK_WIDTH + ROB_IDX_WIDTH + STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + 1 + 1 + UOP_TYPE_WIDTH  // 155
+//   W_ExeLsuIO        = (LSU_AGU_COUNT + LSU_SDU_COUNT) * (1 + W_ExeLsuReqUop)  // 1872
+//   W_ExuIdIO         = 1 + 32 + ROB_IDX_WIDTH + BR_TAG_WIDTH + FTQ_IDX_WIDTH + BR_MASK_WIDTH  // 122
+//   W_ExuRobUop       = 32 + 32 + ROB_IDX_WIDTH + 2 + 3 + UOP_TYPE_WIDTH + 1  // 86
+//   W_ExuRobIO        = ISSUE_WIDTH * (1 + W_ExuRobUop)  // 2088
+//   W_ExuIn           = W_PrfExeIO + W_DecBroadcastIO + W_RobBroadcastIO + W_CsrExeIO + W_LsuExeIO + W_CsrStatusIO  // 9864
+//   W_ExuOut          = W_ExePrfIO + W_ExeIssIO + W_ExeCsrIO + W_ExeLsuIO + W_ExuIdIO + W_ExuRobIO  // 10748
+//
+// 输入端口：
+//   prf2exe     [W_PrfExeIO-1:0]        8208 bit
+//   dec_bcast   [W_DecBroadcastIO-1:0]  146 bit
+//   rob_bcast   [W_RobBroadcastIO-1:0]  100 bit
+//   csr2exe     [W_CsrExeIO-1:0]        32 bit
+//   lsu2exe     [W_LsuExeIO-1:0]        1280 bit
+//   csr_status  [W_CsrStatusIO-1:0]     98 bit
+//
+// 输出端口：
+//   exe2prf  [W_ExePrfIO-1:0]  6156 bit
+//   exe2iss  [W_ExeIssIO-1:0]  432 bit
+//   exe2csr  [W_ExeCsrIO-1:0]  78 bit
+//   exe2lsu  [W_ExeLsuIO-1:0]  1872 bit
+//   exu2id   [W_ExuIdIO-1:0]   122 bit
+//   exu2rob  [W_ExuRobIO-1:0]  2088 bit
+//
+// BSD 层端口：当前仓库只实例化该 bsd_top，未提供 module 定义。
+// 后续补 bsd_top 时，需要保持实例名和 pi/po 连接一致。
+// -----------------------------------------------------------------------------
+
 module exu_top #(
     parameter integer ISSUE_WIDTH            = 24,
     parameter integer TOTAL_FU_COUNT         = 30,
