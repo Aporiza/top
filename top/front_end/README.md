@@ -106,15 +106,15 @@ front_top 直接连接 14 个前端 comb wrapper 和 1 个 bpu_top，bpu_top 内
 - 27 个 `*_comb_top.v` wrapper
 - 27 个对应 `*_bsd_top` 真实逻辑
 - `filelist.f`
-- 上层 testbench 或 `top_top.v` 提供 `clk/reset`、ICache 输入、后端反馈输入
+- 上层 testbench 或 `top_top.v` 提供 `clk/rst_n`、ICache 输入、后端反馈输入；`reset` 仍表示模拟器同步清空控制信号，不作为硬复位端口。
 
 当前 `*_bsd_top` 分为两类：
 
-- `fifo/` 下的 `fetch_address_FIFO_comb`、`instruction_FIFO_comb`、`PTAB_comb`、`front2back_FIFO_comb` 不再等待外部 BSD 代码，已在前端包内直接用 Verilog RTL 实现内部状态，包含 `mem/head/tail/count`，支持 reset/refetch 清空、write/read、空队列写读旁路、empty/full/valid 状态更新。
+- `fifo/` 下的 `fetch_address_FIFO_comb`、`instruction_FIFO_comb`、`PTAB_comb`、`front2back_FIFO_comb` 不再等待外部 BSD 代码，当前已在前端包内实现组合请求模型：`*_comb_top` 负责变量级拼接，`*_comb_bsd_top` 只保留 `pi/po`，不接 `clk/rst_n`。真实 FIFO/PTAB 时序状态应在外层统一时序区维护。
 - `bpu/bpu_top.v` 已按模拟器 `BPU_TOP` 补顶层状态寄存器壳和周期写回位置；13 个 BPU comb 的真实 next-state 输出仍需后续接入。
 - 其余 `*_bsd_top` 多数仍是零输出占位，需要继续补真实组合逻辑。
 
-这四个 FIFO/PTAB 模块属于前端包自带 RTL，不是临时占位，也不是后续组员再提供 BSD 的空壳。需要注意的是，BPU 顶层寄存器壳已经补上，但 TAGE、BTB、TypePredictor 等预测器表项 RAM 以及各 BPU comb 的真实 next-state 逻辑仍需继续补。
+这四个 FIFO/PTAB 模块属于前端包自带逻辑，不是临时占位，也不是后续组员再提供 BSD 的空壳。需要注意的是，组合边界内不放时钟复位口；后续如果补完整 FIFO/PTAB 队列状态，应放在 `front_top` 或独立时序状态层统一管理。BPU 顶层寄存器壳已经补上，但 TAGE、BTB、TypePredictor 等预测器表项 RAM 以及各 BPU comb 的真实 next-state 逻辑仍需继续补。
 
 ## 3. 生效配置
 
@@ -158,7 +158,7 @@ front_top 直接连接 14 个前端 comb wrapper 和 1 个 bpu_top，bpu_top 内
 | `front-end/train_IO.h` | `FrontReadStageInputCombOut` 拆成 reset/refetch/read_enable 字段 | `front_read_stage_input_comb` 不再直接输出四个完整 FIFO 输入结构体。 |
 | `front-end/BPU/BPU.h` | BPU comb 输入从 `InputPayload + ReadData` 拆成显式字段 | BPU wrapper 的变量级端口应保持显式信号/语义 bundle，最后一层再拼 `pi/po`。 |
 | `front-end/train_IO.h` / `BPU.h` | `FrontBpuControlCombOut` 为 `3 + BPU_in + BPU_TOP::InputPayload` | `BPU_TOP::InputPayload` 比 `BPU_in` 少 `reset` 位，因此该 comb 输出为 `3 + 2739 + 2738 = 5480`。 |
-| FIFO/PTAB cpp | 新增模型类并改为 `seq_write(req)` | `fetch_address_FIFO`、`instruction_FIFO`、`PTAB`、`front2back_FIFO` 四个模块需要直接实现 Verilog FIFO/PTAB 状态。 |
+| FIFO/PTAB cpp | 新增模型类并改为 `seq_write(req)` | `fetch_address_FIFO`、`instruction_FIFO`、`PTAB`、`front2back_FIFO` 四个 comb 先生成 `clear/push/pop` 请求；队列时序状态不放进 comb wrapper，应由外层统一写回。 |
 
 因此，本次切换到 `simulator-front` 不要求重算全局位宽，但要求文档、源码依据、FIFO/PTAB 行为说明都按新的请求式写回模型描述。
 
@@ -304,13 +304,13 @@ front.step_bpu()
 - `filelist.f` 中列出的前端文件路径存在。
 - 27 个正式 comb wrapper 均存在。
 - 每个 wrapper 均有对应 `*_bsd_top` 模块。
-- `fifo/` 下 4 个 FIFO/PTAB comb 已改为前端包直接 Verilog RTL 实现。
+- `fifo/` 下 4 个 FIFO/PTAB comb 已改为前端包直接生成组合请求，`comb_top -> bsd_top` 调用格式统一为变量拼接后接 `pi/po`。
 - `bpu/bpu_top.v` 已补 BPU 顶层状态寄存器壳，复位初值参考 `BPU_TOP::reset_internal_all()`。
 - `front_top_interactive.html` 和 `front_top_execution_flow.html` 已按 27 个 comb 路径整理。
 - 前后端接口按 simulator-front 配置去掉旧版 `commit_stall/front_stall` 残留。
 - 已重新核对 FIFO/PTAB comb 的 `CombIn/CombOut` 位宽，输入包按 `输入请求 + 队首快照` 计算，输出包按 `状态输出 + 请求输出` 计算。
 - 已重新核对 BPU 内部 13 个 comb 的接口位宽，`bpu_top.v` 不再把所有 BPU 子 comb 都传成 `W_BpuOut=4949`。
-- 已检查 FIFO/PTAB RTL 写法：未使用 `function/endfunction`、`+:` 索引切片、`do_clear = reset || refetch`，`reset` 与 `refetch` 在时序分支中分开处理。
+- 已检查 FIFO/PTAB comb 写法：`*_comb_top` 和 `*_comb_bsd_top` 均不接 `clk/rst_n`，内部未使用 `function/endfunction`、`+:` 索引切片，`reset` 与 `refetch` 在组合清空请求中分开判断。
 
 ### 8.1 本轮位宽修正
 
