@@ -33205,12 +33205,12 @@
         {
           "direction": "input",
           "width": "1",
-          "name": "aclk"
+          "name": "clk"
         },
         {
           "direction": "input",
           "width": "1",
-          "name": "aresetn"
+          "name": "rst_n"
         },
         {
           "direction": "input",
@@ -33970,12 +33970,12 @@
         {
           "direction": "input",
           "width": "1",
-          "name": "aclk"
+          "name": "clk"
         },
         {
           "direction": "input",
           "width": "1",
-          "name": "aresetn"
+          "name": "rst_n"
         },
         {
           "direction": "input",
