@@ -1,10 +1,10 @@
-// ffc IDU 边界的 BSD 封装。
+// simulator-main 默认配置 IDU 边界的 BSD 封装。
 //
 // 参考结构体：
 //   IduIn  = {issue, ren2dec, rob_bcast, exu2id}
 //   IduOut = {dec2ren, dec_bcast, idu_consume}
 //
-// BSD 接口：
+// BSD 接口规范：
 //   u_idu_bsd_top(clk, rst_n, pi, po)
 //   pi = {pre_issue, ren2dec, rob_bcast, exu2id}
 //   po = {dec2ren, dec_bcast, idu_consume, idu_br_latch}
@@ -17,20 +17,17 @@
 module idu_top #(
     parameter integer DECODE_WIDTH             = 8,
     parameter integer AREG_IDX_WIDTH           = 6,
-    parameter integer PRF_IDX_WIDTH            = 9,
-    parameter integer ROB_IDX_WIDTH            = 9,
+    parameter integer PRF_IDX_WIDTH            = 7,
+    parameter integer ROB_IDX_WIDTH            = 7,
     parameter integer STQ_IDX_WIDTH            = 6,
     parameter integer LDQ_IDX_WIDTH            = 6,
     parameter integer BR_TAG_WIDTH             = 6,
     parameter integer BR_MASK_WIDTH            = 64,
     parameter integer CSR_IDX_WIDTH            = 12,
-    parameter integer FTQ_IDX_WIDTH            = 7,
+    parameter integer FTQ_IDX_WIDTH            = 6,
     parameter integer FTQ_OFFSET_WIDTH         = 4,
     parameter integer INST_TYPE_WIDTH          = 5,
     parameter integer ROB_CPLT_MASK_WIDTH      = 3,
-    parameter integer W_TmaMeta              = 4,
-    parameter integer W_DebugMeta            = 32 + 32 + 8 + 1 + 64,
-    parameter integer W_RobDisTmaMeta        = 3,
     parameter integer W_InstructionBufferEntry =
         1 + 32 + 32 + 1 + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1,
     parameter integer W_PreIssueIO             = W_InstructionBufferEntry * DECODE_WIDTH,
@@ -42,7 +39,7 @@ module idu_top #(
     parameter integer W_DecRenInst             =
         32 + (3 * AREG_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 +
         INST_TYPE_WIDTH + 3 + 1 + 2 + 3 + 7 + 32 + BR_TAG_WIDTH +
-        BR_MASK_WIDTH + CSR_IDX_WIDTH + (2 * ROB_CPLT_MASK_WIDTH) + 2 + W_TmaMeta + W_DebugMeta,
+        BR_MASK_WIDTH + CSR_IDX_WIDTH + (2 * ROB_CPLT_MASK_WIDTH) + 2,
     parameter integer W_DecRenIO               = DECODE_WIDTH * (W_DecRenInst + 1),
     parameter integer W_DecBroadcastIO         =
         1 + BR_MASK_WIDTH + BR_TAG_WIDTH + ROB_IDX_WIDTH + BR_MASK_WIDTH,
@@ -187,8 +184,6 @@ module idu_top #(
         dec2ren_uop_cplt_mask;
     wire [DECODE_WIDTH-1:0]                 dec2ren_uop_page_fault_inst;
     wire [DECODE_WIDTH-1:0]                 dec2ren_uop_illegal_inst;
-    wire [(W_TmaMeta * DECODE_WIDTH)-1:0]   dec2ren_uop_tma;
-    wire [(W_DebugMeta * DECODE_WIDTH)-1:0] dec2ren_uop_dbg;
     assign {
         dec2ren_uop_diag_val,
         dec2ren_uop_dest_areg,
@@ -213,9 +208,7 @@ module idu_top #(
         dec2ren_uop_expect_mask,
         dec2ren_uop_cplt_mask,
         dec2ren_uop_page_fault_inst,
-        dec2ren_uop_illegal_inst,
-        dec2ren_uop_tma,
-        dec2ren_uop_dbg
+        dec2ren_uop_illegal_inst
     } = dec2ren_uop;
 
     assign {

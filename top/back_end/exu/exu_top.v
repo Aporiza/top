@@ -1,46 +1,42 @@
-// ffc EXU 边界的 BSD 封装。
+// simulator-main 默认配置 EXU 边界的 BSD 封装。
 //
 // BackTop 一级连接关系：
 //   ExuIn  = {prf2exe, dec_bcast, rob_bcast, csr2exe, lsu2exe,
-//             ftq_exu_pc_resp}
-//   ExuOut = {exe2prf, exe2iss, exe2csr, exe2lsu, exu2id, exu2rob,
-//             ftq_exu_pc_req}
+//             csr_status}
+//   ExuOut = {exe2prf, exe2iss, exe2csr, exe2lsu, exu2id, exu2rob}
 //
-// BSD 接口：
+// BSD 接口规范：
 //   u_exu_bsd_top(clk, rst_n, pi, po)
-//   pi = {prf2exe, dec_bcast, rob_bcast, csr2exe, lsu2exe, ftq_exu_pc_resp}
-//   po = {exe2prf, exe2iss, exe2csr, exe2lsu, exu2id, exu2rob,
-//         ftq_exu_pc_req}
+//   pi = {prf2exe, dec_bcast, rob_bcast, csr2exe, lsu2exe, csr_status}
+//   po = {exe2prf, exe2iss, exe2csr, exe2lsu, exu2id, exu2rob}
 //
 // Fu2ExuIO/Exu2FuIO 属于 EXU 内部功能单元接口，留在 EXU BSD 模型内部。
-// 这里不接 csr_status，保持和 ffc BackTop.cpp 的 EXU 一级边界一致。
+// main 版 EXU 重新接入 csr_status，CSR 读写和异常相关逻辑都在 EXU 内部使用。
 
 
 module exu_top #(
-    parameter integer ISSUE_WIDTH         = 15,
-    parameter integer TOTAL_FU_COUNT      = 19,
-    parameter integer PRF_IDX_WIDTH       = 9,
-    parameter integer ROB_IDX_WIDTH       = 9,
+    parameter integer ISSUE_WIDTH         = 22,
+    parameter integer TOTAL_FU_COUNT      = 28,
+    parameter integer PRF_IDX_WIDTH       = 7,
+    parameter integer ROB_IDX_WIDTH       = 7,
     parameter integer STQ_IDX_WIDTH       = 6,
     parameter integer LDQ_IDX_WIDTH       = 6,
     parameter integer BR_TAG_WIDTH        = 6,
     parameter integer BR_MASK_WIDTH       = 64,
     parameter integer CSR_IDX_WIDTH       = 12,
-    parameter integer FTQ_IDX_WIDTH       = 7,
+    parameter integer FTQ_IDX_WIDTH       = 6,
     parameter integer FTQ_OFFSET_WIDTH    = 4,
     parameter integer UOP_TYPE_WIDTH      = 5,
     parameter integer MAX_UOP_TYPE        = 18,
-    parameter integer W_DebugMeta            = 32 + 32 + 8 + 1 + 64,
-    parameter integer LSU_LOAD_WB_WIDTH   = 3,
-    parameter integer LSU_STA_COUNT       = 2,
-    parameter integer LSU_AGU_COUNT       = 5,
-    parameter integer LSU_SDU_COUNT       = 2,
-    parameter integer FTQ_EXU_PC_PORT_NUM = 8,
+    parameter integer LSU_LOAD_WB_WIDTH   = 4,
+    parameter integer LSU_STA_COUNT       = 4,
+    parameter integer LSU_AGU_COUNT       = 8,
+    parameter integer LSU_SDU_COUNT       = 4,
     parameter integer W_PrfExeUop         =
-        (3 * PRF_IDX_WIDTH) + 64 +
+        32 + 1 + 1 + 32 + (3 * PRF_IDX_WIDTH) + 64 +
         FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 3 + 2 + 3 + 7 + 32 +
         BR_TAG_WIDTH + BR_MASK_WIDTH + CSR_IDX_WIDTH + ROB_IDX_WIDTH +
-        STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + 1 + UOP_TYPE_WIDTH + W_DebugMeta,
+        STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + 1 + UOP_TYPE_WIDTH,
     parameter integer W_PrfExeIO          = ISSUE_WIDTH * (1 + W_PrfExeUop),
     parameter integer W_DecBroadcastIO    =
         1 + BR_MASK_WIDTH + BR_TAG_WIDTH + ROB_IDX_WIDTH + BR_MASK_WIDTH,
@@ -49,7 +45,7 @@ module exu_top #(
     parameter integer W_CsrExeIO          = 32,
     parameter integer W_LsuExeRespUop     =
         32 + 32 + PRF_IDX_WIDTH + BR_MASK_WIDTH + ROB_IDX_WIDTH + 1 +
-        2 + UOP_TYPE_WIDTH + 1 + W_DebugMeta,
+        2 + UOP_TYPE_WIDTH + 1,
     parameter integer W_LsuExeIO          =
         (LSU_LOAD_WB_WIDTH + LSU_STA_COUNT) * (1 + W_LsuExeRespUop),
     parameter integer W_ExePrfWbUop       =
@@ -57,28 +53,25 @@ module exu_top #(
     parameter integer W_ExePrfEntry       = 1 + W_ExePrfWbUop,
     parameter integer W_ExePrfIO          =
         (ISSUE_WIDTH + TOTAL_FU_COUNT) * W_ExePrfEntry,
-    parameter integer W_ExeIssIO          = ISSUE_WIDTH + (ISSUE_WIDTH * MAX_UOP_TYPE),
+    parameter integer W_ExeIssIO          = ISSUE_WIDTH * MAX_UOP_TYPE,
     parameter integer W_ExeCsrIO          = 1 + 1 + 12 + 32 + 32,
     parameter integer W_ExeLsuReqUop      =
         32 + PRF_IDX_WIDTH + 3 + 7 + 1 + BR_MASK_WIDTH + ROB_IDX_WIDTH +
-        STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + 1 + 1 + UOP_TYPE_WIDTH + W_DebugMeta,
+        STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + 1 + 1 + UOP_TYPE_WIDTH,
     parameter integer W_ExeLsuIO          =
         (LSU_AGU_COUNT + LSU_SDU_COUNT) * (1 + W_ExeLsuReqUop),
     parameter integer W_ExuIdIO           =
         1 + 32 + ROB_IDX_WIDTH + BR_TAG_WIDTH + FTQ_IDX_WIDTH + BR_MASK_WIDTH,
     parameter integer W_ExuRobUop         =
-        32 + 32 + ROB_IDX_WIDTH + 2 + 3 + UOP_TYPE_WIDTH + 1 + W_DebugMeta,
+        32 + 32 + ROB_IDX_WIDTH + 2 + 3 + UOP_TYPE_WIDTH + 1,
     parameter integer W_ExuRobIO          = ISSUE_WIDTH * (1 + W_ExuRobUop),
-    parameter integer W_FtqPcReadReq      = 1 + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH,
-    parameter integer W_FtqPcReadResp     = 1 + 1 + 32 + 1 + 32,
-    parameter integer W_FtqExuPcReqIO     = FTQ_EXU_PC_PORT_NUM * W_FtqPcReadReq,
-    parameter integer W_FtqExuPcRespIO    = FTQ_EXU_PC_PORT_NUM * W_FtqPcReadResp,
+    parameter integer W_CsrStatusIO       = 32 + 32 + 32 + 2,
     parameter integer W_ExuIn             =
         W_PrfExeIO + W_DecBroadcastIO + W_RobBroadcastIO + W_CsrExeIO +
-        W_LsuExeIO + W_FtqExuPcRespIO,
+        W_LsuExeIO + W_CsrStatusIO,
     parameter integer W_ExuOut            =
         W_ExePrfIO + W_ExeIssIO + W_ExeCsrIO + W_ExeLsuIO + W_ExuIdIO +
-        W_ExuRobIO + W_FtqExuPcReqIO
+        W_ExuRobIO
 ) (
     input wire clk,
     input wire rst_n,
@@ -88,15 +81,14 @@ module exu_top #(
     input wire [W_RobBroadcastIO-1:0] rob_bcast,
     input wire [W_CsrExeIO-1:0]       csr2exe,
     input wire [W_LsuExeIO-1:0]       lsu2exe,
-    input wire [W_FtqExuPcRespIO-1:0] ftq_exu_pc_resp,
+    input wire [W_CsrStatusIO-1:0]    csr_status,
 
     output wire [W_ExePrfIO-1:0] exe2prf,
     output wire [W_ExeIssIO-1:0] exe2iss,
     output wire [W_ExeCsrIO-1:0] exe2csr,
     output wire [W_ExeLsuIO-1:0] exe2lsu,
     output wire [W_ExuIdIO-1:0]  exu2id,
-    output wire [W_ExuRobIO-1:0] exu2rob,
-    output wire [W_FtqExuPcReqIO-1:0] ftq_exu_pc_req
+    output wire [W_ExuRobIO-1:0] exu2rob
 );
 
     wire [W_ExuIn-1:0]  pi;
@@ -109,6 +101,10 @@ module exu_top #(
         prf2exe_iss_entry_valid,
         prf2exe_iss_entry_uop
     } = prf2exe;
+    wire [(32 * ISSUE_WIDTH)-1:0] prf2exe_iss_entry_uop_pc;
+    wire [ISSUE_WIDTH-1:0]        prf2exe_iss_entry_uop_ftq_resp_valid;
+    wire [ISSUE_WIDTH-1:0]        prf2exe_iss_entry_uop_ftq_pred_taken;
+    wire [(32 * ISSUE_WIDTH)-1:0] prf2exe_iss_entry_uop_ftq_next_pc;
     wire [(PRF_IDX_WIDTH * ISSUE_WIDTH)-1:0]
         prf2exe_iss_entry_uop_dest_preg;
     wire [(PRF_IDX_WIDTH * ISSUE_WIDTH)-1:0]
@@ -145,8 +141,11 @@ module exu_top #(
         prf2exe_iss_entry_uop_ldq_idx;
     wire [ISSUE_WIDTH-1:0]                    prf2exe_iss_entry_uop_rob_flag;
     wire [(UOP_TYPE_WIDTH * ISSUE_WIDTH)-1:0] prf2exe_iss_entry_uop_op;
-    wire [(W_DebugMeta * ISSUE_WIDTH)-1:0]     prf2exe_iss_entry_uop_dbg;
     assign {
+        prf2exe_iss_entry_uop_pc,
+        prf2exe_iss_entry_uop_ftq_resp_valid,
+        prf2exe_iss_entry_uop_ftq_pred_taken,
+        prf2exe_iss_entry_uop_ftq_next_pc,
         prf2exe_iss_entry_uop_dest_preg,
         prf2exe_iss_entry_uop_src1_preg,
         prf2exe_iss_entry_uop_src2_preg,
@@ -171,8 +170,7 @@ module exu_top #(
         prf2exe_iss_entry_uop_stq_flag,
         prf2exe_iss_entry_uop_ldq_idx,
         prf2exe_iss_entry_uop_rob_flag,
-        prf2exe_iss_entry_uop_op,
-        prf2exe_iss_entry_uop_dbg
+        prf2exe_iss_entry_uop_op
     } = prf2exe_iss_entry_uop;
 
     wire                     dec_bcast_mispred;
@@ -255,8 +253,6 @@ module exu_top #(
         lsu2exe_wb_req_uop_page_fault_store;
     wire [(UOP_TYPE_WIDTH * (LSU_LOAD_WB_WIDTH + LSU_STA_COUNT))-1:0]
         lsu2exe_wb_req_uop_op;
-    wire [(W_DebugMeta * (LSU_LOAD_WB_WIDTH + LSU_STA_COUNT))-1:0]
-        lsu2exe_wb_req_uop_dbg;
     wire [(LSU_LOAD_WB_WIDTH + LSU_STA_COUNT)-1:0]
         lsu2exe_wb_req_uop_flush_pipe;
     assign {
@@ -269,7 +265,6 @@ module exu_top #(
         lsu2exe_wb_req_uop_page_fault_load,
         lsu2exe_wb_req_uop_page_fault_store,
         lsu2exe_wb_req_uop_op,
-        lsu2exe_wb_req_uop_dbg,
         lsu2exe_wb_req_uop_flush_pipe
     } = lsu2exe_wb_req_uop;
 
@@ -297,12 +292,8 @@ module exu_top #(
         exe2prf_entry_uop_op
     } = exe2prf_entry_uop;
 
-    wire [ISSUE_WIDTH-1:0]                  exe2iss_ready;
     wire [(MAX_UOP_TYPE * ISSUE_WIDTH)-1:0] exe2iss_fu_ready_mask;
-    assign {
-        exe2iss_ready,
-        exe2iss_fu_ready_mask
-    } = exe2iss;
+    assign exe2iss_fu_ready_mask = exe2iss;
 
     wire        exe2csr_we;
     wire        exe2csr_re;
@@ -350,8 +341,6 @@ module exu_top #(
         exe2lsu_req_uop_dest_en;
     wire [(UOP_TYPE_WIDTH * (LSU_AGU_COUNT + LSU_SDU_COUNT))-1:0]
         exe2lsu_req_uop_op;
-    wire [(W_DebugMeta * (LSU_AGU_COUNT + LSU_SDU_COUNT))-1:0]
-        exe2lsu_req_uop_dbg;
     assign {
         exe2lsu_req_uop_result,
         exe2lsu_req_uop_dest_preg,
@@ -365,8 +354,7 @@ module exu_top #(
         exe2lsu_req_uop_ldq_idx,
         exe2lsu_req_uop_rob_flag,
         exe2lsu_req_uop_dest_en,
-        exe2lsu_req_uop_op,
-        exe2lsu_req_uop_dbg
+        exe2lsu_req_uop_op
     } = exe2lsu_req_uop;
 
     wire                     exu2id_mispred;
@@ -399,7 +387,6 @@ module exu_top #(
     wire [ISSUE_WIDTH-1:0]                    exu2rob_entry_uop_page_fault_load;
     wire [ISSUE_WIDTH-1:0]                    exu2rob_entry_uop_page_fault_store;
     wire [(UOP_TYPE_WIDTH * ISSUE_WIDTH)-1:0] exu2rob_entry_uop_op;
-    wire [(W_DebugMeta * ISSUE_WIDTH)-1:0]     exu2rob_entry_uop_dbg;
     wire [ISSUE_WIDTH-1:0]                    exu2rob_entry_uop_flush_pipe;
     assign {
         exu2rob_entry_uop_diag_val,
@@ -411,33 +398,8 @@ module exu_top #(
         exu2rob_entry_uop_page_fault_load,
         exu2rob_entry_uop_page_fault_store,
         exu2rob_entry_uop_op,
-        exu2rob_entry_uop_dbg,
         exu2rob_entry_uop_flush_pipe
     } = exu2rob_entry_uop;
-
-    wire [FTQ_EXU_PC_PORT_NUM-1:0]        ftq_exu_pc_resp_valid;
-    wire [FTQ_EXU_PC_PORT_NUM-1:0]        ftq_exu_pc_resp_entry_valid;
-    wire [(32 * FTQ_EXU_PC_PORT_NUM)-1:0] ftq_exu_pc_resp_pc;
-    wire [FTQ_EXU_PC_PORT_NUM-1:0]        ftq_exu_pc_resp_pred_taken;
-    wire [(32 * FTQ_EXU_PC_PORT_NUM)-1:0] ftq_exu_pc_resp_next_pc;
-    assign {
-        ftq_exu_pc_resp_valid,
-        ftq_exu_pc_resp_entry_valid,
-        ftq_exu_pc_resp_pc,
-        ftq_exu_pc_resp_pred_taken,
-        ftq_exu_pc_resp_next_pc
-    } = ftq_exu_pc_resp;
-
-    wire [FTQ_EXU_PC_PORT_NUM-1:0] ftq_exu_pc_req_valid;
-    wire [(FTQ_IDX_WIDTH * FTQ_EXU_PC_PORT_NUM)-1:0]
-        ftq_exu_pc_req_ftq_idx;
-    wire [(FTQ_OFFSET_WIDTH * FTQ_EXU_PC_PORT_NUM)-1:0]
-        ftq_exu_pc_req_ftq_offset;
-    assign {
-        ftq_exu_pc_req_valid,
-        ftq_exu_pc_req_ftq_idx,
-        ftq_exu_pc_req_ftq_offset
-    } = ftq_exu_pc_req;
 
     assign pi = {
         prf2exe,
@@ -445,7 +407,7 @@ module exu_top #(
         rob_bcast,
         csr2exe,
         lsu2exe,
-        ftq_exu_pc_resp
+        csr_status
     };
     assign {
         exe2prf,
@@ -453,8 +415,7 @@ module exu_top #(
         exe2csr,
         exe2lsu,
         exu2id,
-        exu2rob,
-        ftq_exu_pc_req
+        exu2rob
     } = po;
 
     exu_bsd_top #(

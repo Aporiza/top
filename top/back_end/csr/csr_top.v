@@ -1,12 +1,12 @@
-// ffc CSR 边界的 BSD 封装。
+// simulator-main 默认配置 CSR 边界的 BSD 封装。
 //
 // 参考结构体：
-//   CsrIn  = {exe2csr, rob2csr, rob_bcast}
+//   CsrIn  = {exe2csr, rob2csr, rob_bcast, interrupt_inject}
 //   CsrOut = {csr2exe, csr2rob, csr2front, csr_status}
 //
-// BSD 接口：
+// BSD 接口规范：
 //   u_csr_bsd_top(clk, rst_n, pi, po)
-//   pi = {exe2csr, rob2csr, rob_bcast}
+//   pi = {exe2csr, rob2csr, rob_bcast, csr_interrupt_inject}
 //   po = {csr2exe, csr2rob, csr2front, csr_status}
 //
 // 展开的 CSR/status 输出只供 back_top 连接前端和观察端口使用。
@@ -14,7 +14,7 @@
 
 
 module csr_top #(
-    parameter integer ROB_IDX_WIDTH    = 9,
+    parameter integer ROB_IDX_WIDTH    = 7,
     parameter integer BR_MASK_WIDTH    = 64,
     parameter integer W_ExeCsrIO       = 1 + 1 + 12 + 32 + 32,
     parameter integer W_RobCsrIO       = 2,
@@ -24,7 +24,9 @@ module csr_top #(
     parameter integer W_CsrRobIO       = 1,
     parameter integer W_CsrFrontIO     = 32 + 32,
     parameter integer W_CsrStatusIO    = 32 + 32 + 32 + 2,
-    parameter integer W_CsrIn          = W_ExeCsrIO + W_RobCsrIO + W_RobBroadcastIO,
+    parameter integer W_CsrInterruptInjectIO = 2,
+    parameter integer W_CsrIn          =
+        W_ExeCsrIO + W_RobCsrIO + W_RobBroadcastIO + W_CsrInterruptInjectIO,
     parameter integer W_CsrOut         =
         W_CsrExeIO + W_CsrRobIO + W_CsrFrontIO + W_CsrStatusIO
 ) (
@@ -34,6 +36,7 @@ module csr_top #(
     input wire [W_ExeCsrIO-1:0]       exe2csr,
     input wire [W_RobCsrIO-1:0]       rob2csr,
     input wire [W_RobBroadcastIO-1:0] rob_bcast,
+    input wire [W_CsrInterruptInjectIO-1:0] csr_interrupt_inject,
 
     output wire [W_CsrExeIO-1:0]    csr2exe,
     output wire [W_CsrRobIO-1:0]    csr2rob,
@@ -110,10 +113,18 @@ module csr_top #(
         rob_bcast_head_incomplete_valid
     } = rob_bcast;
 
+    wire csr_interrupt_inject_external_irq_pending_valid;
+    wire csr_interrupt_inject_external_irq_pending;
+    assign {
+        csr_interrupt_inject_external_irq_pending_valid,
+        csr_interrupt_inject_external_irq_pending
+    } = csr_interrupt_inject;
+
     assign pi = {
         exe2csr,
         rob2csr,
-        rob_bcast
+        rob_bcast,
+        csr_interrupt_inject
     };
     assign {
         csr2exe,

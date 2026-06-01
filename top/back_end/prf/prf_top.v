@@ -1,39 +1,39 @@
-// ffc PRF 边界的 BSD 封装。
+// simulator-main 默认配置 PRF 边界的 BSD 封装。
 //
 // 参考结构体：
-//   PrfIn  = {iss2prf, exe2prf, dec_bcast, rob_bcast}
-//   PrfOut = {prf2exe, prf_awake}
+//   PrfIn  = {iss2prf, exe2prf, dec_bcast, rob_bcast, ftq_prf_pc_resp}
+//   PrfOut = {prf2exe, prf_awake, ftq_prf_pc_req}
 //
-// BSD 接口：
+// BSD 接口规范：
 //   u_prf_bsd_top(clk, rst_n, pi, po)
-//   pi = {iss2prf, exe2prf, dec_bcast, rob_bcast}
-//   po = {prf2exe, prf_awake}
+//   pi = {iss2prf, exe2prf, dec_bcast, rob_bcast, ftq_prf_pc_resp}
+//   po = {prf2exe, prf_awake, ftq_prf_pc_req}
 //
-// FTQ PC 查询不是 PRF 边界，ffc 中由 EXU 发起查询。
-// 因此本封装不再给 PRF 暴露 ftq_*_pc_req/resp，避免 BSD 端口和模拟器不一致。
+// simulator-main 中 FTQ PC 查询由 PRF 发起，查询结果写入 PrfExeUop 的
+// pc/ftq_resp_valid/ftq_pred_taken/ftq_next_pc 字段后再送 EXU。
 
 
 module prf_top #(
-    parameter integer ISSUE_WIDTH       = 15,
-    parameter integer TOTAL_FU_COUNT    = 19,
-    parameter integer LSU_LOAD_WB_WIDTH = 3,
-    parameter integer PRF_IDX_WIDTH     = 9,
-    parameter integer ROB_IDX_WIDTH     = 9,
+    parameter integer ISSUE_WIDTH       = 22,
+    parameter integer TOTAL_FU_COUNT    = 28,
+    parameter integer LSU_LOAD_WB_WIDTH = 4,
+    parameter integer PRF_IDX_WIDTH     = 7,
+    parameter integer ROB_IDX_WIDTH     = 7,
     parameter integer STQ_IDX_WIDTH     = 6,
     parameter integer LDQ_IDX_WIDTH     = 6,
     parameter integer BR_TAG_WIDTH      = 6,
     parameter integer BR_MASK_WIDTH     = 64,
     parameter integer CSR_IDX_WIDTH     = 12,
-    parameter integer FTQ_IDX_WIDTH     = 7,
+    parameter integer FTQ_IDX_WIDTH     = 6,
     parameter integer FTQ_OFFSET_WIDTH  = 4,
     parameter integer UOP_TYPE_WIDTH    = 5,
     parameter integer MAX_UOP_TYPE      = 18,
-    parameter integer W_DebugMeta            = 32 + 32 + 8 + 1 + 64,
+    parameter integer FTQ_PRF_PC_PORT_NUM = 10,
     parameter integer W_IssPrfUop       =
         (3 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 +
         3 + 2 + 3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH +
         CSR_IDX_WIDTH + ROB_IDX_WIDTH + STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH +
-        1 + UOP_TYPE_WIDTH + W_DebugMeta,
+        1 + UOP_TYPE_WIDTH,
     parameter integer W_IssPrfIO        = ISSUE_WIDTH * (1 + W_IssPrfUop),
     parameter integer W_ExePrfWbUop     =
         PRF_IDX_WIDTH + 32 + BR_MASK_WIDTH + 1 + UOP_TYPE_WIDTH,
@@ -47,15 +47,20 @@ module prf_top #(
     parameter integer W_WakeInfo        = 1 + PRF_IDX_WIDTH,
     parameter integer W_PrfAwakeIO      = LSU_LOAD_WB_WIDTH * W_WakeInfo,
     parameter integer W_PrfExeUop       =
-        (3 * PRF_IDX_WIDTH) + 64 +
+        32 + 1 + 1 + 32 + (3 * PRF_IDX_WIDTH) + 64 +
         FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 3 + 2 + 3 + 7 + 32 +
         BR_TAG_WIDTH + BR_MASK_WIDTH + CSR_IDX_WIDTH + ROB_IDX_WIDTH +
-        STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + 1 + UOP_TYPE_WIDTH + W_DebugMeta,
+        STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + 1 + UOP_TYPE_WIDTH,
     parameter integer W_PrfExeIO        = ISSUE_WIDTH * (1 + W_PrfExeUop),
+    parameter integer W_FtqPcReadReq    = 1 + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH,
+    parameter integer W_FtqPcReadResp   = 1 + 1 + 32 + 1 + 32,
+    parameter integer W_FtqPrfPcReqIO   = FTQ_PRF_PC_PORT_NUM * W_FtqPcReadReq,
+    parameter integer W_FtqPrfPcRespIO  = FTQ_PRF_PC_PORT_NUM * W_FtqPcReadResp,
     parameter integer W_PrfIn           =
-        W_IssPrfIO + W_ExePrfIO + W_DecBroadcastIO + W_RobBroadcastIO,
+        W_IssPrfIO + W_ExePrfIO + W_DecBroadcastIO + W_RobBroadcastIO +
+        W_FtqPrfPcRespIO,
     parameter integer W_PrfOut          =
-        W_PrfExeIO + W_PrfAwakeIO
+        W_PrfExeIO + W_PrfAwakeIO + W_FtqPrfPcReqIO
 ) (
     input wire clk,
     input wire rst_n,
@@ -64,9 +69,11 @@ module prf_top #(
     input wire [W_ExePrfIO-1:0]       exe2prf,
     input wire [W_DecBroadcastIO-1:0] dec_bcast,
     input wire [W_RobBroadcastIO-1:0] rob_bcast,
+    input wire [W_FtqPrfPcRespIO-1:0] ftq_prf_pc_resp,
 
     output wire [W_PrfExeIO-1:0]      prf2exe,
-    output wire [W_PrfAwakeIO-1:0]    prf_awake
+    output wire [W_PrfAwakeIO-1:0]    prf_awake,
+    output wire [W_FtqPrfPcReqIO-1:0] ftq_prf_pc_req
 );
 
     wire [W_PrfIn-1:0]  pi;
@@ -108,7 +115,6 @@ module prf_top #(
         iss2prf_iss_entry_uop_ldq_idx;
     wire [ISSUE_WIDTH-1:0]                    iss2prf_iss_entry_uop_rob_flag;
     wire [(UOP_TYPE_WIDTH * ISSUE_WIDTH)-1:0] iss2prf_iss_entry_uop_op;
-    wire [(W_DebugMeta * ISSUE_WIDTH)-1:0]     iss2prf_iss_entry_uop_dbg;
 
     assign {
         iss2prf_iss_entry_valid,
@@ -134,8 +140,7 @@ module prf_top #(
         iss2prf_iss_entry_uop_stq_flag,
         iss2prf_iss_entry_uop_ldq_idx,
         iss2prf_iss_entry_uop_rob_flag,
-        iss2prf_iss_entry_uop_op,
-        iss2prf_iss_entry_uop_dbg
+        iss2prf_iss_entry_uop_op
     } = iss2prf;
 
     // exe2prf 的字段级视图，对齐 ExePrfIO 的字段顺序。
@@ -224,6 +229,10 @@ module prf_top #(
 
     // prf2exe 的字段级视图，对齐 PrfExeIO 的字段顺序。
     wire [ISSUE_WIDTH-1:0]        prf2exe_iss_entry_valid;
+    wire [(32 * ISSUE_WIDTH)-1:0] prf2exe_iss_entry_uop_pc;
+    wire [ISSUE_WIDTH-1:0]        prf2exe_iss_entry_uop_ftq_resp_valid;
+    wire [ISSUE_WIDTH-1:0]        prf2exe_iss_entry_uop_ftq_pred_taken;
+    wire [(32 * ISSUE_WIDTH)-1:0] prf2exe_iss_entry_uop_ftq_next_pc;
     wire [(PRF_IDX_WIDTH * ISSUE_WIDTH)-1:0]
         prf2exe_iss_entry_uop_dest_preg;
     wire [(PRF_IDX_WIDTH * ISSUE_WIDTH)-1:0]
@@ -260,10 +269,13 @@ module prf_top #(
         prf2exe_iss_entry_uop_ldq_idx;
     wire [ISSUE_WIDTH-1:0]                    prf2exe_iss_entry_uop_rob_flag;
     wire [(UOP_TYPE_WIDTH * ISSUE_WIDTH)-1:0] prf2exe_iss_entry_uop_op;
-    wire [(W_DebugMeta * ISSUE_WIDTH)-1:0]     prf2exe_iss_entry_uop_dbg;
 
     assign {
         prf2exe_iss_entry_valid,
+        prf2exe_iss_entry_uop_pc,
+        prf2exe_iss_entry_uop_ftq_resp_valid,
+        prf2exe_iss_entry_uop_ftq_pred_taken,
+        prf2exe_iss_entry_uop_ftq_next_pc,
         prf2exe_iss_entry_uop_dest_preg,
         prf2exe_iss_entry_uop_src1_preg,
         prf2exe_iss_entry_uop_src2_preg,
@@ -288,8 +300,7 @@ module prf_top #(
         prf2exe_iss_entry_uop_stq_flag,
         prf2exe_iss_entry_uop_ldq_idx,
         prf2exe_iss_entry_uop_rob_flag,
-        prf2exe_iss_entry_uop_op,
-        prf2exe_iss_entry_uop_dbg
+        prf2exe_iss_entry_uop_op
     } = prf2exe;
 
     wire [LSU_LOAD_WB_WIDTH-1:0]                   prf_awake_wake_valid;
@@ -303,11 +314,13 @@ module prf_top #(
         iss2prf,
         exe2prf,
         dec_bcast,
-        rob_bcast
+        rob_bcast,
+        ftq_prf_pc_resp
     };
     assign {
         prf2exe,
-        prf_awake
+        prf_awake,
+        ftq_prf_pc_req
     } = po;
 
     prf_bsd_top #(

@@ -1,8 +1,9 @@
-// ffc 模拟器后端的顶层连接封装。
+// simulator-main 默认配置后端的顶层连接封装。
 //
 // 参考来源：
-//   simulator-ffc9fad707a7acb0be5c7d4fe7c06d48987c73e0/back-end/include/BackTop.h
-//   simulator-ffc9fad707a7acb0be5c7d4fe7c06d48987c73e0/back-end/BackTop.cpp
+//   simulator-main/back-end/include/BackTop.h
+//   simulator-main/back-end/BackTop.cpp
+//   simulator-main/include/config.h.default
 //
 // 命名约定：
 //   - 模块之间的总线尽量保留 BackTop.h 里的成员名，方便和模拟器逐项核对。
@@ -12,8 +13,8 @@
 //   - 每个子模块 *_top 只把业务信号打包进 pi/po；clk 和 rst_n 单独连接，
 //     不计入 pi/po 位宽，便于组员直接按 BSD 端口接入。
 //
-// FTQ PC 查询路径按 ffc BackTop.cpp 的一级连接边界组织：
-//   PreIduQueue <-> EXU: ftq_exu_pc_req/ftq_exu_pc_resp
+// FTQ PC 查询路径按 simulator-main BackTop.cpp 的一级连接边界组织：
+//   PreIduQueue <-> PRF: ftq_prf_pc_req/ftq_prf_pc_resp
 //   PreIduQueue <-> ROB: ftq_rob_pc_req/ftq_rob_pc_resp
 
 
@@ -27,22 +28,19 @@ module back_top #(
     parameter integer COMMIT_WIDTH             = DECODE_WIDTH,
 
     parameter integer AREG_IDX_WIDTH           = 6,
-    parameter integer PRF_IDX_WIDTH            = 9,
-    parameter integer ROB_IDX_WIDTH            = 9,
+    parameter integer PRF_IDX_WIDTH            = 7,
+    parameter integer ROB_IDX_WIDTH            = 7,
     parameter integer STQ_IDX_WIDTH            = 6,
     parameter integer LDQ_IDX_WIDTH            = 6,
 
     parameter integer BR_TAG_WIDTH             = 6,
     parameter integer BR_MASK_WIDTH            = 64,
     parameter integer CSR_IDX_WIDTH            = 12,
-    parameter integer FTQ_IDX_WIDTH            = 7,
+    parameter integer FTQ_IDX_WIDTH            = 6,
     parameter integer FTQ_OFFSET_WIDTH         = 4,
     parameter integer INST_TYPE_WIDTH          = 5,
     parameter integer UOP_TYPE_WIDTH           = 5,
     parameter integer ROB_CPLT_MASK_WIDTH      = 3,
-    parameter integer W_TmaMeta              = 4,
-    parameter integer W_DebugMeta            = 32 + 32 + 8 + 1 + 64,
-    parameter integer W_RobDisTmaMeta        = 3,
 
     // ---------------------------------------------------------------------
     // 前端和 BPU 元数据参数。
@@ -68,24 +66,24 @@ module back_top #(
     parameter integer MAX_IQ_DISPATCH_WIDTH    = DECODE_WIDTH,
     parameter integer MAX_STQ_DISPATCH_WIDTH   = DECODE_WIDTH,
     parameter integer MAX_LDQ_DISPATCH_WIDTH   = DECODE_WIDTH,
-    parameter integer MAX_WAKEUP_PORTS         = 11,
-    parameter integer ISSUE_WIDTH              = 15,
-    parameter integer TOTAL_FU_COUNT           = 19,
-    parameter integer FTQ_EXU_PC_PORT_NUM      = 8,
+    parameter integer MAX_WAKEUP_PORTS         = 14,
+    parameter integer ISSUE_WIDTH              = 22,
+    parameter integer TOTAL_FU_COUNT           = 28,
+    parameter integer FTQ_PRF_PC_PORT_NUM      = 10,
     parameter integer FTQ_ROB_PC_PORT_NUM      = 1,
-    parameter integer ROB_NUM                  = 512,
-    parameter integer LSU_LDU_COUNT            = 3,
-    parameter integer LSU_STA_COUNT            = 2,
-    parameter integer LSU_AGU_COUNT            = 5,
-    parameter integer LSU_SDU_COUNT            = 2,
+    parameter integer ROB_NUM                  = 128,
+    parameter integer LSU_LDU_COUNT            = 4,
+    parameter integer LSU_STA_COUNT            = 4,
+    parameter integer LSU_AGU_COUNT            = 8,
+    parameter integer LSU_SDU_COUNT            = 4,
     parameter integer LSU_LOAD_WB_WIDTH        = LSU_LDU_COUNT,
     parameter integer LSU_LDU_WIDTH            = 2,
     parameter integer W_STQ_COUNT              = 7,
     parameter integer W_LDQ_COUNT              = 7,
 
     // ---------------------------------------------------------------------
-    // 基础边带和指令项位宽。
-    // 下面的宽度按 C++ IO/types 结构体字段顺序展开，包含 TmaMeta/DebugMeta。
+    // 基础指令项位宽。
+    // 这里按裁剪后的功能字段展开，不包含调试/统计旁带。
     // ---------------------------------------------------------------------
     parameter integer W_InstructionBufferEntry =
         1 + 32 + 32 + 1 + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1,
@@ -94,21 +92,21 @@ module back_top #(
         FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 2 + 3 + 2 + 2 +
         3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH + CSR_IDX_WIDTH +
         ROB_IDX_WIDTH + STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH +
-        (2 * ROB_CPLT_MASK_WIDTH) + 1 + 6 + INST_TYPE_WIDTH + W_TmaMeta + W_DebugMeta,
+        (2 * ROB_CPLT_MASK_WIDTH) + 1 + 6 + INST_TYPE_WIDTH,
     parameter integer W_InstEntry              = 1 + W_InstInfo,
-    // Back_out.commit_entry 保留 ffc 使用的 InstEntry 边带字段，不能再裁掉 dbg/tma。
+    // 当前包按功能接口裁剪，不包含 simulator-main 的调试/统计旁带字段。
     parameter integer W_BackCommitInfo         = W_InstInfo,
     parameter integer W_BackCommitEntry        = 1 + W_BackCommitInfo,
 
     // ---------------------------------------------------------------------
     // IDU、重命名、派遣和 ROB 相关包格式位宽。
-    // 这些包跨越多个 BSD 边界，字段顺序必须和 ffc IO.h 中结构体声明一致。
+    // 这些包跨越多个 BSD 边界，字段顺序必须和 simulator-main 的 IO.h 结构体声明一致。
     // ---------------------------------------------------------------------
     parameter integer W_DecRenInst             =
         32 + (3 * AREG_IDX_WIDTH) +
         FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + INST_TYPE_WIDTH +
         3 + 1 + 2 + 3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH +
-        CSR_IDX_WIDTH + (2 * ROB_CPLT_MASK_WIDTH) + 2 + W_TmaMeta + W_DebugMeta,
+        CSR_IDX_WIDTH + (2 * ROB_CPLT_MASK_WIDTH) + 2,
     parameter integer W_DecRenIO               = DECODE_WIDTH * (W_DecRenInst + 1),
     parameter integer W_RenDecIO               = 1,
     parameter integer W_IduConsumeIO           = DECODE_WIDTH,
@@ -117,32 +115,40 @@ module back_top #(
         1 + BR_MASK_WIDTH + BR_TAG_WIDTH + ROB_IDX_WIDTH + BR_MASK_WIDTH,
     parameter integer W_FtqPcReadReq           = 1 + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH,
     parameter integer W_FtqPcReadResp          = 1 + 1 + 32 + 1 + 32,
-    parameter integer W_FtqExuPcReqIO          = FTQ_EXU_PC_PORT_NUM * W_FtqPcReadReq,
-    parameter integer W_FtqExuPcRespIO         = FTQ_EXU_PC_PORT_NUM * W_FtqPcReadResp,
+    parameter integer W_FtqPrfPcReqIO          = FTQ_PRF_PC_PORT_NUM * W_FtqPcReadReq,
+    parameter integer W_FtqPrfPcRespIO         = FTQ_PRF_PC_PORT_NUM * W_FtqPcReadResp,
     parameter integer W_FtqRobPcReqIO          = FTQ_ROB_PC_PORT_NUM * W_FtqPcReadReq,
     parameter integer W_FtqRobPcRespIO         = FTQ_ROB_PC_PORT_NUM * W_FtqPcReadResp,
+    parameter integer W_FtqCommitInfoResp      =
+        1 + 1 + pcpn_t_BITS + pcpn_t_BITS +
+        (TAGE_IDX_WIDTH * TN_MAX) + (TAGE_TAG_WIDTH * TN_MAX) +
+        1 + 1 + tage_scl_meta_sum_t_BITS +
+        (BPU_SCL_META_NTABLE * BPU_SCL_META_IDX_BITS) +
+        1 + 1 + 1 + BPU_LOOP_META_IDX_BITS + BPU_LOOP_META_TAG_BITS,
+    parameter integer W_FtqCommitInfoIO        =
+        COMMIT_WIDTH * W_FtqCommitInfoResp,
     parameter integer W_PreIssueIO             = W_InstructionBufferEntry * DECODE_WIDTH,
     parameter integer W_RobCommitInst          =
         32 + AREG_IDX_WIDTH + (2 * PRF_IDX_WIDTH) +
         FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 2 + 1 + 7 +
         ROB_IDX_WIDTH + 1 + STQ_IDX_WIDTH + 1 + 4 +
-        INST_TYPE_WIDTH + W_TmaMeta + W_DebugMeta + 1,
+        INST_TYPE_WIDTH + 1,
     parameter integer W_RobCommitIO            = COMMIT_WIDTH * (1 + W_RobCommitInst),
     parameter integer W_RobBroadcastIO         =
         7 + 5 + 32 + 32 + ROB_IDX_WIDTH + 1 + ROB_IDX_WIDTH + 1,
-    parameter integer W_RobDisIO               = W_RobDisTmaMeta + 3 + ROB_IDX_WIDTH + 1,
+    parameter integer W_RobDisIO               = 3 + ROB_IDX_WIDTH + 1,
     parameter integer W_DisRobInst             =
         32 + (2 * AREG_IDX_WIDTH) + (2 * PRF_IDX_WIDTH) +
         FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 2 + INST_TYPE_WIDTH +
         1 + 1 + 3 + 7 + 32 + BR_MASK_WIDTH + ROB_IDX_WIDTH +
         STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + (2 * ROB_CPLT_MASK_WIDTH) +
-        1 + 3 + W_TmaMeta + W_DebugMeta,
+        1 + 3,
     parameter integer W_DisRobIO               = DECODE_WIDTH * (W_DisRobInst + 1 + 1),
     parameter integer W_RenDisInst             =
         32 + (3 * AREG_IDX_WIDTH) + (4 * PRF_IDX_WIDTH) +
         FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + INST_TYPE_WIDTH +
         3 + 1 + 2 + 2 + 3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH +
-        CSR_IDX_WIDTH + (2 * ROB_CPLT_MASK_WIDTH) + 2 + W_TmaMeta + W_DebugMeta,
+        CSR_IDX_WIDTH + (2 * ROB_CPLT_MASK_WIDTH) + 2,
     parameter integer W_RenDisIO               = DECODE_WIDTH * (W_RenDisInst + 1),
     parameter integer W_DisRenIO               = 1,
     parameter integer W_WakeInfo               = 1 + PRF_IDX_WIDTH,
@@ -151,13 +157,14 @@ module back_top #(
 
     // ---------------------------------------------------------------------
     // 发射、物理寄存器堆和执行单元相关包格式位宽。
-    // ExeIssIO 同时包含 ready 和 fu_ready_mask，和模拟器发射检查逻辑一致。
+    // simulator-main 的 ExeIssIO 只包含 fu_ready_mask，没有单独 ready 数组；
+    // ISU BSD 只能按这个 mask 和自身状态判断发射可用性。
     // ---------------------------------------------------------------------
     parameter integer W_DisIssUop              =
         (3 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 +
         3 + 2 + 2 + 3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH +
         CSR_IDX_WIDTH + ROB_IDX_WIDTH + STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH +
-        1 + UOP_TYPE_WIDTH + W_DebugMeta,
+        1 + UOP_TYPE_WIDTH,
     parameter integer W_DisIssIO               =
         IQ_NUM * MAX_IQ_DISPATCH_WIDTH * (1 + W_DisIssUop),
     parameter integer W_IssDisIO               = IQ_NUM * IQ_READY_NUM_WIDTH,
@@ -165,24 +172,24 @@ module back_top #(
         (3 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 +
         3 + 2 + 3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH +
         CSR_IDX_WIDTH + ROB_IDX_WIDTH + STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH +
-        1 + UOP_TYPE_WIDTH + W_DebugMeta,
+        1 + UOP_TYPE_WIDTH,
     parameter integer W_IssPrfIO               = ISSUE_WIDTH * (1 + W_IssPrfUop),
     parameter integer W_PrfExeUop              =
-        (3 * PRF_IDX_WIDTH) + 64 +
+        32 + 1 + 1 + 32 + (3 * PRF_IDX_WIDTH) + 64 +
         FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 3 + 2 + 3 + 7 + 32 +
         BR_TAG_WIDTH + BR_MASK_WIDTH + CSR_IDX_WIDTH + ROB_IDX_WIDTH +
-        STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + 1 + UOP_TYPE_WIDTH + W_DebugMeta,
+        STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + 1 + UOP_TYPE_WIDTH,
     parameter integer W_PrfExeIO               = ISSUE_WIDTH * (1 + W_PrfExeUop),
     parameter integer W_ExePrfWbUop            =
         PRF_IDX_WIDTH + 32 + BR_MASK_WIDTH + 1 + UOP_TYPE_WIDTH,
     parameter integer W_ExePrfEntry            = 1 + W_ExePrfWbUop,
     parameter integer W_ExePrfIO               =
         (ISSUE_WIDTH + TOTAL_FU_COUNT) * W_ExePrfEntry,
-    parameter integer W_ExeIssIO               = ISSUE_WIDTH + (ISSUE_WIDTH * MAX_UOP_TYPE),
+    parameter integer W_ExeIssIO               = ISSUE_WIDTH * MAX_UOP_TYPE,
     parameter integer W_ExuIdIO                =
         1 + 32 + ROB_IDX_WIDTH + BR_TAG_WIDTH + FTQ_IDX_WIDTH + BR_MASK_WIDTH,
     parameter integer W_ExuRobUop              =
-        32 + 32 + ROB_IDX_WIDTH + 2 + 3 + UOP_TYPE_WIDTH + 1 + W_DebugMeta,
+        32 + 32 + ROB_IDX_WIDTH + 2 + 3 + UOP_TYPE_WIDTH + 1,
     parameter integer W_ExuRobIO               = ISSUE_WIDTH * (1 + W_ExuRobUop),
     parameter integer W_ExeCsrIO               = 1 + 1 + 12 + 32 + 32,
     parameter integer W_CsrExeIO               = 32,
@@ -192,9 +199,9 @@ module back_top #(
     parameter integer W_CsrStatusIO            = 32 + 32 + 32 + 2,
 
     // ---------------------------------------------------------------------
-    // LSU、DCache 和外设接口包格式位宽。
-    // peripheral/DCache 端口保留 MicroOp、StqEntry、req_id、replay 等上下文，
-    // 使 LSU BSD 能按 ffc RealLsu 的后端行为建模。
+    // LSU、DCache、Peripheral 和 MMU 接口包格式位宽。
+    // simulator-main 的 Peripheral/DCache 是压缩后的硬件接口，不再在外部总线携带
+    // MicroOp 或 StqEntry 上下文；MMU 请求/响应则作为 BackTop 一级边界显式外露。
     // ---------------------------------------------------------------------
     parameter integer W_DisLsuIO               =
         MAX_STQ_DISPATCH_WIDTH *
@@ -206,39 +213,43 @@ module back_top #(
         (LDQ_IDX_WIDTH * MAX_LDQ_DISPATCH_WIDTH) + MAX_LDQ_DISPATCH_WIDTH,
     parameter integer W_ExeLsuReqUop           =
         32 + PRF_IDX_WIDTH + 3 + 7 + 1 + BR_MASK_WIDTH + ROB_IDX_WIDTH +
-        STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + 1 + 1 + UOP_TYPE_WIDTH + W_DebugMeta,
+        STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + 1 + 1 + UOP_TYPE_WIDTH,
     parameter integer W_ExeLsuIO               =
         (LSU_AGU_COUNT + LSU_SDU_COUNT) * (1 + W_ExeLsuReqUop),
     parameter integer W_LsuExeRespUop          =
         32 + 32 + PRF_IDX_WIDTH + BR_MASK_WIDTH + ROB_IDX_WIDTH + 1 +
-        2 + UOP_TYPE_WIDTH + 1 + W_DebugMeta,
+        2 + UOP_TYPE_WIDTH + 1,
     parameter integer W_LsuExeIO               =
         (LSU_LOAD_WB_WIDTH + LSU_STA_COUNT) * (1 + W_LsuExeRespUop),
-    parameter integer W_LsuRobIO               = ROB_NUM + 2,
+    parameter integer W_LsuRobIO               = 1,
+    parameter integer LSU_MMU_IDX_WIDTH        =
+        (LDQ_IDX_WIDTH > STQ_IDX_WIDTH) ? LDQ_IDX_WIDTH : STQ_IDX_WIDTH,
+    parameter integer W_MMUReq                 =
+        1 + 32 + LSU_MMU_IDX_WIDTH + LSU_MMU_IDX_WIDTH,
+    parameter integer W_MMUResp                =
+        1 + 32 + 2 + LSU_MMU_IDX_WIDTH + LSU_MMU_IDX_WIDTH,
+    parameter integer W_MMULsuIO               =
+        (LSU_LDU_COUNT + LSU_STA_COUNT) * W_MMUResp,
+    parameter integer W_LsuMMUIO               =
+        ((LSU_LDU_COUNT + LSU_STA_COUNT) * W_MMUReq) + W_CsrStatusIO,
     parameter integer W_SizeT                  = 64,
-    parameter integer W_MicroOp                =
-        32 + (2 * AREG_IDX_WIDTH) + (3 * PRF_IDX_WIDTH) + 96 +
-        FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 2 + 1 + 3 + 2 + 2 +
-        3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH + CSR_IDX_WIDTH +
-        ROB_IDX_WIDTH + STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH +
-        (2 * ROB_CPLT_MASK_WIDTH) + 1 + 4 + UOP_TYPE_WIDTH +
-        W_TmaMeta + W_DebugMeta + 1,
     parameter integer W_StqEntry               =
         7 + 8 + 32 + 32 + 32 + 32 + 32 + BR_MASK_WIDTH + 32 + 32,
-    parameter integer W_PeripheralReqIO        = 1 + 1 + 32 + 32 + W_MicroOp,
-    parameter integer W_PeripheralRespIO       = 1 + 1 + 32 + W_MicroOp,
-    parameter integer W_LoadReq                = 1 + 32 + W_MicroOp + W_SizeT,
-    parameter integer W_StoreReq               = 1 + 32 + 32 + 8 + W_StqEntry + W_SizeT,
-    parameter integer W_LoadResp               = 1 + 32 + W_MicroOp + W_SizeT + 2,
-    parameter integer W_StoreResp              = 1 + 2 + W_SizeT + 1,
-    parameter integer W_ReplayResp             = 2 + W_SizeT + 8,
+    parameter integer W_PeripheralReqIO        = 1 + 1 + 32 + 32 + 3,
+    parameter integer W_PeripheralRespIO       = 1 + 1 + 32,
+    parameter integer W_LoadReq                = 1 + 32 + 32,
+    parameter integer W_StoreReq               = 1 + 32 + 32 + 8 + 32,
+    parameter integer W_LoadResp               = 1 + 32 + 32 + 2,
+    parameter integer W_StoreResp              = 1 + 2 + 32,
     parameter integer W_DCacheReqPorts         =
         (LSU_LDU_COUNT * W_LoadReq) + (LSU_STA_COUNT * W_StoreReq),
     parameter integer W_DCacheRespPorts        =
-        (LSU_LDU_COUNT * W_LoadResp) + (LSU_STA_COUNT * W_StoreResp) +
-        W_ReplayResp,
-    parameter integer W_LsuDcacheIO            = W_DCacheReqPorts,
-    parameter integer W_DcacheLsuIO            = W_DCacheRespPorts,
+        (LSU_LDU_COUNT * W_LoadResp) + (LSU_STA_COUNT * W_StoreResp),
+    parameter integer W_LsuDcacheIO            =
+        W_DCacheReqPorts + LSU_LDU_WIDTH + 1,
+    parameter integer W_DcacheLsuIO            =
+        W_DCacheRespPorts + 1 + 32,
+    parameter integer W_CsrInterruptInjectIO   = 2,
 
     // ---------------------------------------------------------------------
     // 子模块聚合接口位宽。
@@ -248,6 +259,7 @@ module back_top #(
         (32 * FETCH_WIDTH) +
         (32 * FETCH_WIDTH) +
         FETCH_WIDTH +
+        1 +
         FETCH_WIDTH +
         FETCH_WIDTH +
         (pcpn_t_BITS * FETCH_WIDTH) +
@@ -271,13 +283,14 @@ module back_top #(
         + W_RobBroadcastIO
         + W_RobCommitIO
         + W_ExuIdIO
-        + W_FtqExuPcReqIO
+        + W_FtqPrfPcReqIO
         + W_FtqRobPcReqIO,
     parameter integer W_PreIduQueueOut         =
         W_PreFrontIO
         + W_PreIssueIO
-        + W_FtqExuPcRespIO
-        + W_FtqRobPcRespIO,
+        + W_FtqPrfPcRespIO
+        + W_FtqRobPcRespIO
+        + W_FtqCommitInfoIO,
     parameter integer W_IduIn                  =
         W_PreIssueIO
         + W_RenDecIO
@@ -327,32 +340,34 @@ module back_top #(
         W_IssPrfIO
         + W_ExePrfIO
         + W_DecBroadcastIO
-        + W_RobBroadcastIO,
+        + W_RobBroadcastIO
+        + W_FtqPrfPcRespIO,
     parameter integer W_PrfOut                 =
         W_PrfExeIO
-        + W_PrfAwakeIO,
+        + W_PrfAwakeIO
+        + W_FtqPrfPcReqIO,
     parameter integer W_ExuIn                  =
         W_PrfExeIO
         + W_DecBroadcastIO
         + W_RobBroadcastIO
         + W_CsrExeIO
         + W_LsuExeIO
-        + W_FtqExuPcRespIO,
+        + W_CsrStatusIO,
     parameter integer W_ExuOut                 =
         W_ExePrfIO
         + W_ExeIssIO
         + W_ExeCsrIO
         + W_ExeLsuIO
         + W_ExuIdIO
-        + W_ExuRobIO
-        + W_FtqExuPcReqIO,
+        + W_ExuRobIO,
     parameter integer W_RobIn                  =
         W_DisRobIO
         + W_CsrRobIO
         + W_LsuRobIO
         + W_DecBroadcastIO
         + W_ExuRobIO
-        + W_FtqRobPcRespIO,
+        + W_FtqRobPcRespIO
+        + 1,
     parameter integer W_RobOut                 =
         W_RobDisIO
         + W_RobCsrIO
@@ -362,7 +377,8 @@ module back_top #(
     parameter integer W_CsrIn                  =
         W_ExeCsrIO
         + W_RobCsrIO
-        + W_RobBroadcastIO,
+        + W_RobBroadcastIO
+        + W_CsrInterruptInjectIO,
     parameter integer W_CsrOut                 =
         W_CsrExeIO
         + W_CsrRobIO
@@ -376,22 +392,26 @@ module back_top #(
         + W_DisLsuIO
         + W_ExeLsuIO
         + W_PeripheralRespIO
-        + W_DcacheLsuIO,
+        + W_DcacheLsuIO
+        + W_MMULsuIO,
     parameter integer W_LsuOut                 =
         W_LsuDisIO
         + W_LsuRobIO
         + W_LsuExeIO
         + W_PeripheralReqIO
         + W_LsuDcacheIO
+        + W_LsuMMUIO
 ) (
     input wire clk,
     input wire rst_n,
 
-    // 来自前端、DCache 和外设侧的顶层输入。
-    // MMU 不作为顶层外露端口，相关行为由 LSU BSD 内部实现。
+    // 来自前端、外设、DCache、MMU 和中断注入侧的顶层输入。
+    // main 版 BackTop 把 DTLB/MMU 放在顶层一级连接，LSU BSD 通过
+    // mmu2lsu_io/lsu2mmu_io 与外层 MMU 行为对接。
     input  wire [(32 * FETCH_WIDTH)-1:0]                         front2pre_inst,
     input  wire [(32 * FETCH_WIDTH)-1:0]                         front2pre_pc,
     input  wire [FETCH_WIDTH-1:0]                                front2pre_valid,
+    input  wire                                                  front2pre_front_stall,
     input  wire [FETCH_WIDTH-1:0]                                front2pre_predict_dir,
     input  wire [FETCH_WIDTH-1:0]                                front2pre_alt_pred,
     input  wire [(pcpn_t_BITS * FETCH_WIDTH)-1:0]                front2pre_altpcpn,
@@ -412,6 +432,8 @@ module back_top #(
     input  wire [FETCH_WIDTH-1:0]                                front2pre_page_fault_inst,
     input  wire [W_PeripheralRespIO-1:0] peripheral_resp_io,
     input  wire [W_DcacheLsuIO-1:0]      dcache2lsu_io,
+    input  wire [W_MMULsuIO-1:0]         mmu2lsu_io,
+    input  wire [W_CsrInterruptInjectIO-1:0] csr_interrupt_inject_io,
 
     // 输出给前端、CSR 观察端口、DCache 和外设侧的顶层信号。
     output wire                                          mispred,
@@ -422,12 +444,14 @@ module back_top #(
     output wire [FETCH_WIDTH-1:0]                        fire,
     output wire [31:0]                                   redirect_pc,
     output wire [(W_BackCommitEntry * COMMIT_WIDTH)-1:0] commit_entry,
+    output wire [W_FtqCommitInfoIO-1:0]                  ftq_commit_info,
     output wire [31:0]                                   sstatus,
     output wire [31:0]                                   mstatus,
     output wire [31:0]                                   satp,
     output wire [1:0]                                    privilege,
     output wire [W_PeripheralReqIO-1:0]                  peripheral_req_io,
-    output wire [W_LsuDcacheIO-1:0]                      lsu2dcache_io
+    output wire [W_LsuDcacheIO-1:0]                      lsu2dcache_io,
+    output wire [W_LsuMMUIO-1:0]                         lsu2mmu_io
 );
 
     // ---------------------------------------------------------------------
@@ -478,9 +502,9 @@ module back_top #(
     wire [W_CsrFrontIO-1:0]  csr2front;
     wire [W_CsrStatusIO-1:0] csr_status;
 
-    // FTQ PC 读端口路径，按 ffc 分成 EXU 查询和 ROB 查询两组。
-    wire [W_FtqExuPcReqIO-1:0]  ftq_exu_pc_req;
-    wire [W_FtqExuPcRespIO-1:0] ftq_exu_pc_resp;
+    // FTQ PC 读端口路径，按 simulator-main 分成 PRF 查询和 ROB 查询两组。
+    wire [W_FtqPrfPcReqIO-1:0]  ftq_prf_pc_req;
+    wire [W_FtqPrfPcRespIO-1:0] ftq_prf_pc_resp;
     wire [W_FtqRobPcReqIO-1:0]  ftq_rob_pc_req;
     wire [W_FtqRobPcRespIO-1:0] ftq_rob_pc_resp;
 
@@ -541,8 +565,8 @@ module back_top #(
     // ---------------------------------------------------------------------
     // 3. Back_out.commit_entry 拼接逻辑。
     //
-    // rob_top 输出保持 RobCommitIO 原始布局；back_top 在这里把它转换成
-    // Back_out.commit_entry 所需的 InstEntry 布局，并保留 tma/dbg 边带。
+    // rob_top 输出保持裁剪后的 RobCommitIO 布局；back_top 在这里把它转换成
+    // Back_out.commit_entry 所需的裁剪版 InstEntry 布局。
     // ---------------------------------------------------------------------
 
     wire [COMMIT_WIDTH-1:0]                     backout_rob_commit_entry_valid;
@@ -568,8 +592,6 @@ module back_top #(
     wire [COMMIT_WIDTH-1:0]                      backout_rob_commit_entry_uop_page_fault_store;
     wire [COMMIT_WIDTH-1:0]                      backout_rob_commit_entry_uop_illegal_inst;
     wire [(INST_TYPE_WIDTH * COMMIT_WIDTH)-1:0]  backout_rob_commit_entry_uop_type;
-    wire [(W_TmaMeta * COMMIT_WIDTH)-1:0]         backout_rob_commit_entry_uop_tma;
-    wire [(W_DebugMeta * COMMIT_WIDTH)-1:0]       backout_rob_commit_entry_uop_dbg;
     wire [COMMIT_WIDTH-1:0]                      backout_rob_commit_entry_uop_flush_pipe;
     wire [(32 * COMMIT_WIDTH)-1:0]               backout_commit_entry_uop_diag_val;
 
@@ -607,6 +629,7 @@ module back_top #(
         front2pre_inst,
         front2pre_pc,
         front2pre_valid,
+        front2pre_front_stall,
         front2pre_predict_dir,
         front2pre_alt_pred,
         front2pre_altpcpn,
@@ -652,8 +675,6 @@ module back_top #(
         backout_rob_commit_entry_uop_page_fault_store,
         backout_rob_commit_entry_uop_illegal_inst,
         backout_rob_commit_entry_uop_type,
-        backout_rob_commit_entry_uop_tma,
-        backout_rob_commit_entry_uop_dbg,
         backout_rob_commit_entry_uop_flush_pipe
     } = backout_rob_commit_entry_uop;
 
@@ -712,12 +733,13 @@ module back_top #(
         .rob_bcast(rob_bcast),
         .rob_commit(rob_commit),
         .idu_br_latch(idu_br_latch),
-        .ftq_exu_pc_req(ftq_exu_pc_req),
+        .ftq_prf_pc_req(ftq_prf_pc_req),
         .ftq_rob_pc_req(ftq_rob_pc_req),
         .pre2front(pre2front),
         .pre_issue(pre_issue),
-        .ftq_exu_pc_resp(ftq_exu_pc_resp),
+        .ftq_prf_pc_resp(ftq_prf_pc_resp),
         .ftq_rob_pc_resp(ftq_rob_pc_resp),
+        .ftq_commit_info(ftq_commit_info),
         .pre2front_fire(preiduqueue_out_pre2front_fire),
         .pre2front_ready(preiduqueue_out_pre2front_ready)
     );
@@ -817,8 +839,10 @@ module back_top #(
         .exe2prf(exe2prf),
         .dec_bcast(dec_bcast),
         .rob_bcast(rob_bcast),
+        .ftq_prf_pc_resp(ftq_prf_pc_resp),
         .prf2exe(prf2exe),
-        .prf_awake(prf_awake)
+        .prf_awake(prf_awake),
+        .ftq_prf_pc_req(ftq_prf_pc_req)
     );
 
     // 执行模块。
@@ -833,14 +857,13 @@ module back_top #(
         .rob_bcast(rob_bcast),
         .csr2exe(csr2exe),
         .lsu2exe(lsu2exe),
-        .ftq_exu_pc_resp(ftq_exu_pc_resp),
+        .csr_status(csr_status),
         .exe2prf(exe2prf),
         .exe2iss(exe2iss),
         .exe2csr(exe2csr),
         .exe2lsu(exe2lsu),
         .exu2id(exu2id),
-        .exu2rob(exu2rob),
-        .ftq_exu_pc_req(ftq_exu_pc_req)
+        .exu2rob(exu2rob)
     );
 
     // 重排序缓冲模块。
@@ -858,6 +881,7 @@ module back_top #(
         .dec_bcast(dec_bcast),
         .exu2rob(exu2rob),
         .ftq_rob_pc_resp(ftq_rob_pc_resp),
+        .front_stall(front2pre_front_stall),
         .rob2dis(rob2dis),
         .rob2csr(rob2csr),
         .rob_commit(rob_commit),
@@ -895,6 +919,7 @@ module back_top #(
         .exe2csr(exe2csr),
         .rob2csr(rob2csr),
         .rob_bcast(rob_bcast),
+        .csr_interrupt_inject(csr_interrupt_inject_io),
         .csr2exe(csr2exe),
         .csr2rob(csr2rob),
         .csr2front(csr2front),
@@ -907,7 +932,7 @@ module back_top #(
         .csr_status_privilege(csr_out_csr_status_privilege)
     );
 
-    // 访存模块，包含对外 DCache 和外设总线；MMU 行为在 LSU BSD 内部实现。
+    // 访存模块，包含对外 DCache、外设总线以及 main 版顶层外露的 MMU 请求/响应总线。
     lsu_top #(
         .W_LsuIn(W_LsuIn),
         .W_LsuOut(W_LsuOut)
@@ -922,11 +947,13 @@ module back_top #(
         .exe2lsu(exe2lsu),
         .peripheral_resp(peripheral_resp_io),
         .dcache2lsu(dcache2lsu_io),
+        .mmu2lsu(mmu2lsu_io),
         .lsu2dis(lsu2dis),
         .lsu2rob(lsu2rob),
         .lsu2exe(lsu2exe),
         .peripheral_req(peripheral_req_io),
-        .lsu2dcache(lsu2dcache_io)
+        .lsu2dcache(lsu2dcache_io),
+        .lsu2mmu(lsu2mmu_io)
     );
 
     // ---------------------------------------------------------------------
@@ -1010,16 +1037,14 @@ module back_top #(
         commit_entry_zero_cplt_mask,
         backout_rob_commit_entry_uop_rob_flag,
 
-        // 异常、指令类型以及 tma/dbg 边带字段。
+        // 异常和指令类型字段。
         backout_rob_commit_entry_uop_page_fault_inst,
         backout_rob_commit_entry_uop_page_fault_load,
         backout_rob_commit_entry_uop_page_fault_store,
         backout_rob_commit_entry_uop_illegal_inst,
         commit_entry_zero_is_atomic,
         backout_rob_commit_entry_uop_flush_pipe,
-        backout_rob_commit_entry_uop_type,
-        backout_rob_commit_entry_uop_tma,
-        backout_rob_commit_entry_uop_dbg
+        backout_rob_commit_entry_uop_type
     };
 
 endmodule
