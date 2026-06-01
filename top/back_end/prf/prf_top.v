@@ -32,12 +32,11 @@ module prf_top #(
     parameter integer FTQ_OFFSET_WIDTH  = 4,
     parameter integer UOP_TYPE_WIDTH    = 5,
     parameter integer MAX_UOP_TYPE      = 18,
-    parameter integer W_DebugMeta            = 32 + 32 + 8 + 1 + 64,
     parameter integer W_IssPrfUop       =
         (3 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 +
         3 + 2 + 3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH +
         CSR_IDX_WIDTH + ROB_IDX_WIDTH + STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH +
-        1 + UOP_TYPE_WIDTH + W_DebugMeta,
+        1 + UOP_TYPE_WIDTH,
     parameter integer W_IssPrfIO        = ISSUE_WIDTH * (1 + W_IssPrfUop),
     parameter integer W_ExePrfWbUop     =
         PRF_IDX_WIDTH + 32 + BR_MASK_WIDTH + 1 + UOP_TYPE_WIDTH,
@@ -54,7 +53,7 @@ module prf_top #(
         (3 * PRF_IDX_WIDTH) + 64 +
         FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 3 + 2 + 3 + 7 + 32 +
         BR_TAG_WIDTH + BR_MASK_WIDTH + CSR_IDX_WIDTH + ROB_IDX_WIDTH +
-        STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + 1 + UOP_TYPE_WIDTH + W_DebugMeta,
+        STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + 1 + UOP_TYPE_WIDTH,
     parameter integer W_PrfExeIO        = ISSUE_WIDTH * (1 + W_PrfExeUop),
     parameter integer W_PrfIn           =
         W_IssPrfIO + W_ExePrfIO + W_DecBroadcastIO + W_RobBroadcastIO,
@@ -112,7 +111,6 @@ module prf_top #(
         iss2prf_iss_entry_uop_ldq_idx;
     wire [ISSUE_WIDTH-1:0]                    iss2prf_iss_entry_uop_rob_flag;
     wire [(UOP_TYPE_WIDTH * ISSUE_WIDTH)-1:0] iss2prf_iss_entry_uop_op;
-    wire [(W_DebugMeta * ISSUE_WIDTH)-1:0]     iss2prf_iss_entry_uop_dbg;
 
     assign {
         iss2prf_iss_entry_valid,
@@ -138,8 +136,7 @@ module prf_top #(
         iss2prf_iss_entry_uop_stq_flag,
         iss2prf_iss_entry_uop_ldq_idx,
         iss2prf_iss_entry_uop_rob_flag,
-        iss2prf_iss_entry_uop_op,
-        iss2prf_iss_entry_uop_dbg
+        iss2prf_iss_entry_uop_op
     } = iss2prf;
 
     // exe2prf 的字段级视图，对齐 ExePrfIO 的字段顺序。
@@ -264,7 +261,6 @@ module prf_top #(
         prf2exe_iss_entry_uop_ldq_idx;
     wire [ISSUE_WIDTH-1:0]                    prf2exe_iss_entry_uop_rob_flag;
     wire [(UOP_TYPE_WIDTH * ISSUE_WIDTH)-1:0] prf2exe_iss_entry_uop_op;
-    wire [(W_DebugMeta * ISSUE_WIDTH)-1:0]     prf2exe_iss_entry_uop_dbg;
 
     assign {
         prf2exe_iss_entry_valid,
@@ -292,8 +288,7 @@ module prf_top #(
         prf2exe_iss_entry_uop_stq_flag,
         prf2exe_iss_entry_uop_ldq_idx,
         prf2exe_iss_entry_uop_rob_flag,
-        prf2exe_iss_entry_uop_op,
-        prf2exe_iss_entry_uop_dbg
+        prf2exe_iss_entry_uop_op
     } = prf2exe;
 
     wire [LSU_LOAD_WB_WIDTH-1:0]                   prf_awake_wake_valid;

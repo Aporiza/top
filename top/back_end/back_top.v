@@ -40,9 +40,6 @@ module back_top #(
     parameter integer INST_TYPE_WIDTH          = 5,
     parameter integer UOP_TYPE_WIDTH           = 5,
     parameter integer ROB_CPLT_MASK_WIDTH      = 3,
-    parameter integer W_TmaMeta              = 4,
-    parameter integer W_DebugMeta            = 32 + 32 + 8 + 1 + 64,
-    parameter integer W_RobDisTmaMeta        = 3,
 
     // ---------------------------------------------------------------------
     // 前端和 BPU 元数据参数。
@@ -85,7 +82,8 @@ module back_top #(
 
     // ---------------------------------------------------------------------
     // 基础边带和指令项位宽。
-    // 下面的宽度按 C++ IO/types 结构体字段顺序展开，包含 TmaMeta/DebugMeta。
+    // 下面的宽度按 C++ IO/types 结构体字段顺序展开。
+    // 本包裁掉调试/统计旁带，只保留会影响后端功能行为、提交和异常处理的字段。
     // ---------------------------------------------------------------------
     parameter integer W_InstructionBufferEntry =
         1 + 32 + 32 + 1 + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1,
@@ -94,9 +92,9 @@ module back_top #(
         FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 2 + 3 + 2 + 2 +
         3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH + CSR_IDX_WIDTH +
         ROB_IDX_WIDTH + STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH +
-        (2 * ROB_CPLT_MASK_WIDTH) + 1 + 6 + INST_TYPE_WIDTH + W_TmaMeta + W_DebugMeta,
+        (2 * ROB_CPLT_MASK_WIDTH) + 1 + 6 + INST_TYPE_WIDTH,
     parameter integer W_InstEntry              = 1 + W_InstInfo,
-    // Back_out.commit_entry 保留 ffc 使用的 InstEntry 边带字段，不能再裁掉 dbg/tma。
+    // Back_out.commit_entry 使用裁剪后的 InstEntry 布局，和各子模块 BSD 的功能字段位序保持一致。
     parameter integer W_BackCommitInfo         = W_InstInfo,
     parameter integer W_BackCommitEntry        = 1 + W_BackCommitInfo,
 
@@ -108,7 +106,7 @@ module back_top #(
         32 + (3 * AREG_IDX_WIDTH) +
         FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + INST_TYPE_WIDTH +
         3 + 1 + 2 + 3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH +
-        CSR_IDX_WIDTH + (2 * ROB_CPLT_MASK_WIDTH) + 2 + W_TmaMeta + W_DebugMeta,
+        CSR_IDX_WIDTH + (2 * ROB_CPLT_MASK_WIDTH) + 2,
     parameter integer W_DecRenIO               = DECODE_WIDTH * (W_DecRenInst + 1),
     parameter integer W_RenDecIO               = 1,
     parameter integer W_IduConsumeIO           = DECODE_WIDTH,
@@ -126,23 +124,23 @@ module back_top #(
         32 + AREG_IDX_WIDTH + (2 * PRF_IDX_WIDTH) +
         FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 2 + 1 + 7 +
         ROB_IDX_WIDTH + 1 + STQ_IDX_WIDTH + 1 + 4 +
-        INST_TYPE_WIDTH + W_TmaMeta + W_DebugMeta + 1,
+        INST_TYPE_WIDTH + 1,
     parameter integer W_RobCommitIO            = COMMIT_WIDTH * (1 + W_RobCommitInst),
     parameter integer W_RobBroadcastIO         =
         7 + 5 + 32 + 32 + ROB_IDX_WIDTH + 1 + ROB_IDX_WIDTH + 1,
-    parameter integer W_RobDisIO               = W_RobDisTmaMeta + 3 + ROB_IDX_WIDTH + 1,
+    parameter integer W_RobDisIO               = 3 + ROB_IDX_WIDTH + 1,
     parameter integer W_DisRobInst             =
         32 + (2 * AREG_IDX_WIDTH) + (2 * PRF_IDX_WIDTH) +
         FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 2 + INST_TYPE_WIDTH +
         1 + 1 + 3 + 7 + 32 + BR_MASK_WIDTH + ROB_IDX_WIDTH +
         STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + (2 * ROB_CPLT_MASK_WIDTH) +
-        1 + 3 + W_TmaMeta + W_DebugMeta,
+        1 + 3,
     parameter integer W_DisRobIO               = DECODE_WIDTH * (W_DisRobInst + 1 + 1),
     parameter integer W_RenDisInst             =
         32 + (3 * AREG_IDX_WIDTH) + (4 * PRF_IDX_WIDTH) +
         FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + INST_TYPE_WIDTH +
         3 + 1 + 2 + 2 + 3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH +
-        CSR_IDX_WIDTH + (2 * ROB_CPLT_MASK_WIDTH) + 2 + W_TmaMeta + W_DebugMeta,
+        CSR_IDX_WIDTH + (2 * ROB_CPLT_MASK_WIDTH) + 2,
     parameter integer W_RenDisIO               = DECODE_WIDTH * (W_RenDisInst + 1),
     parameter integer W_DisRenIO               = 1,
     parameter integer W_WakeInfo               = 1 + PRF_IDX_WIDTH,
@@ -157,7 +155,7 @@ module back_top #(
         (3 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 +
         3 + 2 + 2 + 3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH +
         CSR_IDX_WIDTH + ROB_IDX_WIDTH + STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH +
-        1 + UOP_TYPE_WIDTH + W_DebugMeta,
+        1 + UOP_TYPE_WIDTH,
     parameter integer W_DisIssIO               =
         IQ_NUM * MAX_IQ_DISPATCH_WIDTH * (1 + W_DisIssUop),
     parameter integer W_IssDisIO               = IQ_NUM * IQ_READY_NUM_WIDTH,
@@ -165,13 +163,13 @@ module back_top #(
         (3 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 +
         3 + 2 + 3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH +
         CSR_IDX_WIDTH + ROB_IDX_WIDTH + STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH +
-        1 + UOP_TYPE_WIDTH + W_DebugMeta,
+        1 + UOP_TYPE_WIDTH,
     parameter integer W_IssPrfIO               = ISSUE_WIDTH * (1 + W_IssPrfUop),
     parameter integer W_PrfExeUop              =
         (3 * PRF_IDX_WIDTH) + 64 +
         FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 3 + 2 + 3 + 7 + 32 +
         BR_TAG_WIDTH + BR_MASK_WIDTH + CSR_IDX_WIDTH + ROB_IDX_WIDTH +
-        STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + 1 + UOP_TYPE_WIDTH + W_DebugMeta,
+        STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + 1 + UOP_TYPE_WIDTH,
     parameter integer W_PrfExeIO               = ISSUE_WIDTH * (1 + W_PrfExeUop),
     parameter integer W_ExePrfWbUop            =
         PRF_IDX_WIDTH + 32 + BR_MASK_WIDTH + 1 + UOP_TYPE_WIDTH,
@@ -182,7 +180,7 @@ module back_top #(
     parameter integer W_ExuIdIO                =
         1 + 32 + ROB_IDX_WIDTH + BR_TAG_WIDTH + FTQ_IDX_WIDTH + BR_MASK_WIDTH,
     parameter integer W_ExuRobUop              =
-        32 + 32 + ROB_IDX_WIDTH + 2 + 3 + UOP_TYPE_WIDTH + 1 + W_DebugMeta,
+        32 + 32 + ROB_IDX_WIDTH + 2 + 3 + UOP_TYPE_WIDTH + 1,
     parameter integer W_ExuRobIO               = ISSUE_WIDTH * (1 + W_ExuRobUop),
     parameter integer W_ExeCsrIO               = 1 + 1 + 12 + 32 + 32,
     parameter integer W_CsrExeIO               = 32,
@@ -206,23 +204,22 @@ module back_top #(
         (LDQ_IDX_WIDTH * MAX_LDQ_DISPATCH_WIDTH) + MAX_LDQ_DISPATCH_WIDTH,
     parameter integer W_ExeLsuReqUop           =
         32 + PRF_IDX_WIDTH + 3 + 7 + 1 + BR_MASK_WIDTH + ROB_IDX_WIDTH +
-        STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + 1 + 1 + UOP_TYPE_WIDTH + W_DebugMeta,
+        STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + 1 + 1 + UOP_TYPE_WIDTH,
     parameter integer W_ExeLsuIO               =
         (LSU_AGU_COUNT + LSU_SDU_COUNT) * (1 + W_ExeLsuReqUop),
     parameter integer W_LsuExeRespUop          =
         32 + 32 + PRF_IDX_WIDTH + BR_MASK_WIDTH + ROB_IDX_WIDTH + 1 +
-        2 + UOP_TYPE_WIDTH + 1 + W_DebugMeta,
+        2 + UOP_TYPE_WIDTH + 1,
     parameter integer W_LsuExeIO               =
         (LSU_LOAD_WB_WIDTH + LSU_STA_COUNT) * (1 + W_LsuExeRespUop),
-    parameter integer W_LsuRobIO               = ROB_NUM + 2,
+    parameter integer W_LsuRobIO               = 2,
     parameter integer W_SizeT                  = 64,
     parameter integer W_MicroOp                =
         32 + (2 * AREG_IDX_WIDTH) + (3 * PRF_IDX_WIDTH) + 96 +
         FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 2 + 1 + 3 + 2 + 2 +
         3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH + CSR_IDX_WIDTH +
         ROB_IDX_WIDTH + STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH +
-        (2 * ROB_CPLT_MASK_WIDTH) + 1 + 4 + UOP_TYPE_WIDTH +
-        W_TmaMeta + W_DebugMeta + 1,
+        (2 * ROB_CPLT_MASK_WIDTH) + 1 + 4 + UOP_TYPE_WIDTH + 1,
     parameter integer W_StqEntry               =
         7 + 8 + 32 + 32 + 32 + 32 + 32 + BR_MASK_WIDTH + 32 + 32,
     parameter integer W_PeripheralReqIO        = 1 + 1 + 32 + 32 + W_MicroOp,
@@ -542,7 +539,8 @@ module back_top #(
     // 3. Back_out.commit_entry 拼接逻辑。
     //
     // rob_top 输出保持 RobCommitIO 原始布局；back_top 在这里把它转换成
-    // Back_out.commit_entry 所需的 InstEntry 布局，并保留 tma/dbg 边带。
+    // Back_out.commit_entry 所需的 InstEntry 布局。
+    // rob_top 输出保持 RobCommitIO 原始功能字段顺序，back_top 在这里转换成对外提交项。
     // ---------------------------------------------------------------------
 
     wire [COMMIT_WIDTH-1:0]                     backout_rob_commit_entry_valid;
@@ -568,8 +566,6 @@ module back_top #(
     wire [COMMIT_WIDTH-1:0]                      backout_rob_commit_entry_uop_page_fault_store;
     wire [COMMIT_WIDTH-1:0]                      backout_rob_commit_entry_uop_illegal_inst;
     wire [(INST_TYPE_WIDTH * COMMIT_WIDTH)-1:0]  backout_rob_commit_entry_uop_type;
-    wire [(W_TmaMeta * COMMIT_WIDTH)-1:0]         backout_rob_commit_entry_uop_tma;
-    wire [(W_DebugMeta * COMMIT_WIDTH)-1:0]       backout_rob_commit_entry_uop_dbg;
     wire [COMMIT_WIDTH-1:0]                      backout_rob_commit_entry_uop_flush_pipe;
     wire [(32 * COMMIT_WIDTH)-1:0]               backout_commit_entry_uop_diag_val;
 
@@ -652,8 +648,6 @@ module back_top #(
         backout_rob_commit_entry_uop_page_fault_store,
         backout_rob_commit_entry_uop_illegal_inst,
         backout_rob_commit_entry_uop_type,
-        backout_rob_commit_entry_uop_tma,
-        backout_rob_commit_entry_uop_dbg,
         backout_rob_commit_entry_uop_flush_pipe
     } = backout_rob_commit_entry_uop;
 
@@ -1010,16 +1004,14 @@ module back_top #(
         commit_entry_zero_cplt_mask,
         backout_rob_commit_entry_uop_rob_flag,
 
-        // 异常、指令类型以及 tma/dbg 边带字段。
+        // 异常、指令类型和刷新标记字段。
         backout_rob_commit_entry_uop_page_fault_inst,
         backout_rob_commit_entry_uop_page_fault_load,
         backout_rob_commit_entry_uop_page_fault_store,
         backout_rob_commit_entry_uop_illegal_inst,
         commit_entry_zero_is_atomic,
         backout_rob_commit_entry_uop_flush_pipe,
-        backout_rob_commit_entry_uop_type,
-        backout_rob_commit_entry_uop_tma,
-        backout_rob_commit_entry_uop_dbg
+        backout_rob_commit_entry_uop_type
     };
 
 endmodule

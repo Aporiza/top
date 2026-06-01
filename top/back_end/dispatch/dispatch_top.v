@@ -34,9 +34,6 @@ module dispatch_top #(
     parameter integer INST_TYPE_WIDTH        = 5,
     parameter integer UOP_TYPE_WIDTH         = 5,
     parameter integer ROB_CPLT_MASK_WIDTH    = 3,
-    parameter integer W_TmaMeta              = 4,
-    parameter integer W_DebugMeta            = 32 + 32 + 8 + 1 + 64,
-    parameter integer W_RobDisTmaMeta        = 3,
     parameter integer IQ_NUM                 = 5,
     parameter integer IQ_READY_NUM_WIDTH     = 8,
     parameter integer MAX_IQ_DISPATCH_WIDTH  = DECODE_WIDTH,
@@ -50,9 +47,9 @@ module dispatch_top #(
         32 + (3 * AREG_IDX_WIDTH) + (4 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH +
         FTQ_OFFSET_WIDTH + 1 + INST_TYPE_WIDTH + 3 + 1 + 2 + 2 + 3 + 7 +
         32 + BR_TAG_WIDTH + BR_MASK_WIDTH + CSR_IDX_WIDTH +
-        (2 * ROB_CPLT_MASK_WIDTH) + 2 + W_TmaMeta + W_DebugMeta,
+        (2 * ROB_CPLT_MASK_WIDTH) + 2,
     parameter integer W_RenDisIO             = DECODE_WIDTH * (W_RenDisInst + 1),
-    parameter integer W_RobDisIO             = W_RobDisTmaMeta + 3 + ROB_IDX_WIDTH + 1,
+    parameter integer W_RobDisIO             = 3 + ROB_IDX_WIDTH + 1,
     parameter integer W_IssDisIO             = IQ_NUM * IQ_READY_NUM_WIDTH,
     parameter integer W_LsuDisIO             =
         STQ_IDX_WIDTH + 1 + W_STQ_COUNT + W_LDQ_COUNT +
@@ -69,13 +66,13 @@ module dispatch_top #(
         32 + (2 * AREG_IDX_WIDTH) + (2 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH +
         FTQ_OFFSET_WIDTH + 1 + 2 + INST_TYPE_WIDTH + 1 + 1 + 3 + 7 + 32 +
         BR_MASK_WIDTH + ROB_IDX_WIDTH + STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH +
-        (2 * ROB_CPLT_MASK_WIDTH) + 1 + 3 + W_TmaMeta + W_DebugMeta,
+        (2 * ROB_CPLT_MASK_WIDTH) + 1 + 3,
     parameter integer W_DisRobIO             = DECODE_WIDTH * (W_DisRobInst + 1 + 1),
     parameter integer W_DisIssUop            =
         (3 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 +
         3 + 2 + 2 + 3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH +
         CSR_IDX_WIDTH + ROB_IDX_WIDTH + STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH +
-        1 + UOP_TYPE_WIDTH + W_DebugMeta,
+        1 + UOP_TYPE_WIDTH,
     parameter integer W_DisIssIO             =
         IQ_NUM * MAX_IQ_DISPATCH_WIDTH * (1 + W_DisIssUop),
     parameter integer W_DisLsuIO             =
@@ -151,8 +148,6 @@ module dispatch_top #(
         ren2dis_uop_cplt_mask;
     wire [DECODE_WIDTH-1:0]                 ren2dis_uop_page_fault_inst;
     wire [DECODE_WIDTH-1:0]                 ren2dis_uop_illegal_inst;
-    wire [(W_TmaMeta * DECODE_WIDTH)-1:0]   ren2dis_uop_tma;
-    wire [(W_DebugMeta * DECODE_WIDTH)-1:0] ren2dis_uop_dbg;
     assign {
         ren2dis_uop_diag_val,
         ren2dis_uop_dest_areg,
@@ -183,19 +178,15 @@ module dispatch_top #(
         ren2dis_uop_expect_mask,
         ren2dis_uop_cplt_mask,
         ren2dis_uop_page_fault_inst,
-        ren2dis_uop_illegal_inst,
-        ren2dis_uop_tma,
-        ren2dis_uop_dbg
+        ren2dis_uop_illegal_inst
     } = ren2dis_uop;
 
-    wire [W_RobDisTmaMeta-1:0] rob2dis_tma;
     wire                     rob2dis_ready;
     wire                     rob2dis_empty;
     wire                     rob2dis_stall;
     wire [ROB_IDX_WIDTH-1:0] rob2dis_enq_idx;
     wire                     rob2dis_rob_flag;
     assign {
-        rob2dis_tma,
         rob2dis_ready,
         rob2dis_empty,
         rob2dis_stall,
@@ -328,8 +319,6 @@ module dispatch_top #(
     wire [DECODE_WIDTH-1:0]                 dis2rob_uop_page_fault_inst;
     wire [DECODE_WIDTH-1:0]                 dis2rob_uop_illegal_inst;
     wire [DECODE_WIDTH-1:0]                 dis2rob_uop_flush_pipe;
-    wire [(W_TmaMeta * DECODE_WIDTH)-1:0]   dis2rob_uop_tma;
-    wire [(W_DebugMeta * DECODE_WIDTH)-1:0] dis2rob_uop_dbg;
     assign {
         dis2rob_uop_diag_val,
         dis2rob_uop_dest_areg,
@@ -357,9 +346,7 @@ module dispatch_top #(
         dis2rob_uop_rob_flag,
         dis2rob_uop_page_fault_inst,
         dis2rob_uop_illegal_inst,
-        dis2rob_uop_flush_pipe,
-        dis2rob_uop_tma,
-        dis2rob_uop_dbg
+        dis2rob_uop_flush_pipe
     } = dis2rob_uop;
 
     wire [N_DisIssReq-1:0]                 dis2iss_req_valid;
@@ -394,7 +381,6 @@ module dispatch_top #(
     wire [(LDQ_IDX_WIDTH * N_DisIssReq)-1:0]  dis2iss_req_uop_ldq_idx;
     wire [N_DisIssReq-1:0]                    dis2iss_req_uop_rob_flag;
     wire [(UOP_TYPE_WIDTH * N_DisIssReq)-1:0] dis2iss_req_uop_op;
-    wire [(W_DebugMeta * N_DisIssReq)-1:0]     dis2iss_req_uop_dbg;
     assign {
         dis2iss_req_uop_dest_preg,
         dis2iss_req_uop_src1_preg,
@@ -420,8 +406,7 @@ module dispatch_top #(
         dis2iss_req_uop_stq_flag,
         dis2iss_req_uop_ldq_idx,
         dis2iss_req_uop_rob_flag,
-        dis2iss_req_uop_op,
-        dis2iss_req_uop_dbg
+        dis2iss_req_uop_op
     } = dis2iss_req_uop;
 
     wire [MAX_STQ_DISPATCH_WIDTH-1:0]                   dis2lsu_alloc_req;

@@ -15,7 +15,9 @@
 // qm3dc 里部分历史网表使用 din/dout、pi_ext/po_ext 等名字，属于生成器输出名；
 // 若复用那类网表，需要先套一层同名 *_bsd_top 薄适配，转换成本包规范后再接入。
 //
-// LsuRobIO 按 {tma.miss_mask, committed_store_pending, translation_pending} 打包。
+// LsuRobIO 按 {committed_store_pending, translation_pending} 打包。
+// 前一个字段用于 ROB 判断已提交 store 是否仍在等待，后一个字段用于阻止 SFENCE.VMA 过早提交。
+// 性能统计和调试旁带不进入本包接口，组员实现 BSD 时只需要复现会影响后端行为的功能字段。
 // MMU 行为留在 LSU BSD 模型内部，保持和 ffc RealLsu 的模块边界一致。
 // peripheral/DCache 总线携带 MicroOp、StqEntry、req_id、replay 等上下文，
 // 组员实现 BSD 时可以直接模拟 ffc LSU 与内存系统之间的行为。
@@ -37,8 +39,6 @@ module lsu_top #(
     parameter integer INST_TYPE_WIDTH        = 5,
     parameter integer UOP_TYPE_WIDTH         = 5,
     parameter integer ROB_CPLT_MASK_WIDTH    = 3,
-    parameter integer W_DebugMeta            = 32 + 32 + 8 + 1 + 64,
-    parameter integer W_TmaMeta              = 4,
     parameter integer LSU_LDU_COUNT          = 3,
     parameter integer LSU_STA_COUNT          = 2,
     parameter integer LSU_AGU_COUNT          = 5,
@@ -53,8 +53,7 @@ module lsu_top #(
     parameter integer W_RobCommitInst        =
         32 + AREG_IDX_WIDTH + (2 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH +
         FTQ_OFFSET_WIDTH + 1 + 2 + 1 + 7 + ROB_IDX_WIDTH + 1 +
-        STQ_IDX_WIDTH + 1 + 4 + INST_TYPE_WIDTH + W_TmaMeta +
-        W_DebugMeta + 1,
+        STQ_IDX_WIDTH + 1 + 4 + INST_TYPE_WIDTH + 1,
     parameter integer W_RobCommitIO          = COMMIT_WIDTH * (1 + W_RobCommitInst),
     parameter integer W_RobBroadcastIO       =
         7 + 5 + 32 + 32 + ROB_IDX_WIDTH + 1 + ROB_IDX_WIDTH + 1,
@@ -68,7 +67,7 @@ module lsu_top #(
             (1 + LDQ_IDX_WIDTH + BR_MASK_WIDTH + ROB_IDX_WIDTH + 1),
     parameter integer W_ExeLsuReqUop         =
         32 + PRF_IDX_WIDTH + 3 + 7 + 1 + BR_MASK_WIDTH + ROB_IDX_WIDTH +
-        STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + 1 + 1 + UOP_TYPE_WIDTH + W_DebugMeta,
+        STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + 1 + 1 + UOP_TYPE_WIDTH,
     parameter integer W_ExeLsuIO             =
         (LSU_AGU_COUNT + LSU_SDU_COUNT) * (1 + W_ExeLsuReqUop),
     parameter integer W_SizeT                = 64,
@@ -77,8 +76,7 @@ module lsu_top #(
         FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 2 + 1 + 3 + 2 + 2 +
         3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH + CSR_IDX_WIDTH +
         ROB_IDX_WIDTH + STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH +
-        (2 * ROB_CPLT_MASK_WIDTH) + 1 + 4 + UOP_TYPE_WIDTH +
-        W_TmaMeta + W_DebugMeta + 1,
+        (2 * ROB_CPLT_MASK_WIDTH) + 1 + 4 + UOP_TYPE_WIDTH + 1,
     parameter integer W_StqEntry             =
         7 + 8 + 32 + 32 + 32 + 32 + 32 + BR_MASK_WIDTH + 32 + 32,
     parameter integer W_PeripheralRespIO     = 1 + 1 + 32 + W_MicroOp,
@@ -92,10 +90,10 @@ module lsu_top #(
     parameter integer W_LsuDisIO             =
         STQ_IDX_WIDTH + 1 + W_STQ_COUNT + W_LDQ_COUNT +
         (LDQ_IDX_WIDTH * MAX_LDQ_DISPATCH_WIDTH) + MAX_LDQ_DISPATCH_WIDTH,
-    parameter integer W_LsuRobIO             = ROB_NUM + 2,
+    parameter integer W_LsuRobIO             = 2,
     parameter integer W_LsuExeRespUop        =
         32 + 32 + PRF_IDX_WIDTH + BR_MASK_WIDTH + ROB_IDX_WIDTH + 1 +
-        2 + UOP_TYPE_WIDTH + 1 + W_DebugMeta,
+        2 + UOP_TYPE_WIDTH + 1,
     parameter integer W_LsuExeIO             =
         (LSU_LOAD_WB_WIDTH + LSU_STA_COUNT) * (1 + W_LsuExeRespUop),
     parameter integer W_PeripheralReqIO      = 1 + 1 + 32 + 32 + W_MicroOp,
@@ -166,8 +164,6 @@ module lsu_top #(
     wire [COMMIT_WIDTH-1:0]                     rob_commit_entry_uop_page_fault_store;
     wire [COMMIT_WIDTH-1:0]                     rob_commit_entry_uop_illegal_inst;
     wire [(INST_TYPE_WIDTH * COMMIT_WIDTH)-1:0] rob_commit_entry_uop_type;
-    wire [(W_TmaMeta * COMMIT_WIDTH)-1:0]        rob_commit_entry_uop_tma;
-    wire [(W_DebugMeta * COMMIT_WIDTH)-1:0]      rob_commit_entry_uop_dbg;
     wire [COMMIT_WIDTH-1:0]                     rob_commit_entry_uop_flush_pipe;
     assign {
         rob_commit_entry_uop_diag_val,
@@ -190,8 +186,6 @@ module lsu_top #(
         rob_commit_entry_uop_page_fault_store,
         rob_commit_entry_uop_illegal_inst,
         rob_commit_entry_uop_type,
-        rob_commit_entry_uop_tma,
-        rob_commit_entry_uop_dbg,
         rob_commit_entry_uop_flush_pipe
     } = rob_commit_entry_uop;
 
@@ -316,8 +310,6 @@ module lsu_top #(
         exe2lsu_req_uop_dest_en;
     wire [(UOP_TYPE_WIDTH * (LSU_AGU_COUNT + LSU_SDU_COUNT))-1:0]
         exe2lsu_req_uop_op;
-    wire [(W_DebugMeta * (LSU_AGU_COUNT + LSU_SDU_COUNT))-1:0]
-        exe2lsu_req_uop_dbg;
     assign {
         exe2lsu_req_uop_result,
         exe2lsu_req_uop_dest_preg,
@@ -331,8 +323,7 @@ module lsu_top #(
         exe2lsu_req_uop_ldq_idx,
         exe2lsu_req_uop_rob_flag,
         exe2lsu_req_uop_dest_en,
-        exe2lsu_req_uop_op,
-        exe2lsu_req_uop_dbg
+        exe2lsu_req_uop_op
     } = exe2lsu_req_uop;
 
     wire        peripheral_resp_is_mmio;
@@ -365,11 +356,9 @@ module lsu_top #(
         lsu2dis_ldq_alloc_valid
     } = lsu2dis;
 
-    wire [ROB_NUM-1:0] lsu2rob_tma_miss_mask;
     wire               lsu2rob_committed_store_pending;
     wire               lsu2rob_translation_pending;
     assign {
-        lsu2rob_tma_miss_mask,
         lsu2rob_committed_store_pending,
         lsu2rob_translation_pending
     } = lsu2rob;
@@ -399,8 +388,6 @@ module lsu_top #(
         lsu2exe_wb_req_uop_page_fault_store;
     wire [(UOP_TYPE_WIDTH * (LSU_LOAD_WB_WIDTH + LSU_STA_COUNT))-1:0]
         lsu2exe_wb_req_uop_op;
-    wire [(W_DebugMeta * (LSU_LOAD_WB_WIDTH + LSU_STA_COUNT))-1:0]
-        lsu2exe_wb_req_uop_dbg;
     wire [(LSU_LOAD_WB_WIDTH + LSU_STA_COUNT)-1:0]
         lsu2exe_wb_req_uop_flush_pipe;
     assign {
@@ -413,7 +400,6 @@ module lsu_top #(
         lsu2exe_wb_req_uop_page_fault_load,
         lsu2exe_wb_req_uop_page_fault_store,
         lsu2exe_wb_req_uop_op,
-        lsu2exe_wb_req_uop_dbg,
         lsu2exe_wb_req_uop_flush_pipe
     } = lsu2exe_wb_req_uop;
 

@@ -13,8 +13,8 @@
 // qm3dc 里部分历史网表使用 din/dout、pi_ext/po_ext 等名字，属于生成器输出名；
 // 若复用那类网表，需要先套一层同名 *_bsd_top 薄适配，转换成本包规范后再接入。
 //
-// dec2ren 和 ren2dis 都保留 TmaMeta/DebugMeta，保证后续提交回训和 difftest
-// 相关边带不会在重命名边界被裁掉。
+// dec2ren 和 ren2dis 都按功能字段顺序打包。
+// 调试/统计旁带已经在本包裁掉，重命名边界只负责保留真实后端状态推进需要的字段。
 
 
 module ren_top #(
@@ -31,14 +31,11 @@ module ren_top #(
     parameter integer FTQ_OFFSET_WIDTH    = 4,
     parameter integer INST_TYPE_WIDTH     = 5,
     parameter integer ROB_CPLT_MASK_WIDTH = 3,
-    parameter integer W_TmaMeta              = 4,
-    parameter integer W_DebugMeta            = 32 + 32 + 8 + 1 + 64,
-    parameter integer W_RobDisTmaMeta        = 3,
     parameter integer COMMIT_WIDTH        = DECODE_WIDTH,
     parameter integer W_DecRenInst        =
         32 + (3 * AREG_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 +
         INST_TYPE_WIDTH + 3 + 1 + 2 + 3 + 7 + 32 + BR_TAG_WIDTH +
-        BR_MASK_WIDTH + CSR_IDX_WIDTH + (2 * ROB_CPLT_MASK_WIDTH) + 2 + W_TmaMeta + W_DebugMeta,
+        BR_MASK_WIDTH + CSR_IDX_WIDTH + (2 * ROB_CPLT_MASK_WIDTH) + 2,
     parameter integer W_DecRenIO          = DECODE_WIDTH * (W_DecRenInst + 1),
     parameter integer W_DecBroadcastIO    =
         1 + BR_MASK_WIDTH + BR_TAG_WIDTH + ROB_IDX_WIDTH + BR_MASK_WIDTH,
@@ -48,15 +45,14 @@ module ren_top #(
     parameter integer W_RobCommitInst     =
         32 + AREG_IDX_WIDTH + (2 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH +
         FTQ_OFFSET_WIDTH + 1 + 2 + 1 + 7 + ROB_IDX_WIDTH + 1 +
-        STQ_IDX_WIDTH + 1 + 4 + INST_TYPE_WIDTH + W_TmaMeta +
-        W_DebugMeta + 1,
+        STQ_IDX_WIDTH + 1 + 4 + INST_TYPE_WIDTH + 1,
     parameter integer W_RobCommitIO       = COMMIT_WIDTH * (1 + W_RobCommitInst),
     parameter integer W_RenDecIO          = 1,
     parameter integer W_RenDisInst        =
         32 + (3 * AREG_IDX_WIDTH) + (4 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH +
         FTQ_OFFSET_WIDTH + 1 + INST_TYPE_WIDTH + 3 + 1 + 2 + 2 + 3 + 7 +
         32 + BR_TAG_WIDTH + BR_MASK_WIDTH + CSR_IDX_WIDTH +
-        (2 * ROB_CPLT_MASK_WIDTH) + 2 + W_TmaMeta + W_DebugMeta,
+        (2 * ROB_CPLT_MASK_WIDTH) + 2,
     parameter integer W_RenDisIO          = DECODE_WIDTH * (W_RenDisInst + 1),
     parameter integer W_RenIn             =
         W_DecRenIO + W_DecBroadcastIO + W_DisRenIO + W_RobBroadcastIO +
@@ -112,8 +108,6 @@ module ren_top #(
         dec2ren_uop_cplt_mask;
     wire [DECODE_WIDTH-1:0]                 dec2ren_uop_page_fault_inst;
     wire [DECODE_WIDTH-1:0]                 dec2ren_uop_illegal_inst;
-    wire [(W_TmaMeta * DECODE_WIDTH)-1:0]   dec2ren_uop_tma;
-    wire [(W_DebugMeta * DECODE_WIDTH)-1:0] dec2ren_uop_dbg;
     assign {
         dec2ren_uop_diag_val,
         dec2ren_uop_dest_areg,
@@ -138,9 +132,7 @@ module ren_top #(
         dec2ren_uop_expect_mask,
         dec2ren_uop_cplt_mask,
         dec2ren_uop_page_fault_inst,
-        dec2ren_uop_illegal_inst,
-        dec2ren_uop_tma,
-        dec2ren_uop_dbg
+        dec2ren_uop_illegal_inst
     } = dec2ren_uop;
 
     wire                     dec_bcast_mispred;
@@ -231,8 +223,6 @@ module ren_top #(
     wire [COMMIT_WIDTH-1:0]                     rob_commit_entry_uop_page_fault_store;
     wire [COMMIT_WIDTH-1:0]                     rob_commit_entry_uop_illegal_inst;
     wire [(INST_TYPE_WIDTH * COMMIT_WIDTH)-1:0] rob_commit_entry_uop_type;
-    wire [(W_TmaMeta * COMMIT_WIDTH)-1:0]        rob_commit_entry_uop_tma;
-    wire [(W_DebugMeta * COMMIT_WIDTH)-1:0]      rob_commit_entry_uop_dbg;
     wire [COMMIT_WIDTH-1:0]                     rob_commit_entry_uop_flush_pipe;
     assign {
         rob_commit_entry_uop_diag_val,
@@ -255,8 +245,6 @@ module ren_top #(
         rob_commit_entry_uop_page_fault_store,
         rob_commit_entry_uop_illegal_inst,
         rob_commit_entry_uop_type,
-        rob_commit_entry_uop_tma,
-        rob_commit_entry_uop_dbg,
         rob_commit_entry_uop_flush_pipe
     } = rob_commit_entry_uop;
 
@@ -301,8 +289,6 @@ module ren_top #(
         ren2dis_uop_cplt_mask;
     wire [DECODE_WIDTH-1:0]                 ren2dis_uop_page_fault_inst;
     wire [DECODE_WIDTH-1:0]                 ren2dis_uop_illegal_inst;
-    wire [(W_TmaMeta * DECODE_WIDTH)-1:0]   ren2dis_uop_tma;
-    wire [(W_DebugMeta * DECODE_WIDTH)-1:0] ren2dis_uop_dbg;
     assign {
         ren2dis_uop_diag_val,
         ren2dis_uop_dest_areg,
@@ -333,9 +319,7 @@ module ren_top #(
         ren2dis_uop_expect_mask,
         ren2dis_uop_cplt_mask,
         ren2dis_uop_page_fault_inst,
-        ren2dis_uop_illegal_inst,
-        ren2dis_uop_tma,
-        ren2dis_uop_dbg
+        ren2dis_uop_illegal_inst
     } = ren2dis_uop;
 
     assign pi = {

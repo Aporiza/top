@@ -15,7 +15,7 @@
 // 若复用那类网表，需要先套一层同名 *_bsd_top 薄适配，转换成本包规范后再接入。
 //
 // 展开的 rob_bcast 字段只给 back_top 拼 flush、fence、异常和重定向输出使用。
-// LsuRobIO 按 ffc 保留 miss_mask、committed_store_pending 和 translation_pending，
+// LsuRobIO 只保留 committed_store_pending 和 translation_pending，
 // ROB BSD 可据此阻止 SFENCE.VMA 等指令过早提交。
 
 
@@ -35,9 +35,6 @@ module rob_top #(
     parameter integer INST_TYPE_WIDTH     = 5,
     parameter integer UOP_TYPE_WIDTH      = 5,
     parameter integer ROB_CPLT_MASK_WIDTH = 3,
-    parameter integer W_TmaMeta              = 4,
-    parameter integer W_DebugMeta            = 32 + 32 + 8 + 1 + 64,
-    parameter integer W_RobDisTmaMeta        = 3,
     parameter integer ISSUE_WIDTH         = 15,
     parameter integer ROB_NUM             = 512,
     parameter integer FTQ_ROB_PC_PORT_NUM = 1,
@@ -46,32 +43,31 @@ module rob_top #(
         FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 2 + 3 + 2 + 2 +
         3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH + CSR_IDX_WIDTH +
         ROB_IDX_WIDTH + STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH +
-        (2 * ROB_CPLT_MASK_WIDTH) + 1 + 6 + INST_TYPE_WIDTH + W_TmaMeta + W_DebugMeta,
+        (2 * ROB_CPLT_MASK_WIDTH) + 1 + 6 + INST_TYPE_WIDTH,
     parameter integer W_InstEntry         = 1 + W_InstInfo,
     parameter integer W_DisRobInst        =
         32 + (2 * AREG_IDX_WIDTH) + (2 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH +
         FTQ_OFFSET_WIDTH + 1 + 2 + INST_TYPE_WIDTH + 1 + 1 + 3 + 7 + 32 +
         BR_MASK_WIDTH + ROB_IDX_WIDTH + STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH +
-        (2 * ROB_CPLT_MASK_WIDTH) + 1 + 3 + W_TmaMeta + W_DebugMeta,
+        (2 * ROB_CPLT_MASK_WIDTH) + 1 + 3,
     parameter integer W_DisRobIO          = DECODE_WIDTH * (W_DisRobInst + 1 + 1),
     parameter integer W_CsrRobIO          = 1,
-    parameter integer W_LsuRobIO          = ROB_NUM + 2,
+    parameter integer W_LsuRobIO          = 2,
     parameter integer W_DecBroadcastIO    =
         1 + BR_MASK_WIDTH + BR_TAG_WIDTH + ROB_IDX_WIDTH + BR_MASK_WIDTH,
     parameter integer W_ExuRobUop         =
-        32 + 32 + ROB_IDX_WIDTH + 2 + 3 + UOP_TYPE_WIDTH + 1 + W_DebugMeta,
+        32 + 32 + ROB_IDX_WIDTH + 2 + 3 + UOP_TYPE_WIDTH + 1,
     parameter integer W_ExuRobIO          = ISSUE_WIDTH * (1 + W_ExuRobUop),
     parameter integer W_FtqPcReadReq      = 1 + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH,
     parameter integer W_FtqPcReadResp     = 1 + 1 + 32 + 1 + 32,
     parameter integer W_FtqRobPcReqIO     = FTQ_ROB_PC_PORT_NUM * W_FtqPcReadReq,
     parameter integer W_FtqRobPcRespIO    = FTQ_ROB_PC_PORT_NUM * W_FtqPcReadResp,
-    parameter integer W_RobDisIO          = W_RobDisTmaMeta + 3 + ROB_IDX_WIDTH + 1,
+    parameter integer W_RobDisIO          = 3 + ROB_IDX_WIDTH + 1,
     parameter integer W_RobCsrIO          = 2,
     parameter integer W_RobCommitInst     =
         32 + AREG_IDX_WIDTH + (2 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH +
         FTQ_OFFSET_WIDTH + 1 + 2 + 1 + 7 + ROB_IDX_WIDTH + 1 +
-        STQ_IDX_WIDTH + 1 + 4 + INST_TYPE_WIDTH + W_TmaMeta +
-        W_DebugMeta + 1,
+        STQ_IDX_WIDTH + 1 + 4 + INST_TYPE_WIDTH + 1,
     parameter integer W_RobCommitIO       = COMMIT_WIDTH * (1 + W_RobCommitInst),
     parameter integer W_RobBroadcastIO    =
         7 + 5 + 32 + 32 + ROB_IDX_WIDTH + 1 + ROB_IDX_WIDTH + 1,
@@ -158,8 +154,6 @@ module rob_top #(
     wire [DECODE_WIDTH-1:0]                 dis2rob_uop_page_fault_inst;
     wire [DECODE_WIDTH-1:0]                 dis2rob_uop_illegal_inst;
     wire [DECODE_WIDTH-1:0]                 dis2rob_uop_flush_pipe;
-    wire [(W_TmaMeta * DECODE_WIDTH)-1:0]   dis2rob_uop_tma;
-    wire [(W_DebugMeta * DECODE_WIDTH)-1:0] dis2rob_uop_dbg;
     assign {
         dis2rob_uop_diag_val,
         dis2rob_uop_dest_areg,
@@ -187,19 +181,15 @@ module rob_top #(
         dis2rob_uop_rob_flag,
         dis2rob_uop_page_fault_inst,
         dis2rob_uop_illegal_inst,
-        dis2rob_uop_flush_pipe,
-        dis2rob_uop_tma,
-        dis2rob_uop_dbg
+        dis2rob_uop_flush_pipe
     } = dis2rob_uop;
 
     wire csr2rob_interrupt_req;
     assign csr2rob_interrupt_req = csr2rob;
 
-    wire [ROB_NUM-1:0] lsu2rob_tma_miss_mask;
     wire               lsu2rob_committed_store_pending;
     wire               lsu2rob_translation_pending;
     assign {
-        lsu2rob_tma_miss_mask,
         lsu2rob_committed_store_pending,
         lsu2rob_translation_pending
     } = lsu2rob;
@@ -232,7 +222,6 @@ module rob_top #(
     wire [ISSUE_WIDTH-1:0]                    exu2rob_entry_uop_page_fault_load;
     wire [ISSUE_WIDTH-1:0]                    exu2rob_entry_uop_page_fault_store;
     wire [(UOP_TYPE_WIDTH * ISSUE_WIDTH)-1:0] exu2rob_entry_uop_op;
-    wire [(W_DebugMeta * ISSUE_WIDTH)-1:0]     exu2rob_entry_uop_dbg;
     wire [ISSUE_WIDTH-1:0]                    exu2rob_entry_uop_flush_pipe;
     assign {
         exu2rob_entry_uop_diag_val,
@@ -244,7 +233,6 @@ module rob_top #(
         exu2rob_entry_uop_page_fault_load,
         exu2rob_entry_uop_page_fault_store,
         exu2rob_entry_uop_op,
-        exu2rob_entry_uop_dbg,
         exu2rob_entry_uop_flush_pipe
     } = exu2rob_entry_uop;
 
@@ -277,14 +265,12 @@ module rob_top #(
         ftq_rob_pc_req
     } = po;
 
-    wire [W_RobDisTmaMeta-1:0] rob2dis_tma;
     wire                     rob2dis_ready;
     wire                     rob2dis_empty;
     wire                     rob2dis_stall;
     wire [ROB_IDX_WIDTH-1:0] rob2dis_enq_idx;
     wire                     rob2dis_rob_flag;
     assign {
-        rob2dis_tma,
         rob2dis_ready,
         rob2dis_empty,
         rob2dis_stall,
@@ -332,8 +318,6 @@ module rob_top #(
     wire [COMMIT_WIDTH-1:0]                     rob_commit_entry_uop_page_fault_store;
     wire [COMMIT_WIDTH-1:0]                     rob_commit_entry_uop_illegal_inst;
     wire [(INST_TYPE_WIDTH * COMMIT_WIDTH)-1:0] rob_commit_entry_uop_type;
-    wire [(W_TmaMeta * COMMIT_WIDTH)-1:0]        rob_commit_entry_uop_tma;
-    wire [(W_DebugMeta * COMMIT_WIDTH)-1:0]      rob_commit_entry_uop_dbg;
     wire [COMMIT_WIDTH-1:0]                     rob_commit_entry_uop_flush_pipe;
     assign {
         rob_commit_entry_uop_diag_val,
@@ -356,8 +340,6 @@ module rob_top #(
         rob_commit_entry_uop_page_fault_store,
         rob_commit_entry_uop_illegal_inst,
         rob_commit_entry_uop_type,
-        rob_commit_entry_uop_tma,
-        rob_commit_entry_uop_dbg,
         rob_commit_entry_uop_flush_pipe
     } = rob_commit_entry_uop;
 

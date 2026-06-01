@@ -37,9 +37,6 @@ module preiduqueue_top #(
     parameter integer FTQ_OFFSET_WIDTH         = 4,
     parameter integer INST_TYPE_WIDTH          = 5,
     parameter integer ROB_CPLT_MASK_WIDTH      = 3,
-    parameter integer W_TmaMeta              = 4,
-    parameter integer W_DebugMeta            = 32 + 32 + 8 + 1 + 64,
-    parameter integer W_RobDisTmaMeta        = 3,
     parameter integer BPU_SCL_META_NTABLE      = 8,
     parameter integer BPU_SCL_META_IDX_BITS    = 16,
     parameter integer tage_scl_meta_sum_t_BITS = 16,
@@ -70,8 +67,7 @@ module preiduqueue_top #(
     parameter integer W_RobCommitInst          =
         32 + AREG_IDX_WIDTH + (2 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH +
         FTQ_OFFSET_WIDTH + 1 + 2 + 1 + 7 + ROB_IDX_WIDTH + 1 +
-        STQ_IDX_WIDTH + 1 + 4 + INST_TYPE_WIDTH + W_TmaMeta +
-        W_DebugMeta + 1,
+        STQ_IDX_WIDTH + 1 + 4 + INST_TYPE_WIDTH + 1,
     parameter integer W_RobCommitIO            = COMMIT_WIDTH * (1 + W_RobCommitInst),
     parameter integer W_ExuIdIO                =
         1 + 32 + ROB_IDX_WIDTH + BR_TAG_WIDTH + FTQ_IDX_WIDTH + BR_MASK_WIDTH,
@@ -231,8 +227,6 @@ module preiduqueue_top #(
     wire [COMMIT_WIDTH-1:0]                     rob_commit_entry_uop_page_fault_store;
     wire [COMMIT_WIDTH-1:0]                     rob_commit_entry_uop_illegal_inst;
     wire [(INST_TYPE_WIDTH * COMMIT_WIDTH)-1:0] rob_commit_entry_uop_type;
-    wire [(W_TmaMeta * COMMIT_WIDTH)-1:0]        rob_commit_entry_uop_tma;
-    wire [(W_DebugMeta * COMMIT_WIDTH)-1:0]      rob_commit_entry_uop_dbg;
     wire [COMMIT_WIDTH-1:0]                     rob_commit_entry_uop_flush_pipe;
     assign {
         rob_commit_entry_uop_diag_val,
@@ -255,8 +249,6 @@ module preiduqueue_top #(
         rob_commit_entry_uop_page_fault_store,
         rob_commit_entry_uop_illegal_inst,
         rob_commit_entry_uop_type,
-        rob_commit_entry_uop_tma,
-        rob_commit_entry_uop_dbg,
         rob_commit_entry_uop_flush_pipe
     } = rob_commit_entry_uop;
 
