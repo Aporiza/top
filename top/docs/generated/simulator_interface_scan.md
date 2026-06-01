@@ -1,7 +1,7 @@
 # 模拟器接口扫描报告
 
-- 生成时间：`2026-05-20T00:14:05`
-- 模拟器目录：`simulator-ffc9fad707a7acb0be5c7d4fe7c06d48987c73e0`
+- 生成时间：`2026-05-31T23:41:21`
+- 模拟器目录：`simulator-front`
 - RTL/训练包目录：`top`
 
 ## 关键配置
@@ -82,31 +82,31 @@
 | --- | --- | --- |
 | Isu::comb_calc_latency_next |  | back-end/Isu.cpp:199 |
 | comb_calc_latency_next |  | back-end/include/Isu.h:79 |
-| bpu_core_comb_calc | const InputPayload &inp, ReadData &rd, const BpuPostReadReqCombOut &post_req, BpuCombOut &comb_out | front-end/BPU/BPU.h:1459 |
-| bpu_comb_calc | const InputPayload &inp, ReadData &rd, OutputPayload &out, UpdateRequest &req | front-end/BPU/BPU.h:1903 |
+| bpu_core_comb_calc | const InputPayload &inp, ReadData &rd, const BpuPostReadReqCombOut &post_req, BpuCombOut &comb_out | front-end/BPU/BPU.h:1494 |
+| bpu_comb_calc | const InputPayload &inp, ReadData &rd, OutputPayload &out, UpdateRequest &req | front-end/BPU/BPU.h:2015 |
 | tage_comb_calc | const InputPayload &inp, ReadData &rd, OutputPayload &out, CombResult &req | front-end/BPU/dir_predictor/TAGE_top.h:1479 |
 | btb_comb_calc | const InputPayload &inp, ReadData &rd, OutputPayload &out, CombResult &req | front-end/BPU/target_predictor/BTB_top.h:922 |
 | type_pred_comb_calc | const InputPayload &in, ReadData &rd, OutputPayload &out, CombResult &req | front-end/BPU/type_predictor/TypePredictor.h:408 |
 | FrontTop::step_bpu |  | front-end/FrontTop.cpp:36 |
 | FrontTop::step_oracle |  | front-end/FrontTop.cpp:41 |
-| comb_calc | const PTAB_in &inp, const PTAB_read_data &rd, PTAB_out &out, PTAB_read_data &next_rd | front-end/fifo/PTAB.cpp:172 |
-| PTAB_comb_calc | struct PTAB_in *in, const struct PTAB_read_data *rd, struct PTAB_out *out, struct PTAB_read_data *next_rd | front-end/fifo/PTAB.cpp:212 |
-| comb_calc | const fetch_address_FIFO_in &inp, const fetch_address_FIFO_read_data &rd, fetch_address_FIFO_out &out, fetch_address_FIFO_read_data &next_rd | front-end/fifo/fetch_address_FIFO.cpp:90 |
-| fetch_address_FIFO_comb_calc | struct fetch_address_FIFO_in *in, const struct fetch_address_FIFO_read_data *rd, struct fetch_address_FIFO_out *out, struct fetch_address_FI | front-end/fifo/fetch_address_FIFO.cpp:123 |
-| comb_calc | const front2back_FIFO_in &inp, const front2back_FIFO_read_data &rd, front2back_FIFO_out &out, front2back_FIFO_read_data &next_rd | front-end/fifo/front2bank_FIFO.cpp:162 |
-| front2back_FIFO_comb_calc | struct front2back_FIFO_in *in, const struct front2back_FIFO_read_data *rd, struct front2back_FIFO_out *out, struct front2back_FIFO_read_data | front-end/fifo/front2bank_FIFO.cpp:195 |
-| comb_calc | const instruction_FIFO_in &inp, const instruction_FIFO_read_data &rd, instruction_FIFO_out &out, instruction_FIFO_read_data &next_rd | front-end/fifo/instruction_FIFO.cpp:114 |
-| instruction_FIFO_comb_calc | struct instruction_FIFO_in *in, const struct instruction_FIFO_read_data *rd, struct instruction_FIFO_out *out, struct instruction_FIFO_read_ | front-end/fifo/instruction_FIFO.cpp:147 |
-| icache_comb_calc | struct icache_in *in, struct icache_out *out | front-end/front_module.h:106 |
-| instruction_FIFO_comb_calc | struct instruction_FIFO_in *in, const struct instruction_FIFO_read_data *rd, struct instruction_FIFO_out *out, struct instruction_FIFO_read_ | front-end/front_module.h:119 |
-| PTAB_comb_calc | struct PTAB_in *in, const struct PTAB_read_data *rd, struct PTAB_out *out, struct PTAB_read_data *next_rd | front-end/front_module.h:127 |
-| front_top | struct front_top_in *in, struct front_top_out *out | front-end/front_module.h:131 |
-| front2back_FIFO_comb_calc | struct front2back_FIFO_in *in, const struct front2back_FIFO_read_data *rd, struct front2back_FIFO_out *out, struct front2back_FIFO_read_data | front-end/front_module.h:138 |
-| fetch_address_FIFO_comb_calc | struct fetch_address_FIFO_in *in, const struct fetch_address_FIFO_read_data *rd, struct fetch_address_FIFO_out *out, struct fetch_address_FI | front-end/front_module.h:148 |
-| front_comb_calc | const struct front_top_in &inp, const FrontReadData &rd, struct front_top_out &out, FrontUpdateRequest &req | front-end/front_top.cpp:920 |
-| front_seq_read | const struct front_top_in &inp, FrontReadData &rd | front-end/front_top.cpp:1865 |
-| front_seq_write | const struct front_top_in &inp, const FrontUpdateRequest &req, bool reset | front-end/front_top.cpp:1902 |
-| front_top | struct front_top_in *in, struct front_top_out *out | front-end/front_top.cpp:1936 |
+| comb_calc | const PTAB_in &inp, const PTAB_read_data &rd, PTAB_out &out, PTAB_read_data &next_rd, PtabCombOut &step_req | front-end/fifo/PTAB.cpp:204 |
+| PTAB_comb_calc | struct PTAB_in *in, const struct PTAB_read_data *rd, struct PTAB_out *out, struct PTAB_read_data *next_rd, PtabCombOut *step_req | front-end/fifo/PTAB.cpp:271 |
+| comb_calc | const fetch_address_FIFO_in &inp, const fetch_address_FIFO_read_data &rd, fetch_address_FIFO_out &out, fetch_address_FIFO_read_data &next_rd | front-end/fifo/fetch_address_FIFO.cpp:110 |
+| fetch_address_FIFO_comb_calc | struct fetch_address_FIFO_in *in, const struct fetch_address_FIFO_read_data *rd, struct fetch_address_FIFO_out *out, struct fetch_address_FI | front-end/fifo/fetch_address_FIFO.cpp:165 |
+| comb_calc | const front2back_FIFO_in &inp, const front2back_FIFO_read_data &rd, front2back_FIFO_out &out, front2back_FIFO_read_data &next_rd, Front2Back | front-end/fifo/front2bank_FIFO.cpp:182 |
+| front2back_FIFO_comb_calc | struct front2back_FIFO_in *in, const struct front2back_FIFO_read_data *rd, struct front2back_FIFO_out *out, struct front2back_FIFO_read_data | front-end/fifo/front2bank_FIFO.cpp:237 |
+| comb_calc | const instruction_FIFO_in &inp, const instruction_FIFO_read_data &rd, instruction_FIFO_out &out, instruction_FIFO_read_data &next_rd, Instru | front-end/fifo/instruction_FIFO.cpp:134 |
+| instruction_FIFO_comb_calc | struct instruction_FIFO_in *in, const struct instruction_FIFO_read_data *rd, struct instruction_FIFO_out *out, struct instruction_FIFO_read_ | front-end/fifo/instruction_FIFO.cpp:189 |
+| icache_comb_calc | struct icache_in *in, struct icache_out *out | front-end/front_module.h:110 |
+| instruction_FIFO_comb_calc | struct instruction_FIFO_in *in, const struct instruction_FIFO_read_data *rd, struct instruction_FIFO_out *out, struct instruction_FIFO_read_ | front-end/front_module.h:123 |
+| PTAB_comb_calc | struct PTAB_in *in, const struct PTAB_read_data *rd, struct PTAB_out *out, struct PTAB_read_data *next_rd, PtabCombOut *step_req | front-end/front_module.h:132 |
+| front_top | struct front_top_in *in, struct front_top_out *out | front-end/front_module.h:137 |
+| front2back_FIFO_comb_calc | struct front2back_FIFO_in *in, const struct front2back_FIFO_read_data *rd, struct front2back_FIFO_out *out, struct front2back_FIFO_read_data | front-end/front_module.h:144 |
+| fetch_address_FIFO_comb_calc | struct fetch_address_FIFO_in *in, const struct fetch_address_FIFO_read_data *rd, struct fetch_address_FIFO_out *out, struct fetch_address_FI | front-end/front_module.h:155 |
+| front_comb_calc | const struct front_top_in &inp, const FrontReadData &rd, struct front_top_out &out, FrontUpdateRequest &req | front-end/front_top.cpp:1002 |
+| front_seq_read | const struct front_top_in &inp, FrontReadData &rd | front-end/front_top.cpp:1996 |
+| front_seq_write | const struct front_top_in &inp, const FrontUpdateRequest &req, bool reset | front-end/front_top.cpp:2033 |
+| front_top | struct front_top_in *in, struct front_top_out *out | front-end/front_top.cpp:2067 |
 | icache_comb_calc | struct icache_in *in, struct icache_out *out | front-end/icache/icache.cpp:248 |
 | step_bpu |  | include/FrontTop.h:22 |
 | step_oracle |  | include/FrontTop.h:23 |
@@ -152,19 +152,19 @@
 | FrontReadEnableCombIn | 9 | front-end/train_IO.h:281 |
 | FrontReadEnableCombOut | 6 | front-end/train_IO.h:293 |
 | FrontReadStageInputCombIn | 7 | front-end/train_IO.h:302 |
-| FrontReadStageInputCombOut | 4 | front-end/train_IO.h:312 |
-| FrontBpuControlCombIn | 6 | front-end/train_IO.h:319 |
-| FrontBpuControlCombOut | 5 | front-end/train_IO.h:328 |
-| FrontBpuOutputCombIn | 1 | front-end/train_IO.h:336 |
-| FrontBpuOutputCombOut | 1 | front-end/train_IO.h:340 |
-| FrontPtabWriteCombIn | 4 | front-end/train_IO.h:344 |
-| FrontPtabWriteCombOut | 1 | front-end/train_IO.h:351 |
-| FrontCheckerInputCombIn | 2 | front-end/train_IO.h:355 |
-| FrontCheckerInputCombOut | 1 | front-end/train_IO.h:360 |
-| FrontFront2backWriteCombIn | 4 | front-end/train_IO.h:364 |
-| FrontFront2backWriteCombOut | 2 | front-end/train_IO.h:371 |
-| FrontOutputCombIn | 3 | front-end/train_IO.h:376 |
-| FrontOutputCombOut | 1 | front-end/train_IO.h:382 |
+| FrontReadStageInputCombOut | 12 | front-end/train_IO.h:312 |
+| FrontBpuControlCombIn | 6 | front-end/train_IO.h:327 |
+| FrontBpuControlCombOut | 5 | front-end/train_IO.h:336 |
+| FrontBpuOutputCombIn | 1 | front-end/train_IO.h:344 |
+| FrontBpuOutputCombOut | 1 | front-end/train_IO.h:348 |
+| FrontPtabWriteCombIn | 4 | front-end/train_IO.h:352 |
+| FrontPtabWriteCombOut | 1 | front-end/train_IO.h:359 |
+| FrontCheckerInputCombIn | 2 | front-end/train_IO.h:363 |
+| FrontCheckerInputCombOut | 1 | front-end/train_IO.h:368 |
+| FrontFront2backWriteCombIn | 4 | front-end/train_IO.h:372 |
+| FrontFront2backWriteCombOut | 2 | front-end/train_IO.h:379 |
+| FrontOutputCombIn | 3 | front-end/train_IO.h:384 |
+| FrontOutputCombOut | 1 | front-end/train_IO.h:390 |
 | DecRenIO | 28 | back-end/include/IO.h:12 |
 | DecRenInst | 26 | back-end/include/IO.h:13 |
 | RenDecIO | 1 | back-end/include/IO.h:80 |
@@ -786,14 +786,22 @@
 
 | 类型 | 字段名 |
 | --- | --- |
-| fetch_address_FIFO_in | fetch_addr_fifo_in |
-| instruction_FIFO_in | fifo_in |
-| PTAB_in | ptab_in |
-| front2back_FIFO_in | front2back_fifo_in |
+| wire1_t | fetch_addr_fifo_reset |
+| wire1_t | fetch_addr_fifo_refetch |
+| wire1_t | fetch_addr_fifo_read_enable |
+| wire1_t | fifo_reset |
+| wire1_t | fifo_refetch |
+| wire1_t | fifo_read_enable |
+| wire1_t | ptab_reset |
+| wire1_t | ptab_refetch |
+| wire1_t | ptab_read_enable |
+| wire1_t | front2back_fifo_reset |
+| wire1_t | front2back_fifo_refetch |
+| wire1_t | front2back_fifo_read_enable |
 
 #### `FrontBpuControlCombIn`
 
-源码位置：`front-end/train_IO.h:319`
+源码位置：`front-end/train_IO.h:327`
 
 | 类型 | 字段名 |
 | --- | --- |
@@ -806,7 +814,7 @@
 
 #### `FrontBpuControlCombOut`
 
-源码位置：`front-end/train_IO.h:328`
+源码位置：`front-end/train_IO.h:336`
 
 | 类型 | 字段名 |
 | --- | --- |
@@ -818,7 +826,7 @@
 
 #### `FrontBpuOutputCombIn`
 
-源码位置：`front-end/train_IO.h:336`
+源码位置：`front-end/train_IO.h:344`
 
 | 类型 | 字段名 |
 | --- | --- |
@@ -826,7 +834,7 @@
 
 #### `FrontBpuOutputCombOut`
 
-源码位置：`front-end/train_IO.h:340`
+源码位置：`front-end/train_IO.h:348`
 
 | 类型 | 字段名 |
 | --- | --- |
@@ -834,7 +842,7 @@
 
 #### `FrontPtabWriteCombIn`
 
-源码位置：`front-end/train_IO.h:344`
+源码位置：`front-end/train_IO.h:352`
 
 | 类型 | 字段名 |
 | --- | --- |
@@ -845,7 +853,7 @@
 
 #### `FrontPtabWriteCombOut`
 
-源码位置：`front-end/train_IO.h:351`
+源码位置：`front-end/train_IO.h:359`
 
 | 类型 | 字段名 |
 | --- | --- |
@@ -853,7 +861,7 @@
 
 #### `FrontCheckerInputCombIn`
 
-源码位置：`front-end/train_IO.h:355`
+源码位置：`front-end/train_IO.h:363`
 
 | 类型 | 字段名 |
 | --- | --- |
@@ -862,7 +870,7 @@
 
 #### `FrontCheckerInputCombOut`
 
-源码位置：`front-end/train_IO.h:360`
+源码位置：`front-end/train_IO.h:368`
 
 | 类型 | 字段名 |
 | --- | --- |
@@ -870,7 +878,7 @@
 
 #### `FrontFront2backWriteCombIn`
 
-源码位置：`front-end/train_IO.h:364`
+源码位置：`front-end/train_IO.h:372`
 
 | 类型 | 字段名 |
 | --- | --- |
@@ -881,7 +889,7 @@
 
 #### `FrontFront2backWriteCombOut`
 
-源码位置：`front-end/train_IO.h:371`
+源码位置：`front-end/train_IO.h:379`
 
 | 类型 | 字段名 |
 | --- | --- |
@@ -890,7 +898,7 @@
 
 #### `FrontOutputCombIn`
 
-源码位置：`front-end/train_IO.h:376`
+源码位置：`front-end/train_IO.h:384`
 
 | 类型 | 字段名 |
 | --- | --- |
@@ -900,7 +908,7 @@
 
 #### `FrontOutputCombOut`
 
-源码位置：`front-end/train_IO.h:382`
+源码位置：`front-end/train_IO.h:390`
 
 | 类型 | 字段名 |
 | --- | --- |
@@ -1567,242 +1575,242 @@
 
 | 模块 | 输入端口数 | 输出端口数 | 源码位置 |
 | --- | --- | --- | --- |
-| axi_ddr_top | 1 | 1 | axi_end/axi_ddr/axi_ddr_top.v:4 |
-| axi_interconnect_top | 6 | 5 | axi_end/axi_interconnect/axi_interconnect_top.v:6 |
-| axi_mmio_top | 1 | 1 | axi_end/axi_mmio/axi_mmio_top.v:5 |
-| axi_router_top | 1 | 1 | axi_end/axi_router/axi_router_top.v:5 |
-| axi_top | 8 | 7 | axi_end/axi_top.v:11 |
-| mem_axi_bridge_top | 8 | 8 | axi_end/mem_axi_bridge/mem_axi_bridge_top.v:10 |
-| back_top | 23 | 15 | back_end/back_top.v:12 |
-| csr_top | 3 | 10 | back_end/csr/csr_top.v:6 |
-| dispatch_top | 8 | 4 | back_end/dispatch/dispatch_top.v:7 |
-| exu_top | 6 | 6 | back_end/exu/exu_top.v:7 |
-| idu_top | 4 | 15 | back_end/idu/idu_top.v:8 |
-| isu_top | 5 | 3 | back_end/isu/isu_top.v:6 |
-| lsu_top | 9 | 6 | back_end/lsu/lsu_top.v:8 |
-| preiduqueue_top | 7 | 6 | back_end/preiduqueue/preiduqueue_top.v:7 |
-| prf_top | 5 | 3 | back_end/prf/prf_top.v:6 |
-| ren_top | 5 | 2 | back_end/ren/ren_top.v:6 |
-| rob_top | 6 | 23 | back_end/rob/rob_top.v:6 |
-| bpu_hist_comb_top | 1 | 1 | front_end/bpu/bpu_hist_comb/bpu_hist_comb_top.v:8 |
-| bpu_hist_comb_bsd_top | 1 | 1 | front_end/bpu/bpu_hist_comb/bpu_hist_comb_top.v:48 |
-| bpu_post_read_req_comb_top | 1 | 1 | front_end/bpu/bpu_post_read_req_comb/bpu_post_read_req_comb_top.v:8 |
-| bpu_post_read_req_comb_bsd_top | 1 | 1 | front_end/bpu/bpu_post_read_req_comb/bpu_post_read_req_comb_top.v:48 |
-| bpu_pre_read_req_comb_top | 1 | 1 | front_end/bpu/bpu_pre_read_req_comb/bpu_pre_read_req_comb_top.v:8 |
-| bpu_pre_read_req_comb_bsd_top | 1 | 1 | front_end/bpu/bpu_pre_read_req_comb/bpu_pre_read_req_comb_top.v:48 |
-| bpu_predict_main_comb_top | 1 | 1 | front_end/bpu/bpu_predict_main_comb/bpu_predict_main_comb_top.v:8 |
-| bpu_predict_main_comb_bsd_top | 1 | 1 | front_end/bpu/bpu_predict_main_comb/bpu_predict_main_comb_top.v:48 |
-| bpu_queue_comb_top | 1 | 1 | front_end/bpu/bpu_queue_comb/bpu_queue_comb_top.v:8 |
-| bpu_queue_comb_bsd_top | 1 | 1 | front_end/bpu/bpu_queue_comb/bpu_queue_comb_top.v:48 |
-| bpu_submodule_bind_comb_top | 1 | 1 | front_end/bpu/bpu_submodule_bind_comb/bpu_submodule_bind_comb_top.v:8 |
-| bpu_submodule_bind_comb_bsd_top | 1 | 1 | front_end/bpu/bpu_submodule_bind_comb/bpu_submodule_bind_comb_top.v:48 |
-| bpu_top | 1 | 1 | front_end/bpu/bpu_top.v:5 |
-| tage_comb_top | 1 | 1 | front_end/bpu/dir_predictor/tage_comb/tage_comb_top.v:8 |
-| tage_comb_bsd_top | 1 | 1 | front_end/bpu/dir_predictor/tage_comb/tage_comb_top.v:48 |
-| tage_pre_read_comb_top | 1 | 1 | front_end/bpu/dir_predictor/tage_pre_read_comb/tage_pre_read_comb_top.v:8 |
-| tage_pre_read_comb_bsd_top | 1 | 1 | front_end/bpu/dir_predictor/tage_pre_read_comb/tage_pre_read_comb_top.v:48 |
-| btb_comb_top | 1 | 1 | front_end/bpu/target_predictor/btb_comb/btb_comb_top.v:8 |
-| btb_comb_bsd_top | 1 | 1 | front_end/bpu/target_predictor/btb_comb/btb_comb_top.v:48 |
-| btb_post_read_req_comb_top | 1 | 1 | front_end/bpu/target_predictor/btb_post_read_req_comb/btb_post_read_req_comb_top.v:8 |
-| btb_post_read_req_comb_bsd_top | 1 | 1 | front_end/bpu/target_predictor/btb_post_read_req_comb/btb_post_read_req_comb_top.v:48 |
-| btb_pre_read_comb_top | 1 | 1 | front_end/bpu/target_predictor/btb_pre_read_comb/btb_pre_read_comb_top.v:8 |
-| btb_pre_read_comb_bsd_top | 1 | 1 | front_end/bpu/target_predictor/btb_pre_read_comb/btb_pre_read_comb_top.v:48 |
-| type_pred_comb_top | 1 | 1 | front_end/bpu/type_predictor/type_pred_comb/type_pred_comb_top.v:8 |
-| type_pred_comb_bsd_top | 1 | 1 | front_end/bpu/type_predictor/type_pred_comb/type_pred_comb_top.v:48 |
-| type_predictor_pre_read_comb_top | 1 | 1 | front_end/bpu/type_predictor/type_predictor_pre_read_comb/type_predictor_pre_read_comb_top.v:8 |
-| type_predictor_pre_read_comb_bsd_top | 1 | 1 | front_end/bpu/type_predictor/type_predictor_pre_read_comb/type_predictor_pre_read_comb_top.v:48 |
-| PTAB_comb_top | 1 | 1 | front_end/fifo/PTAB_comb/PTAB_comb_top.v:8 |
-| PTAB_comb_bsd_top | 1 | 1 | front_end/fifo/PTAB_comb/PTAB_comb_top.v:53 |
-| fetch_address_FIFO_comb_top | 1 | 1 | front_end/fifo/fetch_address_FIFO_comb/fetch_address_FIFO_comb_top.v:8 |
-| fetch_address_FIFO_comb_bsd_top | 1 | 1 | front_end/fifo/fetch_address_FIFO_comb/fetch_address_FIFO_comb_top.v:54 |
-| front2back_FIFO_comb_top | 1 | 1 | front_end/fifo/front2back_FIFO_comb/front2back_FIFO_comb_top.v:8 |
-| front2back_FIFO_comb_bsd_top | 1 | 1 | front_end/fifo/front2back_FIFO_comb/front2back_FIFO_comb_top.v:54 |
-| instruction_FIFO_comb_top | 1 | 1 | front_end/fifo/instruction_FIFO_comb/instruction_FIFO_comb_top.v:8 |
-| instruction_FIFO_comb_bsd_top | 1 | 1 | front_end/fifo/instruction_FIFO_comb/instruction_FIFO_comb_top.v:54 |
-| front_top | 44 | 27 | front_end/front_top.v:7 |
-| front_bpu_control_comb_top | 1 | 1 | front_end/front_top_glue/front_bpu_control_comb/front_bpu_control_comb_top.v:8 |
-| front_bpu_control_comb_bsd_top | 1 | 1 | front_end/front_top_glue/front_bpu_control_comb/front_bpu_control_comb_top.v:77 |
-| front_checker_input_comb_top | 1 | 1 | front_end/front_top_glue/front_checker_input_comb/front_checker_input_comb_top.v:8 |
-| front_checker_input_comb_bsd_top | 1 | 1 | front_end/front_top_glue/front_checker_input_comb/front_checker_input_comb_top.v:54 |
-| front_front2back_write_comb_top | 1 | 1 | front_end/front_top_glue/front_front2back_write_comb/front_front2back_write_comb_top.v:8 |
-| front_front2back_write_comb_bsd_top | 1 | 1 | front_end/front_top_glue/front_front2back_write_comb/front_front2back_write_comb_top.v:65 |
-| front_global_control_comb_top | 1 | 1 | front_end/front_top_glue/front_global_control_comb/front_global_control_comb_top.v:8 |
-| front_global_control_comb_bsd_top | 1 | 1 | front_end/front_top_glue/front_global_control_comb/front_global_control_comb_top.v:67 |
-| front_output_comb_top | 1 | 1 | front_end/front_top_glue/front_output_comb/front_output_comb_top.v:8 |
-| front_output_comb_bsd_top | 1 | 1 | front_end/front_top_glue/front_output_comb/front_output_comb_top.v:56 |
-| front_ptab_write_comb_top | 1 | 1 | front_end/front_top_glue/front_ptab_write_comb/front_ptab_write_comb_top.v:8 |
-| front_ptab_write_comb_bsd_top | 1 | 1 | front_end/front_top_glue/front_ptab_write_comb/front_ptab_write_comb_top.v:59 |
-| front_read_enable_comb_top | 1 | 1 | front_end/front_top_glue/front_read_enable_comb/front_read_enable_comb_top.v:8 |
-| front_read_enable_comb_bsd_top | 1 | 1 | front_end/front_top_glue/front_read_enable_comb/front_read_enable_comb_top.v:87 |
-| front_read_stage_input_comb_top | 1 | 1 | front_end/front_top_glue/front_read_stage_input_comb/front_read_stage_input_comb_top.v:8 |
-| front_read_stage_input_comb_bsd_top | 1 | 1 | front_end/front_top_glue/front_read_stage_input_comb/front_read_stage_input_comb_top.v:99 |
-| predecode_comb_top | 1 | 1 | front_end/predecode/predecode_comb/predecode_comb_top.v:8 |
-| predecode_comb_bsd_top | 1 | 1 | front_end/predecode/predecode_comb/predecode_comb_top.v:55 |
-| predecode_checker_comb_top | 1 | 1 | front_end/predecode_checker/predecode_checker_comb/predecode_checker_comb_top.v:8 |
-| predecode_checker_comb_bsd_top | 1 | 1 | front_end/predecode_checker/predecode_checker_comb/predecode_checker_comb_top.v:50 |
-| top_top | 44 | 28 | top_top.v:14 |
+| back_top | 23 | 15 | back_end/back_top.v:204 |
+| csr_top | 3 | 10 | back_end/csr/csr_top.v:50 |
+| dispatch_top | 8 | 4 | back_end/dispatch/dispatch_top.v:80 |
+| exu_top | 6 | 6 | back_end/exu/exu_top.v:76 |
+| idu_top | 4 | 15 | back_end/idu/idu_top.v:71 |
+| isu_top | 5 | 3 | back_end/isu/isu_top.v:65 |
+| lsu_top | 9 | 6 | back_end/lsu/lsu_top.v:95 |
+| preiduqueue_top | 7 | 6 | back_end/preiduqueue/preiduqueue_top.v:83 |
+| prf_top | 5 | 3 | back_end/prf/prf_top.v:66 |
+| ren_top | 5 | 2 | back_end/ren/ren_top.v:59 |
+| rob_top | 6 | 23 | back_end/rob/rob_top.v:93 |
+| bpu_hist_comb_top | 1 | 1 | front_end/bpu/bpu_hist_comb/bpu_hist_comb_top.v:78 |
+| bpu_hist_comb_bsd_top | 1 | 1 | front_end/bpu/bpu_hist_comb/bpu_hist_comb_top.v:103 |
+| bpu_post_read_req_comb_top | 1 | 1 | front_end/bpu/bpu_post_read_req_comb/bpu_post_read_req_comb_top.v:71 |
+| bpu_post_read_req_comb_bsd_top | 1 | 1 | front_end/bpu/bpu_post_read_req_comb/bpu_post_read_req_comb_top.v:96 |
+| bpu_pre_read_req_comb_top | 1 | 1 | front_end/bpu/bpu_pre_read_req_comb/bpu_pre_read_req_comb_top.v:68 |
+| bpu_pre_read_req_comb_bsd_top | 1 | 1 | front_end/bpu/bpu_pre_read_req_comb/bpu_pre_read_req_comb_top.v:93 |
+| bpu_predict_main_comb_top | 1 | 1 | front_end/bpu/bpu_predict_main_comb/bpu_predict_main_comb_top.v:79 |
+| bpu_predict_main_comb_bsd_top | 1 | 1 | front_end/bpu/bpu_predict_main_comb/bpu_predict_main_comb_top.v:104 |
+| bpu_queue_comb_top | 1 | 1 | front_end/bpu/bpu_queue_comb/bpu_queue_comb_top.v:79 |
+| bpu_queue_comb_bsd_top | 1 | 1 | front_end/bpu/bpu_queue_comb/bpu_queue_comb_top.v:104 |
+| bpu_submodule_bind_comb_top | 1 | 1 | front_end/bpu/bpu_submodule_bind_comb/bpu_submodule_bind_comb_top.v:52 |
+| bpu_submodule_bind_comb_bsd_top | 1 | 1 | front_end/bpu/bpu_submodule_bind_comb/bpu_submodule_bind_comb_top.v:77 |
+| bpu_top | 4 | 1 | front_end/bpu/bpu_top.v:16 |
+| tage_comb_top | 1 | 1 | front_end/bpu/dir_predictor/tage_comb/tage_comb_top.v:52 |
+| tage_comb_bsd_top | 1 | 1 | front_end/bpu/dir_predictor/tage_comb/tage_comb_top.v:77 |
+| tage_pre_read_comb_top | 1 | 1 | front_end/bpu/dir_predictor/tage_pre_read_comb/tage_pre_read_comb_top.v:56 |
+| tage_pre_read_comb_bsd_top | 1 | 1 | front_end/bpu/dir_predictor/tage_pre_read_comb/tage_pre_read_comb_top.v:81 |
+| btb_comb_top | 1 | 1 | front_end/bpu/target_predictor/btb_comb/btb_comb_top.v:52 |
+| btb_comb_bsd_top | 1 | 1 | front_end/bpu/target_predictor/btb_comb/btb_comb_top.v:77 |
+| btb_post_read_req_comb_top | 1 | 1 | front_end/bpu/target_predictor/btb_post_read_req_comb/btb_post_read_req_comb_top.v:54 |
+| btb_post_read_req_comb_bsd_top | 1 | 1 | front_end/bpu/target_predictor/btb_post_read_req_comb/btb_post_read_req_comb_top.v:79 |
+| btb_pre_read_comb_top | 1 | 1 | front_end/bpu/target_predictor/btb_pre_read_comb/btb_pre_read_comb_top.v:50 |
+| btb_pre_read_comb_bsd_top | 1 | 1 | front_end/bpu/target_predictor/btb_pre_read_comb/btb_pre_read_comb_top.v:75 |
+| type_pred_comb_top | 1 | 1 | front_end/bpu/type_predictor/type_pred_comb/type_pred_comb_top.v:54 |
+| type_pred_comb_bsd_top | 1 | 1 | front_end/bpu/type_predictor/type_pred_comb/type_pred_comb_top.v:79 |
+| type_predictor_pre_read_comb_top | 1 | 1 | front_end/bpu/type_predictor/type_predictor_pre_read_comb/type_predictor_pre_read_comb_top.v:53 |
+| type_predictor_pre_read_comb_bsd_top | 1 | 1 | front_end/bpu/type_predictor/type_predictor_pre_read_comb/type_predictor_pre_read_comb_top.v:78 |
+| PTAB_comb_top | 2 | 1 | front_end/fifo/PTAB_comb/PTAB_comb_top.v:32 |
+| PTAB_comb_bsd_top | 1 | 1 | front_end/fifo/PTAB_comb/PTAB_comb_top.v:69 |
+| fetch_address_FIFO_comb_top | 2 | 1 | front_end/fifo/fetch_address_FIFO_comb/fetch_address_FIFO_comb_top.v:30 |
+| fetch_address_FIFO_comb_bsd_top | 1 | 1 | front_end/fifo/fetch_address_FIFO_comb/fetch_address_FIFO_comb_top.v:67 |
+| front2back_FIFO_comb_top | 2 | 1 | front_end/fifo/front2back_FIFO_comb/front2back_FIFO_comb_top.v:30 |
+| front2back_FIFO_comb_bsd_top | 1 | 1 | front_end/fifo/front2back_FIFO_comb/front2back_FIFO_comb_top.v:67 |
+| instruction_FIFO_comb_top | 2 | 1 | front_end/fifo/instruction_FIFO_comb/instruction_FIFO_comb_top.v:30 |
+| instruction_FIFO_comb_bsd_top | 1 | 1 | front_end/fifo/instruction_FIFO_comb/instruction_FIFO_comb_top.v:67 |
+| front_top | 44 | 35 | front_end/front_top.v:7 |
+| front_bpu_control_comb_top | 1 | 1 | front_end/front_top_glue/front_bpu_control_comb/front_bpu_control_comb_top.v:58 |
+| front_bpu_control_comb_bsd_top | 1 | 1 | front_end/front_top_glue/front_bpu_control_comb/front_bpu_control_comb_top.v:85 |
+| front_checker_input_comb_top | 1 | 1 | front_end/front_top_glue/front_checker_input_comb/front_checker_input_comb_top.v:50 |
+| front_checker_input_comb_bsd_top | 1 | 1 | front_end/front_top_glue/front_checker_input_comb/front_checker_input_comb_top.v:79 |
+| front_front2back_write_comb_top | 1 | 1 | front_end/front_top_glue/front_front2back_write_comb/front_front2back_write_comb_top.v:55 |
+| front_front2back_write_comb_bsd_top | 1 | 1 | front_end/front_top_glue/front_front2back_write_comb/front_front2back_write_comb_top.v:86 |
+| front_global_control_comb_top | 1 | 1 | front_end/front_top_glue/front_global_control_comb/front_global_control_comb_top.v:50 |
+| front_global_control_comb_bsd_top | 1 | 1 | front_end/front_top_glue/front_global_control_comb/front_global_control_comb_top.v:75 |
+| front_output_comb_top | 1 | 1 | front_end/front_top_glue/front_output_comb/front_output_comb_top.v:51 |
+| front_output_comb_bsd_top | 1 | 1 | front_end/front_top_glue/front_output_comb/front_output_comb_top.v:79 |
+| front_ptab_write_comb_top | 1 | 1 | front_end/front_top_glue/front_ptab_write_comb/front_ptab_write_comb_top.v:51 |
+| front_ptab_write_comb_bsd_top | 1 | 1 | front_end/front_top_glue/front_ptab_write_comb/front_ptab_write_comb_top.v:77 |
+| front_read_enable_comb_top | 1 | 1 | front_end/front_top_glue/front_read_enable_comb/front_read_enable_comb_top.v:57 |
+| front_read_enable_comb_bsd_top | 1 | 1 | front_end/front_top_glue/front_read_enable_comb/front_read_enable_comb_top.v:81 |
+| front_read_stage_input_comb_top | 1 | 1 | front_end/front_top_glue/front_read_stage_input_comb/front_read_stage_input_comb_top.v:61 |
+| front_read_stage_input_comb_bsd_top | 1 | 1 | front_end/front_top_glue/front_read_stage_input_comb/front_read_stage_input_comb_top.v:85 |
+| predecode_comb_top | 1 | 1 | front_end/predecode/predecode_comb/predecode_comb_top.v:46 |
+| predecode_comb_bsd_top | 1 | 1 | front_end/predecode/predecode_comb/predecode_comb_top.v:73 |
+| predecode_checker_comb_top | 1 | 1 | front_end/predecode_checker/predecode_checker_comb/predecode_checker_comb_top.v:49 |
+| predecode_checker_comb_bsd_top | 1 | 1 | front_end/predecode_checker/predecode_checker_comb/predecode_checker_comb_top.v:75 |
 
 ### `bpu_hist_comb_top`
 
-源码位置：`front_end/bpu/bpu_hist_comb/bpu_hist_comb_top.v:8`
+源码位置：`front_end/bpu/bpu_hist_comb/bpu_hist_comb_top.v:78`
 
 | 方向 | 位宽 | 端口名 |
 | --- | --- | --- |
-| 输入 | [W_BpuHistCombIn-1:0] | bsd_pi |
-| 输出 | [W_BpuHistCombOut-1:0] | bsd_po |
+| 输入 | [W_BpuHistCombIn-1:0] | bpu_predict_main_bundle |
+| 输出 | [W_BpuHistCombOut-1:0] | bpu_hist_bundle |
 
 ### `bpu_post_read_req_comb_top`
 
-源码位置：`front_end/bpu/bpu_post_read_req_comb/bpu_post_read_req_comb_top.v:8`
+源码位置：`front_end/bpu/bpu_post_read_req_comb/bpu_post_read_req_comb_top.v:71`
 
 | 方向 | 位宽 | 端口名 |
 | --- | --- | --- |
-| 输入 | [W_BpuPostReadReqCombIn-1:0] | bsd_pi |
-| 输出 | [W_BpuPostReadReqCombOut-1:0] | bsd_po |
+| 输入 | [W_BpuPostReadReqCombIn-1:0] | bpu_pre_read_req_bundle |
+| 输出 | [W_BpuPostReadReqCombOut-1:0] | bpu_post_read_req_bundle |
 
 ### `bpu_pre_read_req_comb_top`
 
-源码位置：`front_end/bpu/bpu_pre_read_req_comb/bpu_pre_read_req_comb_top.v:8`
+源码位置：`front_end/bpu/bpu_pre_read_req_comb/bpu_pre_read_req_comb_top.v:68`
 
 | 方向 | 位宽 | 端口名 |
 | --- | --- | --- |
-| 输入 | [W_BpuPreReadReqCombIn-1:0] | bsd_pi |
-| 输出 | [W_BpuPreReadReqCombOut-1:0] | bsd_po |
+| 输入 | [W_BpuPreReadReqCombIn-1:0] | bpu_input_bundle |
+| 输出 | [W_BpuPreReadReqCombOut-1:0] | bpu_pre_read_req_bundle |
 
 ### `bpu_predict_main_comb_top`
 
-源码位置：`front_end/bpu/bpu_predict_main_comb/bpu_predict_main_comb_top.v:8`
+源码位置：`front_end/bpu/bpu_predict_main_comb/bpu_predict_main_comb_top.v:79`
 
 | 方向 | 位宽 | 端口名 |
 | --- | --- | --- |
-| 输入 | [W_BpuPredictMainCombIn-1:0] | bsd_pi |
-| 输出 | [W_BpuPredictMainCombOut-1:0] | bsd_po |
+| 输入 | [W_BpuPredictMainCombIn-1:0] | bpu_submodule_bind_bundle |
+| 输出 | [W_BpuPredictMainCombOut-1:0] | bpu_predict_main_bundle |
 
 ### `bpu_queue_comb_top`
 
-源码位置：`front_end/bpu/bpu_queue_comb/bpu_queue_comb_top.v:8`
+源码位置：`front_end/bpu/bpu_queue_comb/bpu_queue_comb_top.v:79`
 
 | 方向 | 位宽 | 端口名 |
 | --- | --- | --- |
-| 输入 | [W_BpuQueueCombIn-1:0] | bsd_pi |
-| 输出 | [W_BpuQueueCombOut-1:0] | bsd_po |
+| 输入 | [W_BpuQueueCombIn-1:0] | bpu_predict_main_bundle |
+| 输出 | [W_BpuQueueCombOut-1:0] | bpu_queue_bundle |
 
 ### `bpu_submodule_bind_comb_top`
 
-源码位置：`front_end/bpu/bpu_submodule_bind_comb/bpu_submodule_bind_comb_top.v:8`
+源码位置：`front_end/bpu/bpu_submodule_bind_comb/bpu_submodule_bind_comb_top.v:52`
 
 | 方向 | 位宽 | 端口名 |
 | --- | --- | --- |
-| 输入 | [W_BpuSubmoduleBindCombIn-1:0] | bsd_pi |
-| 输出 | [W_BpuSubmoduleBindCombOut-1:0] | bsd_po |
+| 输入 | [W_BpuSubmoduleBindCombIn-1:0] | bpu_submodule_bind_input_bundle |
+| 输出 | [W_BpuSubmoduleBindCombOut-1:0] | bpu_submodule_bind_bundle |
 
 ### `bpu_top`
 
-源码位置：`front_end/bpu/bpu_top.v:5`
+源码位置：`front_end/bpu/bpu_top.v:16`
 
 | 方向 | 位宽 | 端口名 |
 | --- | --- | --- |
+| 输入 | 1 | clk |
+| 输入 | 1 | rst_n |
+| 输入 | 1 | reset |
 | 输入 | [W_BpuIn-1:0] | bpu_in |
 | 输出 | [W_BpuOut-1:0] | bpu_out |
 
 ### `tage_comb_top`
 
-源码位置：`front_end/bpu/dir_predictor/tage_comb/tage_comb_top.v:8`
+源码位置：`front_end/bpu/dir_predictor/tage_comb/tage_comb_top.v:52`
 
 | 方向 | 位宽 | 端口名 |
 | --- | --- | --- |
-| 输入 | [W_TageCombIn-1:0] | bsd_pi |
-| 输出 | [W_TageCombOut-1:0] | bsd_po |
+| 输入 | [W_TageCombIn-1:0] | tage_input_bundle |
+| 输出 | [W_TageCombOut-1:0] | tage_bundle |
 
 ### `tage_pre_read_comb_top`
 
-源码位置：`front_end/bpu/dir_predictor/tage_pre_read_comb/tage_pre_read_comb_top.v:8`
+源码位置：`front_end/bpu/dir_predictor/tage_pre_read_comb/tage_pre_read_comb_top.v:56`
 
 | 方向 | 位宽 | 端口名 |
 | --- | --- | --- |
-| 输入 | [W_TagePreReadCombIn-1:0] | bsd_pi |
-| 输出 | [W_TagePreReadCombOut-1:0] | bsd_po |
+| 输入 | [W_TagePreReadCombIn-1:0] | bpu_pre_read_req_bundle |
+| 输出 | [W_TagePreReadCombOut-1:0] | tage_pre_read_bundle |
 
 ### `btb_comb_top`
 
-源码位置：`front_end/bpu/target_predictor/btb_comb/btb_comb_top.v:8`
+源码位置：`front_end/bpu/target_predictor/btb_comb/btb_comb_top.v:52`
 
 | 方向 | 位宽 | 端口名 |
 | --- | --- | --- |
-| 输入 | [W_BtbCombIn-1:0] | bsd_pi |
-| 输出 | [W_BtbCombOut-1:0] | bsd_po |
+| 输入 | [W_BtbCombIn-1:0] | btb_post_read_req_bundle |
+| 输出 | [W_BtbCombOut-1:0] | btb_bundle |
 
 ### `btb_post_read_req_comb_top`
 
-源码位置：`front_end/bpu/target_predictor/btb_post_read_req_comb/btb_post_read_req_comb_top.v:8`
+源码位置：`front_end/bpu/target_predictor/btb_post_read_req_comb/btb_post_read_req_comb_top.v:54`
 
 | 方向 | 位宽 | 端口名 |
 | --- | --- | --- |
-| 输入 | [W_BtbPostReadReqCombIn-1:0] | bsd_pi |
-| 输出 | [W_BtbPostReadReqCombOut-1:0] | bsd_po |
+| 输入 | [W_BtbPostReadReqCombIn-1:0] | btb_post_read_req_input_bundle |
+| 输出 | [W_BtbPostReadReqCombOut-1:0] | btb_post_read_req_bundle |
 
 ### `btb_pre_read_comb_top`
 
-源码位置：`front_end/bpu/target_predictor/btb_pre_read_comb/btb_pre_read_comb_top.v:8`
+源码位置：`front_end/bpu/target_predictor/btb_pre_read_comb/btb_pre_read_comb_top.v:50`
 
 | 方向 | 位宽 | 端口名 |
 | --- | --- | --- |
-| 输入 | [W_BtbPreReadCombIn-1:0] | bsd_pi |
-| 输出 | [W_BtbPreReadCombOut-1:0] | bsd_po |
+| 输入 | [W_BtbPreReadCombIn-1:0] | bpu_pre_read_req_bundle |
+| 输出 | [W_BtbPreReadCombOut-1:0] | btb_pre_read_bundle |
 
 ### `type_pred_comb_top`
 
-源码位置：`front_end/bpu/type_predictor/type_pred_comb/type_pred_comb_top.v:8`
+源码位置：`front_end/bpu/type_predictor/type_pred_comb/type_pred_comb_top.v:54`
 
 | 方向 | 位宽 | 端口名 |
 | --- | --- | --- |
-| 输入 | [W_TypePredCombIn-1:0] | bsd_pi |
-| 输出 | [W_TypePredCombOut-1:0] | bsd_po |
+| 输入 | [W_TypePredCombIn-1:0] | type_pred_input_bundle |
+| 输出 | [W_TypePredCombOut-1:0] | type_pred_bundle |
 
 ### `type_predictor_pre_read_comb_top`
 
-源码位置：`front_end/bpu/type_predictor/type_predictor_pre_read_comb/type_predictor_pre_read_comb_top.v:8`
+源码位置：`front_end/bpu/type_predictor/type_predictor_pre_read_comb/type_predictor_pre_read_comb_top.v:53`
 
 | 方向 | 位宽 | 端口名 |
 | --- | --- | --- |
-| 输入 | [W_TypePredictorPreReadCombIn-1:0] | bsd_pi |
-| 输出 | [W_TypePredictorPreReadCombOut-1:0] | bsd_po |
+| 输入 | [W_TypePredictorPreReadCombIn-1:0] | bpu_pre_read_req_bundle |
+| 输出 | [W_TypePredictorPreReadCombOut-1:0] | type_predictor_pre_read_bundle |
 
 ### `PTAB_comb_top`
 
-源码位置：`front_end/fifo/PTAB_comb/PTAB_comb_top.v:8`
+源码位置：`front_end/fifo/PTAB_comb/PTAB_comb_top.v:32`
 
 | 方向 | 位宽 | 端口名 |
 | --- | --- | --- |
-| 输入 | [W_PtabCombIn-1:0] | bsd_pi |
-| 输出 | [W_PtabCombOut-1:0] | bsd_po |
+| 输入 | [W_PtabIn-1:0] | ptab_in |
+| 输入 | [W_PtabReadData-1:0] | ptab_rd |
+| 输出 | [W_PtabCombOut-1:0] | ptab_req |
 
 ### `fetch_address_FIFO_comb_top`
 
-源码位置：`front_end/fifo/fetch_address_FIFO_comb/fetch_address_FIFO_comb_top.v:8`
+源码位置：`front_end/fifo/fetch_address_FIFO_comb/fetch_address_FIFO_comb_top.v:30`
 
 | 方向 | 位宽 | 端口名 |
 | --- | --- | --- |
-| 输入 | [W_FetchAddressFifoCombIn-1:0] | bsd_pi |
-| 输出 | [W_FetchAddressFifoCombOut-1:0] | bsd_po |
+| 输入 | [W_FetchAddressFifoIn-1:0] | fetch_addr_fifo_in |
+| 输入 | [W_FetchAddressFifoReadData-1:0] | fetch_addr_fifo_rd |
+| 输出 | [W_FetchAddrCombOut-1:0] | fetch_addr_fifo_req |
 
 ### `front2back_FIFO_comb_top`
 
-源码位置：`front_end/fifo/front2back_FIFO_comb/front2back_FIFO_comb_top.v:8`
+源码位置：`front_end/fifo/front2back_FIFO_comb/front2back_FIFO_comb_top.v:30`
 
 | 方向 | 位宽 | 端口名 |
 | --- | --- | --- |
-| 输入 | [W_Front2backFifoCombIn-1:0] | bsd_pi |
-| 输出 | [W_Front2backFifoCombOut-1:0] | bsd_po |
+| 输入 | [W_Front2BackFifoIn-1:0] | front2back_fifo_in |
+| 输入 | [W_Front2BackFifoReadData-1:0] | front2back_fifo_rd |
+| 输出 | [W_Front2BackCombOut-1:0] | front2back_fifo_req |
 
 ### `instruction_FIFO_comb_top`
 
-源码位置：`front_end/fifo/instruction_FIFO_comb/instruction_FIFO_comb_top.v:8`
+源码位置：`front_end/fifo/instruction_FIFO_comb/instruction_FIFO_comb_top.v:30`
 
 | 方向 | 位宽 | 端口名 |
 | --- | --- | --- |
-| 输入 | [W_InstructionFifoCombIn-1:0] | bsd_pi |
-| 输出 | [W_InstructionFifoCombOut-1:0] | bsd_po |
+| 输入 | [W_InstructionFifoIn-1:0] | instruction_fifo_in |
+| 输入 | [W_InstructionFifoReadData-1:0] | fifo_rd |
+| 输出 | [W_InstructionCombOut-1:0] | instruction_fifo_req |
 
 ### `front_top`
 
@@ -1858,8 +1866,16 @@
 | 输出 | [PC_BITS-1:0] | fetch_address |
 | 输出 | 1 | icache_read_valid_2 |
 | 输出 | [PC_BITS-1:0] | fetch_address_2 |
+| 输出 | 1 | icache_reset |
+| 输出 | 1 | icache_refetch |
+| 输出 | 1 | icache_itlb_flush |
+| 输出 | 1 | icache_fence_i |
 | 输出 | 1 | icache_invalidate_req |
 | 输出 | 1 | icache_run_comb_only |
+| 输出 | [31:0] | icache_csr_status_sstatus |
+| 输出 | [31:0] | icache_csr_status_mstatus |
+| 输出 | [31:0] | icache_csr_status_satp |
+| 输出 | [PRIVILEGE_BITS-1:0] | icache_csr_status_privilege |
 | 输出 | 1 | FIFO_valid |
 | 输出 | [FETCH_WIDTH*PC_BITS-1:0] | pc |
 | 输出 | [FETCH_WIDTH*INST_BITS-1:0] | instructions |
@@ -1884,98 +1900,98 @@
 
 ### `front_bpu_control_comb_top`
 
-源码位置：`front_end/front_top_glue/front_bpu_control_comb/front_bpu_control_comb_top.v:8`
+源码位置：`front_end/front_top_glue/front_bpu_control_comb/front_bpu_control_comb_top.v:58`
 
 | 方向 | 位宽 | 端口名 |
 | --- | --- | --- |
-| 输入 | [W_FrontBpuControlCombIn-1:0] | bsd_pi |
-| 输出 | [W_FrontBpuControlCombOut-1:0] | bsd_po |
+| 输入 | [W_FrontBpuControlCombIn-1:0] | front_bpu_control_input_bundle |
+| 输出 | [W_FrontBpuControlCombOut-1:0] | front_bpu_control_output_bundle |
 
 ### `front_checker_input_comb_top`
 
-源码位置：`front_end/front_top_glue/front_checker_input_comb/front_checker_input_comb_top.v:8`
+源码位置：`front_end/front_top_glue/front_checker_input_comb/front_checker_input_comb_top.v:50`
 
 | 方向 | 位宽 | 端口名 |
 | --- | --- | --- |
-| 输入 | [W_FrontCheckerInputCombIn-1:0] | bsd_pi |
-| 输出 | [W_FrontCheckerInputCombOut-1:0] | bsd_po |
+| 输入 | [W_FrontCheckerInputCombIn-1:0] | front_checker_input_bundle |
+| 输出 | [W_FrontCheckerInputCombOut-1:0] | front_checker_output_bundle |
 
 ### `front_front2back_write_comb_top`
 
-源码位置：`front_end/front_top_glue/front_front2back_write_comb/front_front2back_write_comb_top.v:8`
+源码位置：`front_end/front_top_glue/front_front2back_write_comb/front_front2back_write_comb_top.v:55`
 
 | 方向 | 位宽 | 端口名 |
 | --- | --- | --- |
-| 输入 | [W_FrontFront2backWriteCombIn-1:0] | bsd_pi |
-| 输出 | [W_FrontFront2backWriteCombOut-1:0] | bsd_po |
+| 输入 | [W_FrontFront2backWriteCombIn-1:0] | front_front2back_write_input_bundle |
+| 输出 | [W_FrontFront2backWriteCombOut-1:0] | front_front2back_write_output_bundle |
 
 ### `front_global_control_comb_top`
 
-源码位置：`front_end/front_top_glue/front_global_control_comb/front_global_control_comb_top.v:8`
+源码位置：`front_end/front_top_glue/front_global_control_comb/front_global_control_comb_top.v:50`
 
 | 方向 | 位宽 | 端口名 |
 | --- | --- | --- |
-| 输入 | [W_FrontGlobalControlCombIn-1:0] | bsd_pi |
-| 输出 | [W_FrontGlobalControlCombOut-1:0] | bsd_po |
+| 输入 | [W_FrontGlobalControlCombIn-1:0] | front_global_control_input_bundle |
+| 输出 | [W_FrontGlobalControlCombOut-1:0] | front_global_control_output_bundle |
 
 ### `front_output_comb_top`
 
-源码位置：`front_end/front_top_glue/front_output_comb/front_output_comb_top.v:8`
+源码位置：`front_end/front_top_glue/front_output_comb/front_output_comb_top.v:51`
 
 | 方向 | 位宽 | 端口名 |
 | --- | --- | --- |
-| 输入 | [W_FrontOutputCombIn-1:0] | bsd_pi |
-| 输出 | [W_FrontOutputCombOut-1:0] | bsd_po |
+| 输入 | [W_FrontOutputCombIn-1:0] | front_output_input_bundle |
+| 输出 | [W_FrontOutputCombOut-1:0] | front_output_output_bundle |
 
 ### `front_ptab_write_comb_top`
 
-源码位置：`front_end/front_top_glue/front_ptab_write_comb/front_ptab_write_comb_top.v:8`
+源码位置：`front_end/front_top_glue/front_ptab_write_comb/front_ptab_write_comb_top.v:51`
 
 | 方向 | 位宽 | 端口名 |
 | --- | --- | --- |
-| 输入 | [W_FrontPtabWriteCombIn-1:0] | bsd_pi |
-| 输出 | [W_FrontPtabWriteCombOut-1:0] | bsd_po |
+| 输入 | [W_FrontPtabWriteCombIn-1:0] | front_ptab_write_input_bundle |
+| 输出 | [W_FrontPtabWriteCombOut-1:0] | front_ptab_write_output_bundle |
 
 ### `front_read_enable_comb_top`
 
-源码位置：`front_end/front_top_glue/front_read_enable_comb/front_read_enable_comb_top.v:8`
+源码位置：`front_end/front_top_glue/front_read_enable_comb/front_read_enable_comb_top.v:57`
 
 | 方向 | 位宽 | 端口名 |
 | --- | --- | --- |
-| 输入 | [W_FrontReadEnableCombIn-1:0] | bsd_pi |
-| 输出 | [W_FrontReadEnableCombOut-1:0] | bsd_po |
+| 输入 | [W_FrontReadEnableCombIn-1:0] | front_read_enable_input_bundle |
+| 输出 | [W_FrontReadEnableCombOut-1:0] | front_read_enable_output_bundle |
 
 ### `front_read_stage_input_comb_top`
 
-源码位置：`front_end/front_top_glue/front_read_stage_input_comb/front_read_stage_input_comb_top.v:8`
+源码位置：`front_end/front_top_glue/front_read_stage_input_comb/front_read_stage_input_comb_top.v:61`
 
 | 方向 | 位宽 | 端口名 |
 | --- | --- | --- |
-| 输入 | [W_FrontReadStageInputCombIn-1:0] | bsd_pi |
-| 输出 | [W_FrontReadStageInputCombOut-1:0] | bsd_po |
+| 输入 | [W_FrontReadStageInputCombIn-1:0] | front_read_stage_input_bundle |
+| 输出 | [W_FrontReadStageInputCombOut-1:0] | front_read_stage_output_bundle |
 
 ### `predecode_comb_top`
 
-源码位置：`front_end/predecode/predecode_comb/predecode_comb_top.v:8`
+源码位置：`front_end/predecode/predecode_comb/predecode_comb_top.v:46`
 
 | 方向 | 位宽 | 端口名 |
 | --- | --- | --- |
-| 输入 | [W_PredecodeCombIn-1:0] | bsd_pi |
-| 输出 | [W_PredecodeCombOut-1:0] | bsd_po |
+| 输入 | [W_PredecodeCombIn-1:0] | predecode_input_bundle |
+| 输出 | [W_PredecodeCombOut-1:0] | predecode_output_bundle |
 
 ### `predecode_checker_comb_top`
 
-源码位置：`front_end/predecode_checker/predecode_checker_comb/predecode_checker_comb_top.v:8`
+源码位置：`front_end/predecode_checker/predecode_checker_comb/predecode_checker_comb_top.v:49`
 
 | 方向 | 位宽 | 端口名 |
 | --- | --- | --- |
-| 输入 | [W_PredecodeCheckerCombIn-1:0] | bsd_pi |
-| 输出 | [W_PredecodeCheckerCombOut-1:0] | bsd_po |
+| 输入 | [W_PredecodeCheckerCombIn-1:0] | predecode_checker_input_bundle |
+| 输出 | [W_PredecodeCheckerCombOut-1:0] | predecode_checker_output_bundle |
 
 ## 如何喂给 Codex
 
 当模拟器更新后，先重新运行本脚本，再把 `codex_quick_context.md` 的内容交给 Codex。这样 Codex 能先知道新的配置、接口结构体、入口函数和当前 RTL 端口，再继续更新前端/后端训练包。
 
 ```powershell
-python top/tools/scan_simulator_interfaces.py simulator-ffc9fad707a7acb0be5c7d4fe7c06d48987c73e0
+python top/tools/scan_simulator_interfaces.py simulator-front
 ```

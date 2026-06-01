@@ -1,154 +1,86 @@
-// Source struct:
-//   RobIn  = {dis2rob, csr2rob, lsu2rob, dec_bcast, exu2rob, ftq_pc_resp}
-//   RobOut = {rob2dis, rob2csr, rob_commit, rob_bcast, ftq_pc_req}
-// ROB entries, head/tail pointers and commit row storage stay internal.
+// ffc ROB 边界的 BSD 封装。
+//
+// 参考结构体：
+//   RobIn  = {dis2rob, csr2rob, lsu2rob, dec_bcast, exu2rob,
+//             ftq_rob_pc_resp}
+//   RobOut = {rob2dis, rob2csr, rob_commit, rob_bcast, ftq_rob_pc_req}
+//
+// BSD 接口：
+//   u_rob_bsd_top(clk, rst_n, pi, po)
+//   pi = {dis2rob, csr2rob, lsu2rob, dec_bcast, exu2rob, ftq_rob_pc_resp}
+//   po = {rob2dis, rob2csr, rob_commit, rob_bcast, ftq_rob_pc_req}
+//
+// 展开的 rob_bcast 字段只给 back_top 拼 flush、fence、异常和重定向输出使用。
+// LsuRobIO 按 ffc 保留 miss_mask、committed_store_pending 和 translation_pending，
+// ROB BSD 可据此阻止 SFENCE.VMA 等指令过早提交。
 
-// -----------------------------------------------------------------------------
-// 后端端口自查
-// 模块：rob_top
-// 文件：rob/rob_top.v:93
-// 来源：当前 back_end RTL module 声明
-// BSD 层：rob_bsd_top，实例名 u_rob_bsd_top，当前仓库未提供定义
-//
-// 输入端口：6 个，合计 4191 bit
-// 输出端口：23 个，合计 1158 bit
-//
-// 参数：
-//   DECODE_WIDTH        = 8  // 8
-//   COMMIT_WIDTH        = DECODE_WIDTH  // 8
-//   AREG_IDX_WIDTH      = 6  // 6
-//   PRF_IDX_WIDTH       = 11  // 11
-//   ROB_IDX_WIDTH       = 11  // 11
-//   STQ_IDX_WIDTH       = 9  // 9
-//   LDQ_IDX_WIDTH       = 9  // 9
-//   BR_TAG_WIDTH        = 6  // 6
-//   BR_MASK_WIDTH       = 64  // 64
-//   CSR_IDX_WIDTH       = 12  // 12
-//   FTQ_IDX_WIDTH       = 8  // 8
-//   FTQ_OFFSET_WIDTH    = 4  // 4
-//   INST_TYPE_WIDTH     = 5  // 5
-//   UOP_TYPE_WIDTH      = 5  // 5
-//   ROB_CPLT_MASK_WIDTH = 3  // 3
-//   ISSUE_WIDTH         = 24  // 24
-//   ROB_NUM             = 2048  // 2048
-//   FTQ_ROB_PC_PORT_NUM = 1  // 1
-//   W_InstInfo          = 32 + (3 * AREG_IDX_WIDTH) + (4 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 2 + 3 + 2 + 2 + 3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH + CSR_IDX_WIDTH + ROB_IDX_WIDTH + STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + (2 * ROB_CPLT_MASK_WIDTH) + 1 + 6 + INST_TYPE_WIDTH  // 288
-//   W_InstEntry         = 1 + W_InstInfo  // 289
-//   W_DisRobInst        = 32 + (2 * AREG_IDX_WIDTH) + (2 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 2 + INST_TYPE_WIDTH + 1 + 1 + 3 + 7 + 32 + BR_MASK_WIDTH + ROB_IDX_WIDTH + STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + (2 * ROB_CPLT_MASK_WIDTH) + 1 + 3  // 234
-//   W_DisRobIO          = DECODE_WIDTH * (W_DisRobInst + 1 + 1)  // 1888
-//   W_CsrRobIO          = 1  // 1
-//   W_LsuRobIO          = 1  // 1
-//   W_DecBroadcastIO    = 1 + BR_MASK_WIDTH + BR_TAG_WIDTH + ROB_IDX_WIDTH + BR_MASK_WIDTH  // 146
-//   W_ExuRobUop         = 32 + 32 + ROB_IDX_WIDTH + 2 + 3 + UOP_TYPE_WIDTH + 1  // 86
-//   W_ExuRobIO          = ISSUE_WIDTH * (1 + W_ExuRobUop)  // 2088
-//   W_FtqPcReadReq      = 1 + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH  // 13
-//   W_FtqPcReadResp     = 1 + 1 + 32 + 1 + 32  // 67
-//   W_FtqRobPcReqIO     = FTQ_ROB_PC_PORT_NUM * W_FtqPcReadReq  // 13
-//   W_FtqRobPcRespIO    = FTQ_ROB_PC_PORT_NUM * W_FtqPcReadResp  // 67
-//   W_RobDisIO          = 3 + ROB_IDX_WIDTH + 1  // 15
-//   W_RobCsrIO          = 2  // 2
-//   W_RobCommitInst     = 32 + AREG_IDX_WIDTH + (2 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 2 + 1 + 7 + ROB_IDX_WIDTH + 1 + STQ_IDX_WIDTH + 1 + 4 + INST_TYPE_WIDTH + 1  // 115
-//   W_RobCommitIO       = COMMIT_WIDTH * (1 + W_RobCommitInst)  // 928
-//   W_RobBroadcastIO    = 7 + 5 + 32 + 32 + ROB_IDX_WIDTH + 1 + ROB_IDX_WIDTH + 1  // 100
-//   W_RobIn             = W_DisRobIO + W_CsrRobIO + W_LsuRobIO + W_DecBroadcastIO + W_ExuRobIO + W_FtqRobPcRespIO  // 4191
-//   W_RobOut            = W_RobDisIO + W_RobCsrIO + W_RobCommitIO + W_RobBroadcastIO + W_FtqRobPcReqIO  // 1058
-//
-// 输入端口：
-//   dis2rob          [W_DisRobIO-1:0]        1888 bit
-//   csr2rob          [W_CsrRobIO-1:0]        1 bit
-//   lsu2rob          [W_LsuRobIO-1:0]        1 bit
-//   dec_bcast        [W_DecBroadcastIO-1:0]  146 bit
-//   exu2rob          [W_ExuRobIO-1:0]        2088 bit
-//   ftq_rob_pc_resp  [W_FtqRobPcRespIO-1:0]  67 bit
-//
-// 输出端口：
-//   rob2dis                            [W_RobDisIO-1:0]        15 bit
-//   rob2csr                            [W_RobCsrIO-1:0]        2 bit
-//   rob_commit                         [W_RobCommitIO-1:0]     928 bit
-//   rob_bcast                          [W_RobBroadcastIO-1:0]  100 bit
-//   ftq_rob_pc_req                     [W_FtqRobPcReqIO-1:0]   13 bit
-//   rob_bcast_flush                    1                       1 bit
-//   rob_bcast_mret                     1                       1 bit
-//   rob_bcast_sret                     1                       1 bit
-//   rob_bcast_ecall                    1                       1 bit
-//   rob_bcast_exception                1                       1 bit
-//   rob_bcast_fence                    1                       1 bit
-//   rob_bcast_fence_i                  1                       1 bit
-//   rob_bcast_page_fault_inst          1                       1 bit
-//   rob_bcast_page_fault_load          1                       1 bit
-//   rob_bcast_page_fault_store         1                       1 bit
-//   rob_bcast_illegal_inst             1                       1 bit
-//   rob_bcast_interrupt                1                       1 bit
-//   rob_bcast_trap_val                 [31:0]                  32 bit
-//   rob_bcast_pc                       [31:0]                  32 bit
-//   rob_bcast_head_rob_idx             [ROB_IDX_WIDTH-1:0]     11 bit
-//   rob_bcast_head_valid               1                       1 bit
-//   rob_bcast_head_incomplete_rob_idx  [ROB_IDX_WIDTH-1:0]     11 bit
-//   rob_bcast_head_incomplete_valid    1                       1 bit
-//
-// BSD 层端口：当前仓库只实例化该 bsd_top，未提供 module 定义。
-// 后续补 bsd_top 时，需要保持实例名和 pi/po 连接一致。
-// -----------------------------------------------------------------------------
 
 module rob_top #(
     parameter integer DECODE_WIDTH        = 8,
     parameter integer COMMIT_WIDTH        = DECODE_WIDTH,
     parameter integer AREG_IDX_WIDTH      = 6,
-    parameter integer PRF_IDX_WIDTH       = 11,
-    parameter integer ROB_IDX_WIDTH       = 11,
-    parameter integer STQ_IDX_WIDTH       = 9,
-    parameter integer LDQ_IDX_WIDTH       = 9,
+    parameter integer PRF_IDX_WIDTH       = 9,
+    parameter integer ROB_IDX_WIDTH       = 9,
+    parameter integer STQ_IDX_WIDTH       = 6,
+    parameter integer LDQ_IDX_WIDTH       = 6,
     parameter integer BR_TAG_WIDTH        = 6,
     parameter integer BR_MASK_WIDTH       = 64,
     parameter integer CSR_IDX_WIDTH       = 12,
-    parameter integer FTQ_IDX_WIDTH       = 8,
+    parameter integer FTQ_IDX_WIDTH       = 7,
     parameter integer FTQ_OFFSET_WIDTH    = 4,
     parameter integer INST_TYPE_WIDTH     = 5,
     parameter integer UOP_TYPE_WIDTH      = 5,
     parameter integer ROB_CPLT_MASK_WIDTH = 3,
-    parameter integer ISSUE_WIDTH            = 24,
-    parameter integer ROB_NUM                = 2048,
+    parameter integer W_TmaMeta              = 4,
+    parameter integer W_DebugMeta            = 32 + 32 + 8 + 1 + 64,
+    parameter integer W_RobDisTmaMeta        = 3,
+    parameter integer ISSUE_WIDTH         = 15,
+    parameter integer ROB_NUM             = 512,
     parameter integer FTQ_ROB_PC_PORT_NUM = 1,
     parameter integer W_InstInfo          =
         32 + (3 * AREG_IDX_WIDTH) + (4 * PRF_IDX_WIDTH) +
         FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 2 + 3 + 2 + 2 +
         3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH + CSR_IDX_WIDTH +
         ROB_IDX_WIDTH + STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH +
-        (2 * ROB_CPLT_MASK_WIDTH) + 1 + 6 + INST_TYPE_WIDTH,
-    parameter integer W_InstEntry  = 1 + W_InstInfo,
-    parameter integer W_DisRobInst =
+        (2 * ROB_CPLT_MASK_WIDTH) + 1 + 6 + INST_TYPE_WIDTH + W_TmaMeta + W_DebugMeta,
+    parameter integer W_InstEntry         = 1 + W_InstInfo,
+    parameter integer W_DisRobInst        =
         32 + (2 * AREG_IDX_WIDTH) + (2 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH +
         FTQ_OFFSET_WIDTH + 1 + 2 + INST_TYPE_WIDTH + 1 + 1 + 3 + 7 + 32 +
         BR_MASK_WIDTH + ROB_IDX_WIDTH + STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH +
-        (2 * ROB_CPLT_MASK_WIDTH) + 1 + 3,
-    parameter integer W_DisRobIO       = DECODE_WIDTH * (W_DisRobInst + 1 + 1),
-    parameter integer W_CsrRobIO       = 1,
-    parameter integer W_LsuRobIO       = 1,
-    parameter integer W_DecBroadcastIO =
+        (2 * ROB_CPLT_MASK_WIDTH) + 1 + 3 + W_TmaMeta + W_DebugMeta,
+    parameter integer W_DisRobIO          = DECODE_WIDTH * (W_DisRobInst + 1 + 1),
+    parameter integer W_CsrRobIO          = 1,
+    parameter integer W_LsuRobIO          = ROB_NUM + 2,
+    parameter integer W_DecBroadcastIO    =
         1 + BR_MASK_WIDTH + BR_TAG_WIDTH + ROB_IDX_WIDTH + BR_MASK_WIDTH,
-    parameter integer W_ExuRobUop =
-        32 + 32 + ROB_IDX_WIDTH + 2 + 3 + UOP_TYPE_WIDTH + 1,
-    parameter integer W_ExuRobIO       = ISSUE_WIDTH * (1 + W_ExuRobUop),
-    parameter integer W_FtqPcReadReq   = 1 + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH,
-    parameter integer W_FtqPcReadResp  = 1 + 1 + 32 + 1 + 32,
-    parameter integer W_FtqRobPcReqIO  = FTQ_ROB_PC_PORT_NUM * W_FtqPcReadReq,
-    parameter integer W_FtqRobPcRespIO = FTQ_ROB_PC_PORT_NUM * W_FtqPcReadResp,
-    parameter integer W_RobDisIO       = 3 + ROB_IDX_WIDTH + 1,
-    parameter integer W_RobCsrIO       = 2,
-    parameter integer W_RobCommitInst  =
+    parameter integer W_ExuRobUop         =
+        32 + 32 + ROB_IDX_WIDTH + 2 + 3 + UOP_TYPE_WIDTH + 1 + W_DebugMeta,
+    parameter integer W_ExuRobIO          = ISSUE_WIDTH * (1 + W_ExuRobUop),
+    parameter integer W_FtqPcReadReq      = 1 + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH,
+    parameter integer W_FtqPcReadResp     = 1 + 1 + 32 + 1 + 32,
+    parameter integer W_FtqRobPcReqIO     = FTQ_ROB_PC_PORT_NUM * W_FtqPcReadReq,
+    parameter integer W_FtqRobPcRespIO    = FTQ_ROB_PC_PORT_NUM * W_FtqPcReadResp,
+    parameter integer W_RobDisIO          = W_RobDisTmaMeta + 3 + ROB_IDX_WIDTH + 1,
+    parameter integer W_RobCsrIO          = 2,
+    parameter integer W_RobCommitInst     =
         32 + AREG_IDX_WIDTH + (2 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH +
         FTQ_OFFSET_WIDTH + 1 + 2 + 1 + 7 + ROB_IDX_WIDTH + 1 +
-        STQ_IDX_WIDTH + 1 + 4 + INST_TYPE_WIDTH + 1,
-    parameter integer W_RobCommitIO    = COMMIT_WIDTH * (1 + W_RobCommitInst),
-    parameter integer W_RobBroadcastIO =
+        STQ_IDX_WIDTH + 1 + 4 + INST_TYPE_WIDTH + W_TmaMeta +
+        W_DebugMeta + 1,
+    parameter integer W_RobCommitIO       = COMMIT_WIDTH * (1 + W_RobCommitInst),
+    parameter integer W_RobBroadcastIO    =
         7 + 5 + 32 + 32 + ROB_IDX_WIDTH + 1 + ROB_IDX_WIDTH + 1,
-    parameter integer W_RobIn =
+    parameter integer W_RobIn             =
         W_DisRobIO + W_CsrRobIO + W_LsuRobIO + W_DecBroadcastIO + W_ExuRobIO +
         W_FtqRobPcRespIO,
-    parameter integer W_RobOut =
+    parameter integer W_RobOut            =
         W_RobDisIO + W_RobCsrIO + W_RobCommitIO + W_RobBroadcastIO +
         W_FtqRobPcReqIO
 ) (
+    input wire clk,
+    input wire rst_n,
+
     input wire [W_DisRobIO-1:0]       dis2rob,
     input wire [W_CsrRobIO-1:0]       csr2rob,
     input wire [W_LsuRobIO-1:0]       lsu2rob,
@@ -222,6 +154,8 @@ module rob_top #(
     wire [DECODE_WIDTH-1:0]                 dis2rob_uop_page_fault_inst;
     wire [DECODE_WIDTH-1:0]                 dis2rob_uop_illegal_inst;
     wire [DECODE_WIDTH-1:0]                 dis2rob_uop_flush_pipe;
+    wire [(W_TmaMeta * DECODE_WIDTH)-1:0]   dis2rob_uop_tma;
+    wire [(W_DebugMeta * DECODE_WIDTH)-1:0] dis2rob_uop_dbg;
     assign {
         dis2rob_uop_diag_val,
         dis2rob_uop_dest_areg,
@@ -249,14 +183,22 @@ module rob_top #(
         dis2rob_uop_rob_flag,
         dis2rob_uop_page_fault_inst,
         dis2rob_uop_illegal_inst,
-        dis2rob_uop_flush_pipe
+        dis2rob_uop_flush_pipe,
+        dis2rob_uop_tma,
+        dis2rob_uop_dbg
     } = dis2rob_uop;
 
     wire csr2rob_interrupt_req;
     assign csr2rob_interrupt_req = csr2rob;
 
+    wire [ROB_NUM-1:0] lsu2rob_tma_miss_mask;
     wire               lsu2rob_committed_store_pending;
-    assign lsu2rob_committed_store_pending = lsu2rob;
+    wire               lsu2rob_translation_pending;
+    assign {
+        lsu2rob_tma_miss_mask,
+        lsu2rob_committed_store_pending,
+        lsu2rob_translation_pending
+    } = lsu2rob;
 
     wire                     dec_bcast_mispred;
     wire [BR_MASK_WIDTH-1:0] dec_bcast_br_mask;
@@ -286,6 +228,7 @@ module rob_top #(
     wire [ISSUE_WIDTH-1:0]                    exu2rob_entry_uop_page_fault_load;
     wire [ISSUE_WIDTH-1:0]                    exu2rob_entry_uop_page_fault_store;
     wire [(UOP_TYPE_WIDTH * ISSUE_WIDTH)-1:0] exu2rob_entry_uop_op;
+    wire [(W_DebugMeta * ISSUE_WIDTH)-1:0]     exu2rob_entry_uop_dbg;
     wire [ISSUE_WIDTH-1:0]                    exu2rob_entry_uop_flush_pipe;
     assign {
         exu2rob_entry_uop_diag_val,
@@ -297,6 +240,7 @@ module rob_top #(
         exu2rob_entry_uop_page_fault_load,
         exu2rob_entry_uop_page_fault_store,
         exu2rob_entry_uop_op,
+        exu2rob_entry_uop_dbg,
         exu2rob_entry_uop_flush_pipe
     } = exu2rob_entry_uop;
 
@@ -329,12 +273,14 @@ module rob_top #(
         ftq_rob_pc_req
     } = po;
 
+    wire [W_RobDisTmaMeta-1:0] rob2dis_tma;
     wire                     rob2dis_ready;
     wire                     rob2dis_empty;
     wire                     rob2dis_stall;
     wire [ROB_IDX_WIDTH-1:0] rob2dis_enq_idx;
     wire                     rob2dis_rob_flag;
     assign {
+        rob2dis_tma,
         rob2dis_ready,
         rob2dis_empty,
         rob2dis_stall,
@@ -382,6 +328,8 @@ module rob_top #(
     wire [COMMIT_WIDTH-1:0]                     rob_commit_entry_uop_page_fault_store;
     wire [COMMIT_WIDTH-1:0]                     rob_commit_entry_uop_illegal_inst;
     wire [(INST_TYPE_WIDTH * COMMIT_WIDTH)-1:0] rob_commit_entry_uop_type;
+    wire [(W_TmaMeta * COMMIT_WIDTH)-1:0]        rob_commit_entry_uop_tma;
+    wire [(W_DebugMeta * COMMIT_WIDTH)-1:0]      rob_commit_entry_uop_dbg;
     wire [COMMIT_WIDTH-1:0]                     rob_commit_entry_uop_flush_pipe;
     assign {
         rob_commit_entry_uop_diag_val,
@@ -404,6 +352,8 @@ module rob_top #(
         rob_commit_entry_uop_page_fault_store,
         rob_commit_entry_uop_illegal_inst,
         rob_commit_entry_uop_type,
+        rob_commit_entry_uop_tma,
+        rob_commit_entry_uop_dbg,
         rob_commit_entry_uop_flush_pipe
     } = rob_commit_entry_uop;
 
@@ -443,6 +393,8 @@ module rob_top #(
         .W_RobIn(W_RobIn),
         .W_RobOut(W_RobOut)
     ) u_rob_bsd_top (
+        .clk(clk),
+        .rst_n(rst_n),
         .pi(pi),
         .po(po)
     );

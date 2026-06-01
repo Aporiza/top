@@ -1,108 +1,60 @@
-// Source struct:
+// ffc IDU 边界的 BSD 封装。
+//
+// 参考结构体：
 //   IduIn  = {issue, ren2dec, rob_bcast, exu2id}
-//   IduOut = {dec2ren, dec_bcast, idu_consume, idu_br_latch}
-// Branch masks, branch latches and decode helper logic stay inside IDU.
-// BackTop.cpp reads idu->br_latch; this wrapper keeps that crossing packed in
-// IduOut instead of exposing a separate non-aggregate port.
+//   IduOut = {dec2ren, dec_bcast, idu_consume}
+//
+// BSD 接口：
+//   u_idu_bsd_top(clk, rst_n, pi, po)
+//   pi = {pre_issue, ren2dec, rob_bcast, exu2id}
+//   po = {dec2ren, dec_bcast, idu_consume, idu_br_latch}
+//
+// 模拟器里 IDU 的 issue 输入在本封装中命名为 pre_issue，表示来自 PreIduQueue。
+// idu_br_latch 是 BackTop.cpp 会读取的 IDU 状态，这里把它随 po 一起带出，
+// 让分支重定向反馈仍然保持在后端包内部，不新增额外顶层业务端口。
 
-// -----------------------------------------------------------------------------
-// 后端端口自查
-// 模块：idu_top
-// 文件：idu/idu_top.v:71
-// 来源：当前 back_end RTL module 声明
-// BSD 层：idu_bsd_top，实例名 u_idu_bsd_top，当前仓库未提供定义
-//
-// 输入端口：4 个，合计 855 bit
-// 输出端口：15 个，合计 2200 bit
-//
-// 参数：
-//   DECODE_WIDTH             = 8  // 8
-//   AREG_IDX_WIDTH           = 6  // 6
-//   PRF_IDX_WIDTH            = 11  // 11
-//   ROB_IDX_WIDTH            = 11  // 11
-//   STQ_IDX_WIDTH            = 9  // 9
-//   LDQ_IDX_WIDTH            = 9  // 9
-//   BR_TAG_WIDTH             = 6  // 6
-//   BR_MASK_WIDTH            = 64  // 64
-//   CSR_IDX_WIDTH            = 12  // 12
-//   FTQ_IDX_WIDTH            = 8  // 8
-//   FTQ_OFFSET_WIDTH         = 4  // 4
-//   INST_TYPE_WIDTH          = 5  // 5
-//   ROB_CPLT_MASK_WIDTH      = 3  // 3
-//   W_InstructionBufferEntry = 1 + 32 + 32 + 1 + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1  // 79
-//   W_PreIssueIO             = W_InstructionBufferEntry * DECODE_WIDTH  // 632
-//   W_RenDecIO               = 1  // 1
-//   W_RobBroadcastIO         = 7 + 5 + 32 + 32 + ROB_IDX_WIDTH + 1 + ROB_IDX_WIDTH + 1  // 100
-//   W_ExuIdIO                = 1 + 32 + ROB_IDX_WIDTH + BR_TAG_WIDTH + FTQ_IDX_WIDTH + BR_MASK_WIDTH  // 122
-//   W_DecRenInst             = 32 + (3 * AREG_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + INST_TYPE_WIDTH + 3 + 1 + 2 + 3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH + CSR_IDX_WIDTH + (2 * ROB_CPLT_MASK_WIDTH) + 2  // 206
-//   W_DecRenIO               = DECODE_WIDTH * (W_DecRenInst + 1)  // 1656
-//   W_DecBroadcastIO         = 1 + BR_MASK_WIDTH + BR_TAG_WIDTH + ROB_IDX_WIDTH + BR_MASK_WIDTH  // 146
-//   W_IduConsumeIO           = DECODE_WIDTH  // 8
-//   W_IduIn                  = W_PreIssueIO + W_RenDecIO + W_RobBroadcastIO + W_ExuIdIO  // 855
-//   W_IduOut                 = W_DecRenIO + W_DecBroadcastIO + W_IduConsumeIO + W_ExuIdIO  // 1932
-//
-// 输入端口：
-//   pre_issue  [W_PreIssueIO-1:0]      632 bit
-//   ren2dec    [W_RenDecIO-1:0]        1 bit
-//   rob_bcast  [W_RobBroadcastIO-1:0]  100 bit
-//   exu2id     [W_ExuIdIO-1:0]         122 bit
-//
-// 输出端口：
-//   dec2ren                        [W_DecRenIO-1:0]        1656 bit
-//   dec_bcast                      [W_DecBroadcastIO-1:0]  146 bit
-//   idu_consume                    [W_IduConsumeIO-1:0]    8 bit
-//   idu_br_latch                   [W_ExuIdIO-1:0]         122 bit
-//   dec_bcast_mispred              1                       1 bit
-//   dec_bcast_br_mask              [BR_MASK_WIDTH-1:0]     64 bit
-//   dec_bcast_br_id                [BR_TAG_WIDTH-1:0]      6 bit
-//   dec_bcast_redirect_rob_idx     [ROB_IDX_WIDTH-1:0]     11 bit
-//   dec_bcast_clear_mask           [BR_MASK_WIDTH-1:0]     64 bit
-//   idu_br_latch_mispred           1                       1 bit
-//   idu_br_latch_redirect_pc       [31:0]                  32 bit
-//   idu_br_latch_redirect_rob_idx  [ROB_IDX_WIDTH-1:0]     11 bit
-//   idu_br_latch_br_id             [BR_TAG_WIDTH-1:0]      6 bit
-//   idu_br_latch_ftq_idx           [FTQ_IDX_WIDTH-1:0]     8 bit
-//   idu_br_latch_clear_mask        [BR_MASK_WIDTH-1:0]     64 bit
-//
-// BSD 层端口：当前仓库只实例化该 bsd_top，未提供 module 定义。
-// 后续补 bsd_top 时，需要保持实例名和 pi/po 连接一致。
-// -----------------------------------------------------------------------------
 
 module idu_top #(
     parameter integer DECODE_WIDTH             = 8,
     parameter integer AREG_IDX_WIDTH           = 6,
-    parameter integer PRF_IDX_WIDTH       = 11,
-    parameter integer ROB_IDX_WIDTH       = 11,
-    parameter integer STQ_IDX_WIDTH       = 9,
-    parameter integer LDQ_IDX_WIDTH       = 9,
+    parameter integer PRF_IDX_WIDTH            = 9,
+    parameter integer ROB_IDX_WIDTH            = 9,
+    parameter integer STQ_IDX_WIDTH            = 6,
+    parameter integer LDQ_IDX_WIDTH            = 6,
     parameter integer BR_TAG_WIDTH             = 6,
     parameter integer BR_MASK_WIDTH            = 64,
     parameter integer CSR_IDX_WIDTH            = 12,
-    parameter integer FTQ_IDX_WIDTH       = 8,
+    parameter integer FTQ_IDX_WIDTH            = 7,
     parameter integer FTQ_OFFSET_WIDTH         = 4,
     parameter integer INST_TYPE_WIDTH          = 5,
     parameter integer ROB_CPLT_MASK_WIDTH      = 3,
+    parameter integer W_TmaMeta              = 4,
+    parameter integer W_DebugMeta            = 32 + 32 + 8 + 1 + 64,
+    parameter integer W_RobDisTmaMeta        = 3,
     parameter integer W_InstructionBufferEntry =
         1 + 32 + 32 + 1 + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1,
-    parameter integer W_PreIssueIO     = W_InstructionBufferEntry * DECODE_WIDTH,
-    parameter integer W_RenDecIO       = 1,
-    parameter integer W_RobBroadcastIO =
+    parameter integer W_PreIssueIO             = W_InstructionBufferEntry * DECODE_WIDTH,
+    parameter integer W_RenDecIO               = 1,
+    parameter integer W_RobBroadcastIO         =
         7 + 5 + 32 + 32 + ROB_IDX_WIDTH + 1 + ROB_IDX_WIDTH + 1,
-    parameter integer W_ExuIdIO =
+    parameter integer W_ExuIdIO                =
         1 + 32 + ROB_IDX_WIDTH + BR_TAG_WIDTH + FTQ_IDX_WIDTH + BR_MASK_WIDTH,
-    parameter integer W_DecRenInst =
+    parameter integer W_DecRenInst             =
         32 + (3 * AREG_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 +
         INST_TYPE_WIDTH + 3 + 1 + 2 + 3 + 7 + 32 + BR_TAG_WIDTH +
-        BR_MASK_WIDTH + CSR_IDX_WIDTH + (2 * ROB_CPLT_MASK_WIDTH) + 2,
-    parameter integer W_DecRenIO       = DECODE_WIDTH * (W_DecRenInst + 1),
-    parameter integer W_DecBroadcastIO =
+        BR_MASK_WIDTH + CSR_IDX_WIDTH + (2 * ROB_CPLT_MASK_WIDTH) + 2 + W_TmaMeta + W_DebugMeta,
+    parameter integer W_DecRenIO               = DECODE_WIDTH * (W_DecRenInst + 1),
+    parameter integer W_DecBroadcastIO         =
         1 + BR_MASK_WIDTH + BR_TAG_WIDTH + ROB_IDX_WIDTH + BR_MASK_WIDTH,
-    parameter integer W_IduConsumeIO = DECODE_WIDTH,
-    parameter integer W_IduIn        =
+    parameter integer W_IduConsumeIO           = DECODE_WIDTH,
+    parameter integer W_IduIn                  =
         W_PreIssueIO + W_RenDecIO + W_RobBroadcastIO + W_ExuIdIO,
-    parameter integer W_IduOut =
+    parameter integer W_IduOut                 =
         W_DecRenIO + W_DecBroadcastIO + W_IduConsumeIO + W_ExuIdIO
 ) (
+    input wire clk,
+    input wire rst_n,
+
     input wire [W_PreIssueIO-1:0]     pre_issue,
     input wire [W_RenDecIO-1:0]       ren2dec,
     input wire [W_RobBroadcastIO-1:0] rob_bcast,
@@ -235,6 +187,8 @@ module idu_top #(
         dec2ren_uop_cplt_mask;
     wire [DECODE_WIDTH-1:0]                 dec2ren_uop_page_fault_inst;
     wire [DECODE_WIDTH-1:0]                 dec2ren_uop_illegal_inst;
+    wire [(W_TmaMeta * DECODE_WIDTH)-1:0]   dec2ren_uop_tma;
+    wire [(W_DebugMeta * DECODE_WIDTH)-1:0] dec2ren_uop_dbg;
     assign {
         dec2ren_uop_diag_val,
         dec2ren_uop_dest_areg,
@@ -259,7 +213,9 @@ module idu_top #(
         dec2ren_uop_expect_mask,
         dec2ren_uop_cplt_mask,
         dec2ren_uop_page_fault_inst,
-        dec2ren_uop_illegal_inst
+        dec2ren_uop_illegal_inst,
+        dec2ren_uop_tma,
+        dec2ren_uop_dbg
     } = dec2ren_uop;
 
     assign {
@@ -286,6 +242,8 @@ module idu_top #(
         .W_IduIn(W_IduIn),
         .W_IduOut(W_IduOut)
     ) u_idu_bsd_top (
+        .clk(clk),
+        .rst_n(rst_n),
         .pi(pi),
         .po(po)
     );

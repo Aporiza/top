@@ -280,8 +280,16 @@ module front_top #(
     output wire [PC_BITS-1:0]               fetch_address,
     output wire                             icache_read_valid_2,
     output wire [PC_BITS-1:0]               fetch_address_2,
+    output wire                             icache_reset,
+    output wire                             icache_refetch,
+    output wire                             icache_itlb_flush,
+    output wire                             icache_fence_i,
     output wire                             icache_invalidate_req,
     output wire                             icache_run_comb_only,
+    output wire [31:0]                      icache_csr_status_sstatus,
+    output wire [31:0]                      icache_csr_status_mstatus,
+    output wire [31:0]                      icache_csr_status_satp,
+    output wire [PRIVILEGE_BITS-1:0]        icache_csr_status_privilege,
 
     // 前端输出到后端的接口。
     output wire                                                             FIFO_valid,
@@ -650,8 +658,17 @@ module front_top #(
     // 因此 slot1 请求保持关闭；若后续打开 ideal dual request，需要在这里接第二路 FIFO 读口。
     assign icache_read_valid_2 = 1'b0;
     assign fetch_address_2 = {PC_BITS{1'b0}};
-    assign icache_invalidate_req = 1'b0;
     assign icache_run_comb_only = 1'b0;
+    // true ICache 正常组合调用需要完整 icache_in 控制字段。
+    // global_refetch 已经合并后端 refetch 和上一拍 predecode checker 延迟 refetch。
+    assign icache_reset                = global_reset;
+    assign icache_refetch              = global_refetch;
+    assign icache_itlb_flush           = itlb_flush;
+    assign icache_fence_i              = fence_i;
+    assign icache_csr_status_sstatus   = csr_status_sstatus;
+    assign icache_csr_status_mstatus   = csr_status_mstatus;
+    assign icache_csr_status_satp      = csr_status_satp;
+    assign icache_csr_status_privilege = csr_status_privilege;
 
     // 第 7 阶段：fetch address FIFO。
     // 该 FIFO 保存 BPU 发出的取指地址；输入来自 BPU 输出和第三阶段的 reset/refetch/read 控制。
@@ -979,6 +996,12 @@ module front_top #(
     wire [PC_BITS-1:0]             checker_flush_address = checker_out[PC_BITS:1];
     wire [W_PredecodeCheckerOut-1:0] checker_out_validated =
         predecode_can_run_gate ? checker_out : {W_PredecodeCheckerOut{1'b0}};
+    wire                           predecode_flush_fire =
+        predecode_can_run_gate && checker_flush;
+
+    // true ICache 路径下，checker 发现错误路径时要同拍通知 ICache 取消 pending 错路响应。
+    // 对应 front_top.cpp 中 do_predecode_flush 后重新调用 icache_comb_calc(invalidate_req=1)。
+    assign icache_invalidate_req = predecode_flush_fire;
 
     // 先用 front2back FIFO 自己的组合输出生成 saved_front2back_fifo_out。
     // 这对应 C++ 在 F2B 写入前保存的 saved_front2back_fifo_out.front2back_FIFO_valid，
@@ -1141,9 +1164,9 @@ module front_top #(
     // rst_n 是异步硬复位；reset 是模拟器前端同步清空信号；普通运行时只写回组合阶段产生的新状态。
     wire front_state_req_valid = 1'b1; // front_top.cpp:1802 打开最终状态刷新请求。
     wire               next_predecode_refetch =
-        predecode_can_run_gate && checker_flush;
+        predecode_flush_fire;
     wire [PC_BITS-1:0] next_predecode_refetch_address =
-        (predecode_can_run_gate && checker_flush)
+        predecode_flush_fire
             ? checker_flush_address
             : {PC_BITS{1'b0}};
     always @(posedge clk or negedge rst_n) begin

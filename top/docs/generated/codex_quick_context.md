@@ -1,6 +1,6 @@
 # Codex 快速上下文：模拟器接口
 
-模拟器目录：`simulator-ffc9fad707a7acb0be5c7d4fe7c06d48987c73e0`
+模拟器目录：`simulator-front`
 RTL/训练包目录：`top`
 
 ## 生效配置
@@ -23,11 +23,11 @@ RTL/训练包目录：`top`
 ## 重要入口函数
 - `FrontTop::step_bpu()`，位置：`front-end/FrontTop.cpp:36`
 - `FrontTop::step_oracle()`，位置：`front-end/FrontTop.cpp:41`
-- `front_top(struct front_top_in *in, struct front_top_out *out)`，位置：`front-end/front_module.h:131`
-- `front_comb_calc(const struct front_top_in &inp, const FrontReadData &rd, struct front_top_out &out, FrontUpdateRequest &req)`，位置：`front-end/front_top.cpp:920`
-- `front_seq_read(const struct front_top_in &inp, FrontReadData &rd)`，位置：`front-end/front_top.cpp:1865`
-- `front_seq_write(const struct front_top_in &inp, const FrontUpdateRequest &req, bool reset)`，位置：`front-end/front_top.cpp:1902`
-- `front_top(struct front_top_in *in, struct front_top_out *out)`，位置：`front-end/front_top.cpp:1936`
+- `front_top(struct front_top_in *in, struct front_top_out *out)`，位置：`front-end/front_module.h:137`
+- `front_comb_calc(const struct front_top_in &inp, const FrontReadData &rd, struct front_top_out &out, FrontUpdateRequest &req)`，位置：`front-end/front_top.cpp:1002`
+- `front_seq_read(const struct front_top_in &inp, FrontReadData &rd)`，位置：`front-end/front_top.cpp:1996`
+- `front_seq_write(const struct front_top_in &inp, const FrontUpdateRequest &req, bool reset)`，位置：`front-end/front_top.cpp:2033`
+- `front_top(struct front_top_in *in, struct front_top_out *out)`，位置：`front-end/front_top.cpp:2067`
 - `step_bpu()`，位置：`include/FrontTop.h:22`
 - `step_oracle()`，位置：`include/FrontTop.h:23`
 - `front_cycle()`，位置：`include/SimCpu.h:39`
@@ -66,37 +66,37 @@ RTL/训练包目录：`top`
 - `FrontGlobalControlCombOut`，位置：`front-end/train_IO.h:275`：global_reset, global_refetch, refetch_address
 
 ## 当前 RTL 模块
-- `bpu_hist_comb_top`，位置：`front_end/bpu/bpu_hist_comb/bpu_hist_comb_top.v:8`：1 个输入，1 个输出
-- `bpu_post_read_req_comb_top`，位置：`front_end/bpu/bpu_post_read_req_comb/bpu_post_read_req_comb_top.v:8`：1 个输入，1 个输出
-- `bpu_pre_read_req_comb_top`，位置：`front_end/bpu/bpu_pre_read_req_comb/bpu_pre_read_req_comb_top.v:8`：1 个输入，1 个输出
-- `bpu_predict_main_comb_top`，位置：`front_end/bpu/bpu_predict_main_comb/bpu_predict_main_comb_top.v:8`：1 个输入，1 个输出
-- `bpu_queue_comb_top`，位置：`front_end/bpu/bpu_queue_comb/bpu_queue_comb_top.v:8`：1 个输入，1 个输出
-- `bpu_submodule_bind_comb_top`，位置：`front_end/bpu/bpu_submodule_bind_comb/bpu_submodule_bind_comb_top.v:8`：1 个输入，1 个输出
-- `tage_comb_top`，位置：`front_end/bpu/dir_predictor/tage_comb/tage_comb_top.v:8`：1 个输入，1 个输出
-- `tage_pre_read_comb_top`，位置：`front_end/bpu/dir_predictor/tage_pre_read_comb/tage_pre_read_comb_top.v:8`：1 个输入，1 个输出
-- `btb_comb_top`，位置：`front_end/bpu/target_predictor/btb_comb/btb_comb_top.v:8`：1 个输入，1 个输出
-- `btb_post_read_req_comb_top`，位置：`front_end/bpu/target_predictor/btb_post_read_req_comb/btb_post_read_req_comb_top.v:8`：1 个输入，1 个输出
-- `btb_pre_read_comb_top`，位置：`front_end/bpu/target_predictor/btb_pre_read_comb/btb_pre_read_comb_top.v:8`：1 个输入，1 个输出
-- `type_pred_comb_top`，位置：`front_end/bpu/type_predictor/type_pred_comb/type_pred_comb_top.v:8`：1 个输入，1 个输出
-- `type_predictor_pre_read_comb_top`，位置：`front_end/bpu/type_predictor/type_predictor_pre_read_comb/type_predictor_pre_read_comb_top.v:8`：1 个输入，1 个输出
-- `PTAB_comb_top`，位置：`front_end/fifo/PTAB_comb/PTAB_comb_top.v:8`：1 个输入，1 个输出
-- `fetch_address_FIFO_comb_top`，位置：`front_end/fifo/fetch_address_FIFO_comb/fetch_address_FIFO_comb_top.v:8`：1 个输入，1 个输出
-- `front2back_FIFO_comb_top`，位置：`front_end/fifo/front2back_FIFO_comb/front2back_FIFO_comb_top.v:8`：1 个输入，1 个输出
-- `instruction_FIFO_comb_top`，位置：`front_end/fifo/instruction_FIFO_comb/instruction_FIFO_comb_top.v:8`：1 个输入，1 个输出
-- `front_top`，位置：`front_end/front_top.v:7`：44 个输入，27 个输出
-- `front_bpu_control_comb_top`，位置：`front_end/front_top_glue/front_bpu_control_comb/front_bpu_control_comb_top.v:8`：1 个输入，1 个输出
-- `front_checker_input_comb_top`，位置：`front_end/front_top_glue/front_checker_input_comb/front_checker_input_comb_top.v:8`：1 个输入，1 个输出
-- `front_front2back_write_comb_top`，位置：`front_end/front_top_glue/front_front2back_write_comb/front_front2back_write_comb_top.v:8`：1 个输入，1 个输出
-- `front_global_control_comb_top`，位置：`front_end/front_top_glue/front_global_control_comb/front_global_control_comb_top.v:8`：1 个输入，1 个输出
-- `front_output_comb_top`，位置：`front_end/front_top_glue/front_output_comb/front_output_comb_top.v:8`：1 个输入，1 个输出
-- `front_ptab_write_comb_top`，位置：`front_end/front_top_glue/front_ptab_write_comb/front_ptab_write_comb_top.v:8`：1 个输入，1 个输出
-- `front_read_enable_comb_top`，位置：`front_end/front_top_glue/front_read_enable_comb/front_read_enable_comb_top.v:8`：1 个输入，1 个输出
-- `front_read_stage_input_comb_top`，位置：`front_end/front_top_glue/front_read_stage_input_comb/front_read_stage_input_comb_top.v:8`：1 个输入，1 个输出
-- `predecode_comb_top`，位置：`front_end/predecode/predecode_comb/predecode_comb_top.v:8`：1 个输入，1 个输出
-- `predecode_checker_comb_top`，位置：`front_end/predecode_checker/predecode_checker_comb/predecode_checker_comb_top.v:8`：1 个输入，1 个输出
+- `bpu_hist_comb_top`，位置：`front_end/bpu/bpu_hist_comb/bpu_hist_comb_top.v:78`：1 个输入，1 个输出
+- `bpu_post_read_req_comb_top`，位置：`front_end/bpu/bpu_post_read_req_comb/bpu_post_read_req_comb_top.v:71`：1 个输入，1 个输出
+- `bpu_pre_read_req_comb_top`，位置：`front_end/bpu/bpu_pre_read_req_comb/bpu_pre_read_req_comb_top.v:68`：1 个输入，1 个输出
+- `bpu_predict_main_comb_top`，位置：`front_end/bpu/bpu_predict_main_comb/bpu_predict_main_comb_top.v:79`：1 个输入，1 个输出
+- `bpu_queue_comb_top`，位置：`front_end/bpu/bpu_queue_comb/bpu_queue_comb_top.v:79`：1 个输入，1 个输出
+- `bpu_submodule_bind_comb_top`，位置：`front_end/bpu/bpu_submodule_bind_comb/bpu_submodule_bind_comb_top.v:52`：1 个输入，1 个输出
+- `tage_comb_top`，位置：`front_end/bpu/dir_predictor/tage_comb/tage_comb_top.v:52`：1 个输入，1 个输出
+- `tage_pre_read_comb_top`，位置：`front_end/bpu/dir_predictor/tage_pre_read_comb/tage_pre_read_comb_top.v:56`：1 个输入，1 个输出
+- `btb_comb_top`，位置：`front_end/bpu/target_predictor/btb_comb/btb_comb_top.v:52`：1 个输入，1 个输出
+- `btb_post_read_req_comb_top`，位置：`front_end/bpu/target_predictor/btb_post_read_req_comb/btb_post_read_req_comb_top.v:54`：1 个输入，1 个输出
+- `btb_pre_read_comb_top`，位置：`front_end/bpu/target_predictor/btb_pre_read_comb/btb_pre_read_comb_top.v:50`：1 个输入，1 个输出
+- `type_pred_comb_top`，位置：`front_end/bpu/type_predictor/type_pred_comb/type_pred_comb_top.v:54`：1 个输入，1 个输出
+- `type_predictor_pre_read_comb_top`，位置：`front_end/bpu/type_predictor/type_predictor_pre_read_comb/type_predictor_pre_read_comb_top.v:53`：1 个输入，1 个输出
+- `PTAB_comb_top`，位置：`front_end/fifo/PTAB_comb/PTAB_comb_top.v:32`：2 个输入，1 个输出
+- `fetch_address_FIFO_comb_top`，位置：`front_end/fifo/fetch_address_FIFO_comb/fetch_address_FIFO_comb_top.v:30`：2 个输入，1 个输出
+- `front2back_FIFO_comb_top`，位置：`front_end/fifo/front2back_FIFO_comb/front2back_FIFO_comb_top.v:30`：2 个输入，1 个输出
+- `instruction_FIFO_comb_top`，位置：`front_end/fifo/instruction_FIFO_comb/instruction_FIFO_comb_top.v:30`：2 个输入，1 个输出
+- `front_top`，位置：`front_end/front_top.v:7`：44 个输入，35 个输出
+- `front_bpu_control_comb_top`，位置：`front_end/front_top_glue/front_bpu_control_comb/front_bpu_control_comb_top.v:58`：1 个输入，1 个输出
+- `front_checker_input_comb_top`，位置：`front_end/front_top_glue/front_checker_input_comb/front_checker_input_comb_top.v:50`：1 个输入，1 个输出
+- `front_front2back_write_comb_top`，位置：`front_end/front_top_glue/front_front2back_write_comb/front_front2back_write_comb_top.v:55`：1 个输入，1 个输出
+- `front_global_control_comb_top`，位置：`front_end/front_top_glue/front_global_control_comb/front_global_control_comb_top.v:50`：1 个输入，1 个输出
+- `front_output_comb_top`，位置：`front_end/front_top_glue/front_output_comb/front_output_comb_top.v:51`：1 个输入，1 个输出
+- `front_ptab_write_comb_top`，位置：`front_end/front_top_glue/front_ptab_write_comb/front_ptab_write_comb_top.v:51`：1 个输入，1 个输出
+- `front_read_enable_comb_top`，位置：`front_end/front_top_glue/front_read_enable_comb/front_read_enable_comb_top.v:57`：1 个输入，1 个输出
+- `front_read_stage_input_comb_top`，位置：`front_end/front_top_glue/front_read_stage_input_comb/front_read_stage_input_comb_top.v:61`：1 个输入，1 个输出
+- `predecode_comb_top`，位置：`front_end/predecode/predecode_comb/predecode_comb_top.v:46`：1 个输入，1 个输出
+- `predecode_checker_comb_top`，位置：`front_end/predecode_checker/predecode_checker_comb/predecode_checker_comb_top.v:49`：1 个输入，1 个输出
 
 ## 更新流程
 1. 先核对配置宽度是否和 RTL 参数一致。
 2. 再核对 C++ 接口结构体是否和 `front_top.v`、`back_top.v`、comb wrapper 端口一致。
-3. comb 交付接口保持 `bsd_pi/bsd_po`；上层调用处用 `.bsd_pi({具名信号})` 和 `.bsd_po({具名信号})` 展开。
+3. 上层 `front_top.v`、`bpu_top.v` 使用具名变量端口连接；`*_comb_top` 内部把变量拼成 `pi/po`，最后的 `*_bsd_top` 只保留 `.pi(pi)`、`.po(po)`。
 4. 每次模拟器更新后都重新生成本上下文。

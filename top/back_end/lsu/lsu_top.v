@@ -1,177 +1,115 @@
-// Source struct:
+// ffc LSU 边界的 BSD 封装。
+//
+// 参考结构体：
 //   LsuIn  = {rob_commit, rob_bcast, dec_bcast, csr_status, dis2lsu,
-//             exe2lsu, peripheral_resp, dcache2lsu, mmu2lsu}
-//   LsuOut = {lsu2dis, lsu2rob, lsu2exe, peripheral_req, lsu2dcache, lsu2mmu}
-// LDQ/STQ entries, address/data RAMs, MMIO state and replay bookkeeping remain
-// private to LSU.
+//             exe2lsu, peripheral_resp, dcache2lsu}
+//   LsuOut = {lsu2dis, lsu2rob, lsu2exe, peripheral_req, lsu2dcache}
+//
+// BSD 接口：
+//   u_lsu_bsd_top(clk, rst_n, pi, po)
+//   pi = {rob_commit, rob_bcast, dec_bcast, csr_status, dis2lsu, exe2lsu,
+//         peripheral_resp, dcache2lsu}
+//   po = {lsu2dis, lsu2rob, lsu2exe, peripheral_req, lsu2dcache}
+//
+// LsuRobIO 按 {tma.miss_mask, committed_store_pending, translation_pending} 打包。
+// MMU 行为留在 LSU BSD 模型内部，保持和 ffc RealLsu 的模块边界一致。
+// peripheral/DCache 总线携带 MicroOp、StqEntry、req_id、replay 等上下文，
+// 组员实现 BSD 时可以直接模拟 ffc LSU 与内存系统之间的行为。
 
-// -----------------------------------------------------------------------------
-// 后端端口自查
-// 模块：lsu_top
-// 文件：lsu/lsu_top.v:95
-// 来源：当前 back_end RTL module 声明
-// BSD 层：lsu_bsd_top，实例名 u_lsu_bsd_top，当前仓库未提供定义
-//
-// 输入端口：9 个，合计 5203 bit
-// 输出端口：6 个，合计 2513 bit
-//
-// 参数：
-//   DECODE_WIDTH           = 8  // 8
-//   COMMIT_WIDTH           = DECODE_WIDTH  // 8
-//   AREG_IDX_WIDTH         = 6  // 6
-//   PRF_IDX_WIDTH          = 11  // 11
-//   ROB_IDX_WIDTH          = 11  // 11
-//   STQ_IDX_WIDTH          = 9  // 9
-//   LDQ_IDX_WIDTH          = 9  // 9
-//   BR_TAG_WIDTH           = 6  // 6
-//   BR_MASK_WIDTH          = 64  // 64
-//   FTQ_IDX_WIDTH          = 8  // 8
-//   FTQ_OFFSET_WIDTH       = 4  // 4
-//   INST_TYPE_WIDTH        = 5  // 5
-//   UOP_TYPE_WIDTH         = 5  // 5
-//   LSU_LDU_COUNT          = 4  // 4
-//   LSU_STA_COUNT          = 4  // 4
-//   LSU_AGU_COUNT          = 8  // 8
-//   LSU_SDU_COUNT          = 4  // 4
-//   LSU_LOAD_WB_WIDTH      = LSU_LDU_COUNT  // 4
-//   LSU_LDU_WIDTH          = 2  // 2
-//   MAX_STQ_DISPATCH_WIDTH = DECODE_WIDTH  // 8
-//   MAX_LDQ_DISPATCH_WIDTH = DECODE_WIDTH  // 8
-//   ROB_NUM                = 2048  // 2048
-//   W_STQ_COUNT            = 10  // 10
-//   W_LDQ_COUNT            = 10  // 10
-//   W_RobCommitInst        = 32 + AREG_IDX_WIDTH + (2 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 2 + 1 + 7 + ROB_IDX_WIDTH + 1 + STQ_IDX_WIDTH + 1 + 4 + INST_TYPE_WIDTH + 1  // 115
-//   W_RobCommitIO          = COMMIT_WIDTH * (1 + W_RobCommitInst)  // 928
-//   W_RobBroadcastIO       = 7 + 5 + 32 + 32 + ROB_IDX_WIDTH + 1 + ROB_IDX_WIDTH + 1  // 100
-//   W_DecBroadcastIO       = 1 + BR_MASK_WIDTH + BR_TAG_WIDTH + ROB_IDX_WIDTH + BR_MASK_WIDTH  // 146
-//   W_CsrStatusIO          = 32 + 32 + 32 + 2  // 98
-//   W_DisLsuIO             = MAX_STQ_DISPATCH_WIDTH * (1 + BR_MASK_WIDTH + 3 + ROB_IDX_WIDTH + 1 + 1) + MAX_LDQ_DISPATCH_WIDTH * (1 + LDQ_IDX_WIDTH + BR_MASK_WIDTH + ROB_IDX_WIDTH + 1)  // 1336
-//   W_ExeLsuReqUop         = 32 + PRF_IDX_WIDTH + 3 + 7 + 1 + BR_MASK_WIDTH + ROB_IDX_WIDTH + STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + 1 + 1 + UOP_TYPE_WIDTH  // 155
-//   W_ExeLsuIO             = (LSU_AGU_COUNT + LSU_SDU_COUNT) * (1 + W_ExeLsuReqUop)  // 1872
-//   W_PeripheralRespIO     = 1 + 1 + 32  // 34
-//   W_LoadResp             = 1 + 32 + 32 + 2  // 67
-//   W_StoreResp            = 1 + 2 + 32  // 35
-//   W_DCacheRespPorts      = (LSU_LDU_COUNT * W_LoadResp) + (LSU_STA_COUNT * W_StoreResp)  // 408
-//   W_DcacheLsuIO          = W_DCacheRespPorts + 1  // 409
-//   W_MMUResp              = 1 + 32 + 2  // 35
-//   W_MMULsuIO             = (W_MMUResp * LSU_LDU_COUNT) + (W_MMUResp * LSU_STA_COUNT)  // 280
-//   W_LsuDisIO             = STQ_IDX_WIDTH + 1 + W_STQ_COUNT + W_LDQ_COUNT + (LDQ_IDX_WIDTH * MAX_LDQ_DISPATCH_WIDTH) + MAX_LDQ_DISPATCH_WIDTH  // 110
-//   W_LsuRobIO             = 1  // 1
-//   W_LsuExeRespUop        = 32 + 32 + PRF_IDX_WIDTH + BR_MASK_WIDTH + ROB_IDX_WIDTH + 1 + 2 + UOP_TYPE_WIDTH + 1  // 159
-//   W_LsuExeIO             = (LSU_LOAD_WB_WIDTH + LSU_STA_COUNT) * (1 + W_LsuExeRespUop)  // 1280
-//   W_PeripheralReqIO      = 1 + 1 + 32 + 32 + 3  // 69
-//   W_LoadReq              = 1 + 32 + 32 + 1  // 66
-//   W_StoreReq             = 1 + 32 + 32 + 8 + 32 + 1  // 106
-//   W_DCacheReqPorts       = (LSU_LDU_COUNT * W_LoadReq) + (LSU_STA_COUNT * W_StoreReq)  // 688
-//   W_LsuDcacheIO          = W_DCacheReqPorts + LSU_LDU_WIDTH + 1  // 691
-//   W_MMUReq               = 1 + 32  // 33
-//   W_LsuMMUIO             = (W_MMUReq * LSU_LDU_COUNT) + (W_MMUReq * LSU_STA_COUNT) + W_CsrStatusIO  // 362
-//   W_LsuIn                = W_RobCommitIO + W_RobBroadcastIO + W_DecBroadcastIO + W_CsrStatusIO + W_DisLsuIO + W_ExeLsuIO + W_PeripheralRespIO + W_DcacheLsuIO + W_MMULsuIO  // 5203
-//   W_LsuOut               = W_LsuDisIO + W_LsuRobIO + W_LsuExeIO + W_PeripheralReqIO + W_LsuDcacheIO + W_LsuMMUIO  // 2513
-//
-// 输入端口：
-//   rob_commit       [W_RobCommitIO-1:0]       928 bit
-//   rob_bcast        [W_RobBroadcastIO-1:0]    100 bit
-//   dec_bcast        [W_DecBroadcastIO-1:0]    146 bit
-//   csr_status       [W_CsrStatusIO-1:0]       98 bit
-//   dis2lsu          [W_DisLsuIO-1:0]          1336 bit
-//   exe2lsu          [W_ExeLsuIO-1:0]          1872 bit
-//   peripheral_resp  [W_PeripheralRespIO-1:0]  34 bit
-//   dcache2lsu       [W_DcacheLsuIO-1:0]       409 bit
-//   mmu2lsu_io       [W_MMULsuIO-1:0]          280 bit
-//
-// 输出端口：
-//   lsu2dis         [W_LsuDisIO-1:0]         110 bit
-//   lsu2rob         [W_LsuRobIO-1:0]         1 bit
-//   lsu2exe         [W_LsuExeIO-1:0]         1280 bit
-//   peripheral_req  [W_PeripheralReqIO-1:0]  69 bit
-//   lsu2dcache      [W_LsuDcacheIO-1:0]      691 bit
-//   lsu2mmu_io      [W_LsuMMUIO-1:0]         362 bit
-//
-// BSD 层端口：当前仓库只实例化该 bsd_top，未提供 module 定义。
-// 后续补 bsd_top 时，需要保持实例名和 pi/po 连接一致。
-// -----------------------------------------------------------------------------
 
 module lsu_top #(
     parameter integer DECODE_WIDTH           = 8,
     parameter integer COMMIT_WIDTH           = DECODE_WIDTH,
     parameter integer AREG_IDX_WIDTH         = 6,
-    parameter integer PRF_IDX_WIDTH       = 11,
-    parameter integer ROB_IDX_WIDTH       = 11,
-    parameter integer STQ_IDX_WIDTH       = 9,
-    parameter integer LDQ_IDX_WIDTH       = 9,
+    parameter integer PRF_IDX_WIDTH          = 9,
+    parameter integer ROB_IDX_WIDTH          = 9,
+    parameter integer STQ_IDX_WIDTH          = 6,
+    parameter integer LDQ_IDX_WIDTH          = 6,
     parameter integer BR_TAG_WIDTH           = 6,
     parameter integer BR_MASK_WIDTH          = 64,
-    parameter integer FTQ_IDX_WIDTH       = 8,
+    parameter integer CSR_IDX_WIDTH          = 12,
+    parameter integer FTQ_IDX_WIDTH          = 7,
     parameter integer FTQ_OFFSET_WIDTH       = 4,
     parameter integer INST_TYPE_WIDTH        = 5,
     parameter integer UOP_TYPE_WIDTH         = 5,
-    parameter integer LSU_LDU_COUNT          = 4,
-    parameter integer LSU_STA_COUNT          = 4,
-    parameter integer LSU_AGU_COUNT          = 8,
-    parameter integer LSU_SDU_COUNT          = 4,
+    parameter integer ROB_CPLT_MASK_WIDTH    = 3,
+    parameter integer W_DebugMeta            = 32 + 32 + 8 + 1 + 64,
+    parameter integer W_TmaMeta              = 4,
+    parameter integer LSU_LDU_COUNT          = 3,
+    parameter integer LSU_STA_COUNT          = 2,
+    parameter integer LSU_AGU_COUNT          = 5,
+    parameter integer LSU_SDU_COUNT          = 2,
     parameter integer LSU_LOAD_WB_WIDTH      = LSU_LDU_COUNT,
     parameter integer LSU_LDU_WIDTH          = 2,
     parameter integer MAX_STQ_DISPATCH_WIDTH = DECODE_WIDTH,
     parameter integer MAX_LDQ_DISPATCH_WIDTH = DECODE_WIDTH,
-    parameter integer ROB_NUM                = 2048,
-    parameter integer W_STQ_COUNT            = 10,
-    parameter integer W_LDQ_COUNT            = 10,
+    parameter integer ROB_NUM                = 512,
+    parameter integer W_STQ_COUNT            = 7,
+    parameter integer W_LDQ_COUNT            = 7,
     parameter integer W_RobCommitInst        =
         32 + AREG_IDX_WIDTH + (2 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH +
         FTQ_OFFSET_WIDTH + 1 + 2 + 1 + 7 + ROB_IDX_WIDTH + 1 +
-        STQ_IDX_WIDTH + 1 + 4 + INST_TYPE_WIDTH + 1,
-    parameter integer W_RobCommitIO    = COMMIT_WIDTH * (1 + W_RobCommitInst),
-    parameter integer W_RobBroadcastIO =
+        STQ_IDX_WIDTH + 1 + 4 + INST_TYPE_WIDTH + W_TmaMeta +
+        W_DebugMeta + 1,
+    parameter integer W_RobCommitIO          = COMMIT_WIDTH * (1 + W_RobCommitInst),
+    parameter integer W_RobBroadcastIO       =
         7 + 5 + 32 + 32 + ROB_IDX_WIDTH + 1 + ROB_IDX_WIDTH + 1,
-    parameter integer W_DecBroadcastIO =
+    parameter integer W_DecBroadcastIO       =
         1 + BR_MASK_WIDTH + BR_TAG_WIDTH + ROB_IDX_WIDTH + BR_MASK_WIDTH,
-    parameter integer W_CsrStatusIO = 32 + 32 + 32 + 2,
-    parameter integer W_DisLsuIO    =
+    parameter integer W_CsrStatusIO          = 32 + 32 + 32 + 2,
+    parameter integer W_DisLsuIO             =
         MAX_STQ_DISPATCH_WIDTH *
             (1 + BR_MASK_WIDTH + 3 + ROB_IDX_WIDTH + 1 + 1) +
         MAX_LDQ_DISPATCH_WIDTH *
             (1 + LDQ_IDX_WIDTH + BR_MASK_WIDTH + ROB_IDX_WIDTH + 1),
-    parameter integer W_ExeLsuReqUop =
+    parameter integer W_ExeLsuReqUop         =
         32 + PRF_IDX_WIDTH + 3 + 7 + 1 + BR_MASK_WIDTH + ROB_IDX_WIDTH +
-        STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + 1 + 1 + UOP_TYPE_WIDTH,
-    parameter integer W_ExeLsuIO =
+        STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + 1 + 1 + UOP_TYPE_WIDTH + W_DebugMeta,
+    parameter integer W_ExeLsuIO             =
         (LSU_AGU_COUNT + LSU_SDU_COUNT) * (1 + W_ExeLsuReqUop),
-    parameter integer W_PeripheralRespIO = 1 + 1 + 32,
-    parameter integer W_LoadResp         = 1 + 32 + 32 + 2,
-    parameter integer W_StoreResp        = 1 + 2 + 32,
-    parameter integer W_DCacheRespPorts  =
-        (LSU_LDU_COUNT * W_LoadResp) + (LSU_STA_COUNT * W_StoreResp),
-    parameter integer W_DcacheLsuIO = W_DCacheRespPorts + 1,
-    parameter integer W_MMUResp     = 1 + 32 + 2,
-    parameter integer W_MMULsuIO    =
-        (W_MMUResp * LSU_LDU_COUNT) + (W_MMUResp * LSU_STA_COUNT),
-    parameter integer W_LsuDisIO =
+    parameter integer W_SizeT                = 64,
+    parameter integer W_MicroOp              =
+        32 + (2 * AREG_IDX_WIDTH) + (3 * PRF_IDX_WIDTH) + 96 +
+        FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 2 + 1 + 3 + 2 + 2 +
+        3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH + CSR_IDX_WIDTH +
+        ROB_IDX_WIDTH + STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH +
+        (2 * ROB_CPLT_MASK_WIDTH) + 1 + 4 + UOP_TYPE_WIDTH +
+        W_TmaMeta + W_DebugMeta + 1,
+    parameter integer W_StqEntry             =
+        7 + 8 + 32 + 32 + 32 + 32 + 32 + BR_MASK_WIDTH + 32 + 32,
+    parameter integer W_PeripheralRespIO     = 1 + 1 + 32 + W_MicroOp,
+    parameter integer W_LoadResp             = 1 + 32 + W_MicroOp + W_SizeT + 2,
+    parameter integer W_StoreResp            = 1 + 2 + W_SizeT + 1,
+    parameter integer W_ReplayResp           = 2 + W_SizeT + 8,
+    parameter integer W_DCacheRespPorts      =
+        (LSU_LDU_COUNT * W_LoadResp) + (LSU_STA_COUNT * W_StoreResp) +
+        W_ReplayResp,
+    parameter integer W_DcacheLsuIO          = W_DCacheRespPorts,
+    parameter integer W_LsuDisIO             =
         STQ_IDX_WIDTH + 1 + W_STQ_COUNT + W_LDQ_COUNT +
         (LDQ_IDX_WIDTH * MAX_LDQ_DISPATCH_WIDTH) + MAX_LDQ_DISPATCH_WIDTH,
-    parameter integer W_LsuRobIO      = 1,
-    parameter integer W_LsuExeRespUop =
+    parameter integer W_LsuRobIO             = ROB_NUM + 2,
+    parameter integer W_LsuExeRespUop        =
         32 + 32 + PRF_IDX_WIDTH + BR_MASK_WIDTH + ROB_IDX_WIDTH + 1 +
-        2 + UOP_TYPE_WIDTH + 1,
-    parameter integer W_LsuExeIO =
+        2 + UOP_TYPE_WIDTH + 1 + W_DebugMeta,
+    parameter integer W_LsuExeIO             =
         (LSU_LOAD_WB_WIDTH + LSU_STA_COUNT) * (1 + W_LsuExeRespUop),
-    parameter integer W_PeripheralReqIO = 1 + 1 + 32 + 32 + 3,
-    parameter integer W_LoadReq         = 1 + 32 + 32 + 1,
-    parameter integer W_StoreReq        = 1 + 32 + 32 + 8 + 32 + 1,
-    parameter integer W_DCacheReqPorts  =
+    parameter integer W_PeripheralReqIO      = 1 + 1 + 32 + 32 + W_MicroOp,
+    parameter integer W_LoadReq              = 1 + 32 + W_MicroOp + W_SizeT,
+    parameter integer W_StoreReq             = 1 + 32 + 32 + 8 + W_StqEntry + W_SizeT,
+    parameter integer W_DCacheReqPorts       =
         (LSU_LDU_COUNT * W_LoadReq) + (LSU_STA_COUNT * W_StoreReq),
-    parameter integer W_LsuDcacheIO = W_DCacheReqPorts + LSU_LDU_WIDTH + 1,
-    parameter integer W_MMUReq      = 1 + 32,
-    parameter integer W_LsuMMUIO    =
-        (W_MMUReq * LSU_LDU_COUNT) + (W_MMUReq * LSU_STA_COUNT) + W_CsrStatusIO,
-    parameter integer W_LsuIn =
+    parameter integer W_LsuDcacheIO          = W_DCacheReqPorts,
+    parameter integer W_LsuIn                =
         W_RobCommitIO + W_RobBroadcastIO + W_DecBroadcastIO + W_CsrStatusIO +
-        W_DisLsuIO + W_ExeLsuIO + W_PeripheralRespIO + W_DcacheLsuIO +
-        W_MMULsuIO,
-    parameter integer W_LsuOut =
+        W_DisLsuIO + W_ExeLsuIO + W_PeripheralRespIO + W_DcacheLsuIO,
+    parameter integer W_LsuOut               =
         W_LsuDisIO + W_LsuRobIO + W_LsuExeIO + W_PeripheralReqIO +
-        W_LsuDcacheIO + W_LsuMMUIO
+        W_LsuDcacheIO
 ) (
+    input wire clk,
+    input wire rst_n,
+
     input wire [W_RobCommitIO-1:0]      rob_commit,
     input wire [W_RobBroadcastIO-1:0]   rob_bcast,
     input wire [W_DecBroadcastIO-1:0]   dec_bcast,
@@ -180,14 +118,12 @@ module lsu_top #(
     input wire [W_ExeLsuIO-1:0]         exe2lsu,
     input wire [W_PeripheralRespIO-1:0] peripheral_resp,
     input wire [W_DcacheLsuIO-1:0]      dcache2lsu,
-    input wire [W_MMULsuIO-1:0]         mmu2lsu_io,
 
     output wire [W_LsuDisIO-1:0]        lsu2dis,
     output wire [W_LsuRobIO-1:0]        lsu2rob,
     output wire [W_LsuExeIO-1:0]        lsu2exe,
     output wire [W_PeripheralReqIO-1:0] peripheral_req,
-    output wire [W_LsuDcacheIO-1:0]     lsu2dcache,
-    output wire [W_LsuMMUIO-1:0]        lsu2mmu_io
+    output wire [W_LsuDcacheIO-1:0]     lsu2dcache
 );
 
     wire [W_LsuIn-1:0]  pi;
@@ -226,6 +162,8 @@ module lsu_top #(
     wire [COMMIT_WIDTH-1:0]                     rob_commit_entry_uop_page_fault_store;
     wire [COMMIT_WIDTH-1:0]                     rob_commit_entry_uop_illegal_inst;
     wire [(INST_TYPE_WIDTH * COMMIT_WIDTH)-1:0] rob_commit_entry_uop_type;
+    wire [(W_TmaMeta * COMMIT_WIDTH)-1:0]        rob_commit_entry_uop_tma;
+    wire [(W_DebugMeta * COMMIT_WIDTH)-1:0]      rob_commit_entry_uop_dbg;
     wire [COMMIT_WIDTH-1:0]                     rob_commit_entry_uop_flush_pipe;
     assign {
         rob_commit_entry_uop_diag_val,
@@ -248,6 +186,8 @@ module lsu_top #(
         rob_commit_entry_uop_page_fault_store,
         rob_commit_entry_uop_illegal_inst,
         rob_commit_entry_uop_type,
+        rob_commit_entry_uop_tma,
+        rob_commit_entry_uop_dbg,
         rob_commit_entry_uop_flush_pipe
     } = rob_commit_entry_uop;
 
@@ -372,6 +312,8 @@ module lsu_top #(
         exe2lsu_req_uop_dest_en;
     wire [(UOP_TYPE_WIDTH * (LSU_AGU_COUNT + LSU_SDU_COUNT))-1:0]
         exe2lsu_req_uop_op;
+    wire [(W_DebugMeta * (LSU_AGU_COUNT + LSU_SDU_COUNT))-1:0]
+        exe2lsu_req_uop_dbg;
     assign {
         exe2lsu_req_uop_result,
         exe2lsu_req_uop_dest_preg,
@@ -385,31 +327,23 @@ module lsu_top #(
         exe2lsu_req_uop_ldq_idx,
         exe2lsu_req_uop_rob_flag,
         exe2lsu_req_uop_dest_en,
-        exe2lsu_req_uop_op
+        exe2lsu_req_uop_op,
+        exe2lsu_req_uop_dbg
     } = exe2lsu_req_uop;
 
     wire        peripheral_resp_is_mmio;
     wire        peripheral_resp_ready;
     wire [31:0] peripheral_resp_mmio_rdata;
+    wire [W_MicroOp-1:0] peripheral_resp_uop;
     assign {
         peripheral_resp_is_mmio,
         peripheral_resp_ready,
-        peripheral_resp_mmio_rdata
+        peripheral_resp_mmio_rdata,
+        peripheral_resp_uop
     } = peripheral_resp;
 
     wire [W_DCacheRespPorts-1:0] dcache2lsu_resp_ports;
-    wire                         dcache2lsu_mshr_fill;
-    assign {
-        dcache2lsu_resp_ports,
-        dcache2lsu_mshr_fill
-    } = dcache2lsu;
-
-    wire [(W_MMUResp * LSU_LDU_COUNT)-1:0] mmu2lsu_ldq_resp;
-    wire [(W_MMUResp * LSU_STA_COUNT)-1:0] mmu2lsu_stq_resp;
-    assign {
-        mmu2lsu_ldq_resp,
-        mmu2lsu_stq_resp
-    } = mmu2lsu_io;
+    assign dcache2lsu_resp_ports = dcache2lsu;
 
     wire [STQ_IDX_WIDTH-1:0] lsu2dis_stq_tail;
     wire                     lsu2dis_stq_tail_flag;
@@ -427,8 +361,14 @@ module lsu_top #(
         lsu2dis_ldq_alloc_valid
     } = lsu2dis;
 
+    wire [ROB_NUM-1:0] lsu2rob_tma_miss_mask;
     wire               lsu2rob_committed_store_pending;
-    assign lsu2rob_committed_store_pending = lsu2rob;
+    wire               lsu2rob_translation_pending;
+    assign {
+        lsu2rob_tma_miss_mask,
+        lsu2rob_committed_store_pending,
+        lsu2rob_translation_pending
+    } = lsu2rob;
 
     wire [(LSU_LOAD_WB_WIDTH + LSU_STA_COUNT)-1:0] lsu2exe_wb_req_valid;
     wire [(W_LsuExeRespUop * (LSU_LOAD_WB_WIDTH + LSU_STA_COUNT))-1:0]
@@ -455,6 +395,8 @@ module lsu_top #(
         lsu2exe_wb_req_uop_page_fault_store;
     wire [(UOP_TYPE_WIDTH * (LSU_LOAD_WB_WIDTH + LSU_STA_COUNT))-1:0]
         lsu2exe_wb_req_uop_op;
+    wire [(W_DebugMeta * (LSU_LOAD_WB_WIDTH + LSU_STA_COUNT))-1:0]
+        lsu2exe_wb_req_uop_dbg;
     wire [(LSU_LOAD_WB_WIDTH + LSU_STA_COUNT)-1:0]
         lsu2exe_wb_req_uop_flush_pipe;
     assign {
@@ -467,6 +409,7 @@ module lsu_top #(
         lsu2exe_wb_req_uop_page_fault_load,
         lsu2exe_wb_req_uop_page_fault_store,
         lsu2exe_wb_req_uop_op,
+        lsu2exe_wb_req_uop_dbg,
         lsu2exe_wb_req_uop_flush_pipe
     } = lsu2exe_wb_req_uop;
 
@@ -474,30 +417,17 @@ module lsu_top #(
     wire        peripheral_req_wen;
     wire [31:0] peripheral_req_mmio_addr;
     wire [31:0] peripheral_req_mmio_wdata;
-    wire [2:0]  peripheral_req_mmio_fun3;
+    wire [W_MicroOp-1:0] peripheral_req_uop;
     assign {
         peripheral_req_is_mmio,
         peripheral_req_wen,
         peripheral_req_mmio_addr,
         peripheral_req_mmio_wdata,
-        peripheral_req_mmio_fun3
+        peripheral_req_uop
     } = peripheral_req;
 
     wire [W_DCacheReqPorts-1:0] lsu2dcache_req_ports;
-    wire [LSU_LDU_WIDTH:0]      lsu2dcache_icache_req;
-    assign {
-        lsu2dcache_req_ports,
-        lsu2dcache_icache_req
-    } = lsu2dcache;
-
-    wire [(W_MMUReq * LSU_LDU_COUNT)-1:0] lsu2mmu_ldq_req;
-    wire [(W_MMUReq * LSU_STA_COUNT)-1:0] lsu2mmu_stq_req;
-    wire [W_CsrStatusIO-1:0]              lsu2mmu_csr_status;
-    assign {
-        lsu2mmu_ldq_req,
-        lsu2mmu_stq_req,
-        lsu2mmu_csr_status
-    } = lsu2mmu_io;
+    assign lsu2dcache_req_ports = lsu2dcache;
 
     assign pi = {
         rob_commit,
@@ -507,22 +437,22 @@ module lsu_top #(
         dis2lsu,
         exe2lsu,
         peripheral_resp,
-        dcache2lsu,
-        mmu2lsu_io
+        dcache2lsu
     };
     assign {
         lsu2dis,
         lsu2rob,
         lsu2exe,
         peripheral_req,
-        lsu2dcache,
-        lsu2mmu_io
+        lsu2dcache
     } = po;
 
     lsu_bsd_top #(
         .W_LsuIn(W_LsuIn),
         .W_LsuOut(W_LsuOut)
     ) u_lsu_bsd_top (
+        .clk(clk),
+        .rst_n(rst_n),
         .pi(pi),
         .po(po)
     );

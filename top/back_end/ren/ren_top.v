@@ -1,103 +1,67 @@
-// Source struct:
+// ffc Rename 边界的 BSD 封装。
+//
+// 参考结构体：
 //   RenIn  = {dec2ren, dec_bcast, dis2ren, rob_bcast, rob_commit}
 //   RenOut = {ren2dec, ren2dis}
-// RAT, free-list and checkpoint registers remain internal to rename.
+//
+// BSD 接口：
+//   u_ren_bsd_top(clk, rst_n, pi, po)
+//   pi = {dec2ren, dec_bcast, dis2ren, rob_bcast, rob_commit}
+//   po = {ren2dec, ren2dis}
+//
+// dec2ren 和 ren2dis 都保留 TmaMeta/DebugMeta，保证后续提交回训和 difftest
+// 相关边带不会在重命名边界被裁掉。
 
-// -----------------------------------------------------------------------------
-// 后端端口自查
-// 模块：ren_top
-// 文件：ren/ren_top.v:59
-// 来源：当前 back_end RTL module 声明
-// BSD 层：ren_bsd_top，实例名 u_ren_bsd_top，当前仓库未提供定义
-//
-// 输入端口：5 个，合计 2831 bit
-// 输出端口：2 个，合计 2025 bit
-//
-// 参数：
-//   DECODE_WIDTH        = 8  // 8
-//   AREG_IDX_WIDTH      = 6  // 6
-//   PRF_IDX_WIDTH       = 11  // 11
-//   ROB_IDX_WIDTH       = 11  // 11
-//   STQ_IDX_WIDTH       = 9  // 9
-//   LDQ_IDX_WIDTH       = 9  // 9
-//   BR_TAG_WIDTH        = 6  // 6
-//   BR_MASK_WIDTH       = 64  // 64
-//   CSR_IDX_WIDTH       = 12  // 12
-//   FTQ_IDX_WIDTH       = 8  // 8
-//   FTQ_OFFSET_WIDTH    = 4  // 4
-//   INST_TYPE_WIDTH     = 5  // 5
-//   ROB_CPLT_MASK_WIDTH = 3  // 3
-//   COMMIT_WIDTH        = DECODE_WIDTH  // 8
-//   W_DecRenInst        = 32 + (3 * AREG_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + INST_TYPE_WIDTH + 3 + 1 + 2 + 3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH + CSR_IDX_WIDTH + (2 * ROB_CPLT_MASK_WIDTH) + 2  // 206
-//   W_DecRenIO          = DECODE_WIDTH * (W_DecRenInst + 1)  // 1656
-//   W_DecBroadcastIO    = 1 + BR_MASK_WIDTH + BR_TAG_WIDTH + ROB_IDX_WIDTH + BR_MASK_WIDTH  // 146
-//   W_DisRenIO          = 1  // 1
-//   W_RobBroadcastIO    = 7 + 5 + 32 + 32 + ROB_IDX_WIDTH + 1 + ROB_IDX_WIDTH + 1  // 100
-//   W_RobCommitInst     = 32 + AREG_IDX_WIDTH + (2 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 2 + 1 + 7 + ROB_IDX_WIDTH + 1 + STQ_IDX_WIDTH + 1 + 4 + INST_TYPE_WIDTH + 1  // 115
-//   W_RobCommitIO       = COMMIT_WIDTH * (1 + W_RobCommitInst)  // 928
-//   W_RenDecIO          = 1  // 1
-//   W_RenDisInst        = 32 + (3 * AREG_IDX_WIDTH) + (4 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + INST_TYPE_WIDTH + 3 + 1 + 2 + 2 + 3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH + CSR_IDX_WIDTH + (2 * ROB_CPLT_MASK_WIDTH) + 2  // 252
-//   W_RenDisIO          = DECODE_WIDTH * (W_RenDisInst + 1)  // 2024
-//   W_RenIn             = W_DecRenIO + W_DecBroadcastIO + W_DisRenIO + W_RobBroadcastIO + W_RobCommitIO  // 2831
-//   W_RenOut            = W_RenDecIO + W_RenDisIO  // 2025
-//
-// 输入端口：
-//   dec2ren     [W_DecRenIO-1:0]        1656 bit
-//   dec_bcast   [W_DecBroadcastIO-1:0]  146 bit
-//   dis2ren     [W_DisRenIO-1:0]        1 bit
-//   rob_bcast   [W_RobBroadcastIO-1:0]  100 bit
-//   rob_commit  [W_RobCommitIO-1:0]     928 bit
-//
-// 输出端口：
-//   ren2dec  [W_RenDecIO-1:0]  1 bit
-//   ren2dis  [W_RenDisIO-1:0]  2024 bit
-//
-// BSD 层端口：当前仓库只实例化该 bsd_top，未提供 module 定义。
-// 后续补 bsd_top 时，需要保持实例名和 pi/po 连接一致。
-// -----------------------------------------------------------------------------
 
 module ren_top #(
     parameter integer DECODE_WIDTH        = 8,
     parameter integer AREG_IDX_WIDTH      = 6,
-    parameter integer PRF_IDX_WIDTH       = 11,
-    parameter integer ROB_IDX_WIDTH       = 11,
-    parameter integer STQ_IDX_WIDTH       = 9,
-    parameter integer LDQ_IDX_WIDTH       = 9,
+    parameter integer PRF_IDX_WIDTH       = 9,
+    parameter integer ROB_IDX_WIDTH       = 9,
+    parameter integer STQ_IDX_WIDTH       = 6,
+    parameter integer LDQ_IDX_WIDTH       = 6,
     parameter integer BR_TAG_WIDTH        = 6,
     parameter integer BR_MASK_WIDTH       = 64,
     parameter integer CSR_IDX_WIDTH       = 12,
-    parameter integer FTQ_IDX_WIDTH       = 8,
+    parameter integer FTQ_IDX_WIDTH       = 7,
     parameter integer FTQ_OFFSET_WIDTH    = 4,
     parameter integer INST_TYPE_WIDTH     = 5,
     parameter integer ROB_CPLT_MASK_WIDTH = 3,
+    parameter integer W_TmaMeta              = 4,
+    parameter integer W_DebugMeta            = 32 + 32 + 8 + 1 + 64,
+    parameter integer W_RobDisTmaMeta        = 3,
     parameter integer COMMIT_WIDTH        = DECODE_WIDTH,
     parameter integer W_DecRenInst        =
         32 + (3 * AREG_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 +
         INST_TYPE_WIDTH + 3 + 1 + 2 + 3 + 7 + 32 + BR_TAG_WIDTH +
-        BR_MASK_WIDTH + CSR_IDX_WIDTH + (2 * ROB_CPLT_MASK_WIDTH) + 2,
-    parameter integer W_DecRenIO       = DECODE_WIDTH * (W_DecRenInst + 1),
-    parameter integer W_DecBroadcastIO =
+        BR_MASK_WIDTH + CSR_IDX_WIDTH + (2 * ROB_CPLT_MASK_WIDTH) + 2 + W_TmaMeta + W_DebugMeta,
+    parameter integer W_DecRenIO          = DECODE_WIDTH * (W_DecRenInst + 1),
+    parameter integer W_DecBroadcastIO    =
         1 + BR_MASK_WIDTH + BR_TAG_WIDTH + ROB_IDX_WIDTH + BR_MASK_WIDTH,
-    parameter integer W_DisRenIO       = 1,
-    parameter integer W_RobBroadcastIO =
+    parameter integer W_DisRenIO          = 1,
+    parameter integer W_RobBroadcastIO    =
         7 + 5 + 32 + 32 + ROB_IDX_WIDTH + 1 + ROB_IDX_WIDTH + 1,
-    parameter integer W_RobCommitInst =
+    parameter integer W_RobCommitInst     =
         32 + AREG_IDX_WIDTH + (2 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH +
         FTQ_OFFSET_WIDTH + 1 + 2 + 1 + 7 + ROB_IDX_WIDTH + 1 +
-        STQ_IDX_WIDTH + 1 + 4 + INST_TYPE_WIDTH + 1,
-    parameter integer W_RobCommitIO = COMMIT_WIDTH * (1 + W_RobCommitInst),
-    parameter integer W_RenDecIO    = 1,
-    parameter integer W_RenDisInst  =
+        STQ_IDX_WIDTH + 1 + 4 + INST_TYPE_WIDTH + W_TmaMeta +
+        W_DebugMeta + 1,
+    parameter integer W_RobCommitIO       = COMMIT_WIDTH * (1 + W_RobCommitInst),
+    parameter integer W_RenDecIO          = 1,
+    parameter integer W_RenDisInst        =
         32 + (3 * AREG_IDX_WIDTH) + (4 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH +
         FTQ_OFFSET_WIDTH + 1 + INST_TYPE_WIDTH + 3 + 1 + 2 + 2 + 3 + 7 +
         32 + BR_TAG_WIDTH + BR_MASK_WIDTH + CSR_IDX_WIDTH +
-        (2 * ROB_CPLT_MASK_WIDTH) + 2,
-    parameter integer W_RenDisIO = DECODE_WIDTH * (W_RenDisInst + 1),
-    parameter integer W_RenIn    =
+        (2 * ROB_CPLT_MASK_WIDTH) + 2 + W_TmaMeta + W_DebugMeta,
+    parameter integer W_RenDisIO          = DECODE_WIDTH * (W_RenDisInst + 1),
+    parameter integer W_RenIn             =
         W_DecRenIO + W_DecBroadcastIO + W_DisRenIO + W_RobBroadcastIO +
         W_RobCommitIO,
-    parameter integer W_RenOut = W_RenDecIO + W_RenDisIO
+    parameter integer W_RenOut            = W_RenDecIO + W_RenDisIO
 ) (
+    input wire clk,
+    input wire rst_n,
+
     input wire [W_DecRenIO-1:0]       dec2ren,
     input wire [W_DecBroadcastIO-1:0] dec_bcast,
     input wire [W_DisRenIO-1:0]       dis2ren,
@@ -111,7 +75,7 @@ module ren_top #(
     wire [W_RenIn-1:0]  pi;
     wire [W_RenOut-1:0] po;
 
-    // Field-level view of dec2ren, matching DecRenIO.
+    // dec2ren 的字段级视图，对齐 DecRenIO 的字段顺序。
     wire [(W_DecRenInst * DECODE_WIDTH)-1:0] dec2ren_uop;
     wire [DECODE_WIDTH-1:0]                  dec2ren_valid;
     assign {
@@ -144,6 +108,8 @@ module ren_top #(
         dec2ren_uop_cplt_mask;
     wire [DECODE_WIDTH-1:0]                 dec2ren_uop_page_fault_inst;
     wire [DECODE_WIDTH-1:0]                 dec2ren_uop_illegal_inst;
+    wire [(W_TmaMeta * DECODE_WIDTH)-1:0]   dec2ren_uop_tma;
+    wire [(W_DebugMeta * DECODE_WIDTH)-1:0] dec2ren_uop_dbg;
     assign {
         dec2ren_uop_diag_val,
         dec2ren_uop_dest_areg,
@@ -168,7 +134,9 @@ module ren_top #(
         dec2ren_uop_expect_mask,
         dec2ren_uop_cplt_mask,
         dec2ren_uop_page_fault_inst,
-        dec2ren_uop_illegal_inst
+        dec2ren_uop_illegal_inst,
+        dec2ren_uop_tma,
+        dec2ren_uop_dbg
     } = dec2ren_uop;
 
     wire                     dec_bcast_mispred;
@@ -259,6 +227,8 @@ module ren_top #(
     wire [COMMIT_WIDTH-1:0]                     rob_commit_entry_uop_page_fault_store;
     wire [COMMIT_WIDTH-1:0]                     rob_commit_entry_uop_illegal_inst;
     wire [(INST_TYPE_WIDTH * COMMIT_WIDTH)-1:0] rob_commit_entry_uop_type;
+    wire [(W_TmaMeta * COMMIT_WIDTH)-1:0]        rob_commit_entry_uop_tma;
+    wire [(W_DebugMeta * COMMIT_WIDTH)-1:0]      rob_commit_entry_uop_dbg;
     wire [COMMIT_WIDTH-1:0]                     rob_commit_entry_uop_flush_pipe;
     assign {
         rob_commit_entry_uop_diag_val,
@@ -281,6 +251,8 @@ module ren_top #(
         rob_commit_entry_uop_page_fault_store,
         rob_commit_entry_uop_illegal_inst,
         rob_commit_entry_uop_type,
+        rob_commit_entry_uop_tma,
+        rob_commit_entry_uop_dbg,
         rob_commit_entry_uop_flush_pipe
     } = rob_commit_entry_uop;
 
@@ -325,6 +297,8 @@ module ren_top #(
         ren2dis_uop_cplt_mask;
     wire [DECODE_WIDTH-1:0]                 ren2dis_uop_page_fault_inst;
     wire [DECODE_WIDTH-1:0]                 ren2dis_uop_illegal_inst;
+    wire [(W_TmaMeta * DECODE_WIDTH)-1:0]   ren2dis_uop_tma;
+    wire [(W_DebugMeta * DECODE_WIDTH)-1:0] ren2dis_uop_dbg;
     assign {
         ren2dis_uop_diag_val,
         ren2dis_uop_dest_areg,
@@ -355,7 +329,9 @@ module ren_top #(
         ren2dis_uop_expect_mask,
         ren2dis_uop_cplt_mask,
         ren2dis_uop_page_fault_inst,
-        ren2dis_uop_illegal_inst
+        ren2dis_uop_illegal_inst,
+        ren2dis_uop_tma,
+        ren2dis_uop_dbg
     } = ren2dis_uop;
 
     assign pi = {
@@ -374,6 +350,8 @@ module ren_top #(
         .W_RenIn(W_RenIn),
         .W_RenOut(W_RenOut)
     ) u_ren_bsd_top (
+        .clk(clk),
+        .rst_n(rst_n),
         .pi(pi),
         .po(po)
     );

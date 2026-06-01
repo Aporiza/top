@@ -1,113 +1,68 @@
-// Source struct:
+// ffc ISU 边界的 BSD 封装。
+//
+// 参考结构体：
 //   IsuIn  = {dis2iss, prf_awake, exe2iss, rob_bcast, dec_bcast}
 //   IsuOut = {iss2prf, iss2dis, iss_awake}
-// Issue queues and wakeup slots are private implementation state.
+//
+// BSD 接口：
+//   u_isu_bsd_top(clk, rst_n, pi, po)
+//   pi = {dis2iss, prf_awake, exe2iss, rob_bcast, dec_bcast}
+//   po = {iss2prf, iss2dis, iss_awake}
+//
+// ExeIssIO 按 {ready[ISSUE_WIDTH], fu_ready_mask[ISSUE_WIDTH]} 打包。
+// ready 和 fu_ready_mask 都参与 ffc ISU 发射检查，BSD 不能只保留 mask。
 
-// -----------------------------------------------------------------------------
-// 后端端口自查
-// 模块：isu_top
-// 文件：isu/isu_top.v:65
-// 来源：当前 back_end RTL module 声明
-// BSD 层：isu_bsd_top，实例名 u_isu_bsd_top，当前仓库未提供定义
-//
-// 输入端口：5 个，合计 9286 bit
-// 输出端口：3 个，合计 5335 bit
-//
-// 参数：
-//   DECODE_WIDTH          = 8  // 8
-//   PRF_IDX_WIDTH         = 11  // 11
-//   ROB_IDX_WIDTH         = 11  // 11
-//   STQ_IDX_WIDTH         = 9  // 9
-//   LDQ_IDX_WIDTH         = 9  // 9
-//   BR_TAG_WIDTH          = 6  // 6
-//   BR_MASK_WIDTH         = 64  // 64
-//   CSR_IDX_WIDTH         = 12  // 12
-//   FTQ_IDX_WIDTH         = 8  // 8
-//   FTQ_OFFSET_WIDTH      = 4  // 4
-//   UOP_TYPE_WIDTH        = 5  // 5
-//   IQ_NUM                = 5  // 5
-//   MAX_UOP_TYPE          = 18  // 18
-//   IQ_READY_NUM_WIDTH    = 11  // 11
-//   MAX_IQ_DISPATCH_WIDTH = DECODE_WIDTH  // 8
-//   LSU_LOAD_WB_WIDTH     = 4  // 4
-//   MAX_WAKEUP_PORTS      = 16  // 16
-//   ISSUE_WIDTH           = 24  // 24
-//   W_DisIssUop           = (3 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 3 + 2 + 2 + 3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH + CSR_IDX_WIDTH + ROB_IDX_WIDTH + STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + 1 + UOP_TYPE_WIDTH  // 213
-//   W_DisIssIO            = IQ_NUM * MAX_IQ_DISPATCH_WIDTH * (1 + W_DisIssUop)  // 8560
-//   W_WakeInfo            = 1 + PRF_IDX_WIDTH  // 12
-//   W_PrfAwakeIO          = LSU_LOAD_WB_WIDTH * W_WakeInfo  // 48
-//   W_ExeIssIO            = ISSUE_WIDTH * MAX_UOP_TYPE  // 432
-//   W_RobBroadcastIO      = 7 + 5 + 32 + 32 + ROB_IDX_WIDTH + 1 + ROB_IDX_WIDTH + 1  // 100
-//   W_DecBroadcastIO      = 1 + BR_MASK_WIDTH + BR_TAG_WIDTH + ROB_IDX_WIDTH + BR_MASK_WIDTH  // 146
-//   W_IssPrfUop           = (3 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 3 + 2 + 3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH + CSR_IDX_WIDTH + ROB_IDX_WIDTH + STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + 1 + UOP_TYPE_WIDTH  // 211
-//   W_IssPrfIO            = ISSUE_WIDTH * (1 + W_IssPrfUop)  // 5088
-//   W_IssDisIO            = IQ_NUM * IQ_READY_NUM_WIDTH  // 55
-//   W_IssAwakeIO          = MAX_WAKEUP_PORTS * W_WakeInfo  // 192
-//   W_IsuIn               = W_DisIssIO + W_PrfAwakeIO + W_ExeIssIO + W_RobBroadcastIO + W_DecBroadcastIO  // 9286
-//   W_IsuOut              = W_IssPrfIO + W_IssDisIO + W_IssAwakeIO  // 5335
-//
-// 输入端口：
-//   dis2iss    [W_DisIssIO-1:0]        8560 bit
-//   prf_awake  [W_PrfAwakeIO-1:0]      48 bit
-//   exe2iss    [W_ExeIssIO-1:0]        432 bit
-//   rob_bcast  [W_RobBroadcastIO-1:0]  100 bit
-//   dec_bcast  [W_DecBroadcastIO-1:0]  146 bit
-//
-// 输出端口：
-//   iss2prf    [W_IssPrfIO-1:0]    5088 bit
-//   iss2dis    [W_IssDisIO-1:0]    55 bit
-//   iss_awake  [W_IssAwakeIO-1:0]  192 bit
-//
-// BSD 层端口：当前仓库只实例化该 bsd_top，未提供 module 定义。
-// 后续补 bsd_top 时，需要保持实例名和 pi/po 连接一致。
-// -----------------------------------------------------------------------------
 
 module isu_top #(
     parameter integer DECODE_WIDTH          = 8,
-    parameter integer PRF_IDX_WIDTH       = 11,
-    parameter integer ROB_IDX_WIDTH       = 11,
-    parameter integer STQ_IDX_WIDTH       = 9,
-    parameter integer LDQ_IDX_WIDTH       = 9,
+    parameter integer PRF_IDX_WIDTH         = 9,
+    parameter integer ROB_IDX_WIDTH         = 9,
+    parameter integer STQ_IDX_WIDTH         = 6,
+    parameter integer LDQ_IDX_WIDTH         = 6,
     parameter integer BR_TAG_WIDTH          = 6,
     parameter integer BR_MASK_WIDTH         = 64,
     parameter integer CSR_IDX_WIDTH         = 12,
-    parameter integer FTQ_IDX_WIDTH       = 8,
+    parameter integer FTQ_IDX_WIDTH         = 7,
     parameter integer FTQ_OFFSET_WIDTH      = 4,
     parameter integer UOP_TYPE_WIDTH        = 5,
     parameter integer IQ_NUM                = 5,
     parameter integer MAX_UOP_TYPE          = 18,
-    parameter integer IQ_READY_NUM_WIDTH     = 11,
+    parameter integer W_DebugMeta            = 32 + 32 + 8 + 1 + 64,
+    parameter integer IQ_READY_NUM_WIDTH    = 8,
     parameter integer MAX_IQ_DISPATCH_WIDTH = DECODE_WIDTH,
-    parameter integer LSU_LOAD_WB_WIDTH      = 4,
-    parameter integer MAX_WAKEUP_PORTS       = 16,
-    parameter integer ISSUE_WIDTH            = 24,
+    parameter integer LSU_LOAD_WB_WIDTH     = 3,
+    parameter integer MAX_WAKEUP_PORTS      = 11,
+    parameter integer ISSUE_WIDTH           = 15,
     parameter integer W_DisIssUop           =
         (3 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 +
         3 + 2 + 2 + 3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH +
         CSR_IDX_WIDTH + ROB_IDX_WIDTH + STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH +
-        1 + UOP_TYPE_WIDTH,
-    parameter integer W_DisIssIO =
+        1 + UOP_TYPE_WIDTH + W_DebugMeta,
+    parameter integer W_DisIssIO            =
         IQ_NUM * MAX_IQ_DISPATCH_WIDTH * (1 + W_DisIssUop),
-    parameter integer W_WakeInfo       = 1 + PRF_IDX_WIDTH,
-    parameter integer W_PrfAwakeIO     = LSU_LOAD_WB_WIDTH * W_WakeInfo,
-    parameter integer W_ExeIssIO       = ISSUE_WIDTH * MAX_UOP_TYPE,
-    parameter integer W_RobBroadcastIO =
+    parameter integer W_WakeInfo            = 1 + PRF_IDX_WIDTH,
+    parameter integer W_PrfAwakeIO          = LSU_LOAD_WB_WIDTH * W_WakeInfo,
+    parameter integer W_ExeIssIO            = ISSUE_WIDTH + (ISSUE_WIDTH * MAX_UOP_TYPE),
+    parameter integer W_RobBroadcastIO      =
         7 + 5 + 32 + 32 + ROB_IDX_WIDTH + 1 + ROB_IDX_WIDTH + 1,
-    parameter integer W_DecBroadcastIO =
+    parameter integer W_DecBroadcastIO      =
         1 + BR_MASK_WIDTH + BR_TAG_WIDTH + ROB_IDX_WIDTH + BR_MASK_WIDTH,
-    parameter integer W_IssPrfUop =
+    parameter integer W_IssPrfUop           =
         (3 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 +
         3 + 2 + 3 + 7 + 32 + BR_TAG_WIDTH + BR_MASK_WIDTH +
         CSR_IDX_WIDTH + ROB_IDX_WIDTH + STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH +
-        1 + UOP_TYPE_WIDTH,
-    parameter integer W_IssPrfIO   = ISSUE_WIDTH * (1 + W_IssPrfUop),
-    parameter integer W_IssDisIO   = IQ_NUM * IQ_READY_NUM_WIDTH,
-    parameter integer W_IssAwakeIO = MAX_WAKEUP_PORTS * W_WakeInfo,
-    parameter integer W_IsuIn      =
+        1 + UOP_TYPE_WIDTH + W_DebugMeta,
+    parameter integer W_IssPrfIO            = ISSUE_WIDTH * (1 + W_IssPrfUop),
+    parameter integer W_IssDisIO            = IQ_NUM * IQ_READY_NUM_WIDTH,
+    parameter integer W_IssAwakeIO          = MAX_WAKEUP_PORTS * W_WakeInfo,
+    parameter integer W_IsuIn               =
         W_DisIssIO + W_PrfAwakeIO + W_ExeIssIO + W_RobBroadcastIO +
         W_DecBroadcastIO,
-    parameter integer W_IsuOut = W_IssPrfIO + W_IssDisIO + W_IssAwakeIO
+    parameter integer W_IsuOut              = W_IssPrfIO + W_IssDisIO + W_IssAwakeIO
 ) (
+    input wire clk,
+    input wire rst_n,
+
     input wire [W_DisIssIO-1:0]       dis2iss,
     input wire [W_PrfAwakeIO-1:0]     prf_awake,
     input wire [W_ExeIssIO-1:0]       exe2iss,
@@ -124,7 +79,7 @@ module isu_top #(
 
     localparam integer N_DisIssReq = IQ_NUM * MAX_IQ_DISPATCH_WIDTH;
 
-    // Field-level view of dis2iss, matching DisIssIO.
+    // dis2iss 的字段级视图，对齐 DisIssIO 的字段顺序。
     wire [N_DisIssReq-1:0]                   dis2iss_req_valid;
     wire [(PRF_IDX_WIDTH * N_DisIssReq)-1:0] dis2iss_req_uop_dest_preg;
     wire [(PRF_IDX_WIDTH * N_DisIssReq)-1:0] dis2iss_req_uop_src1_preg;
@@ -152,6 +107,7 @@ module isu_top #(
     wire [(LDQ_IDX_WIDTH * N_DisIssReq)-1:0]  dis2iss_req_uop_ldq_idx;
     wire [N_DisIssReq-1:0]                    dis2iss_req_uop_rob_flag;
     wire [(UOP_TYPE_WIDTH * N_DisIssReq)-1:0] dis2iss_req_uop_op;
+    wire [(W_DebugMeta * N_DisIssReq)-1:0]     dis2iss_req_uop_dbg;
 
     assign {
         dis2iss_req_valid,
@@ -179,7 +135,8 @@ module isu_top #(
         dis2iss_req_uop_stq_flag,
         dis2iss_req_uop_ldq_idx,
         dis2iss_req_uop_rob_flag,
-        dis2iss_req_uop_op
+        dis2iss_req_uop_op,
+        dis2iss_req_uop_dbg
     } = dis2iss;
 
     wire [LSU_LOAD_WB_WIDTH-1:0]                   prf_awake_wake_valid;
@@ -189,8 +146,12 @@ module isu_top #(
         prf_awake_wake_preg
     } = prf_awake;
 
+    wire [ISSUE_WIDTH-1:0]                  exe2iss_ready;
     wire [(MAX_UOP_TYPE * ISSUE_WIDTH)-1:0] exe2iss_fu_ready_mask;
-    assign exe2iss_fu_ready_mask = exe2iss;
+    assign {
+        exe2iss_ready,
+        exe2iss_fu_ready_mask
+    } = exe2iss;
 
     wire                     rob_bcast_flush;
     wire                     rob_bcast_mret;
@@ -244,7 +205,7 @@ module isu_top #(
         dec_bcast_clear_mask
     } = dec_bcast;
 
-    // Field-level view of iss2prf, matching IssPrfIO.
+    // iss2prf 的字段级视图，对齐 IssPrfIO 的字段顺序。
     wire [ISSUE_WIDTH-1:0] iss2prf_iss_entry_valid;
     wire [(PRF_IDX_WIDTH * ISSUE_WIDTH)-1:0]
         iss2prf_iss_entry_uop_dest_preg;
@@ -280,6 +241,7 @@ module isu_top #(
         iss2prf_iss_entry_uop_ldq_idx;
     wire [ISSUE_WIDTH-1:0]                    iss2prf_iss_entry_uop_rob_flag;
     wire [(UOP_TYPE_WIDTH * ISSUE_WIDTH)-1:0] iss2prf_iss_entry_uop_op;
+    wire [(W_DebugMeta * ISSUE_WIDTH)-1:0]     iss2prf_iss_entry_uop_dbg;
 
     assign {
         iss2prf_iss_entry_valid,
@@ -305,7 +267,8 @@ module isu_top #(
         iss2prf_iss_entry_uop_stq_flag,
         iss2prf_iss_entry_uop_ldq_idx,
         iss2prf_iss_entry_uop_rob_flag,
-        iss2prf_iss_entry_uop_op
+        iss2prf_iss_entry_uop_op,
+        iss2prf_iss_entry_uop_dbg
     } = iss2prf;
 
     wire [(IQ_READY_NUM_WIDTH * IQ_NUM)-1:0] iss2dis_ready_num;
@@ -335,6 +298,8 @@ module isu_top #(
         .W_IsuIn(W_IsuIn),
         .W_IsuOut(W_IsuOut)
     ) u_isu_bsd_top (
+        .clk(clk),
+        .rst_n(rst_n),
         .pi(pi),
         .po(po)
     );

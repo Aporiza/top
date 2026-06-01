@@ -1,101 +1,41 @@
-// Source struct:
+// ffc PreIduQueue 边界的 BSD 封装。
+//
+// 参考结构体：
 //   PreIduQueueIn  = {front2pre, idu_consume, rob_bcast, rob_commit,
-//                     idu_br_latch, ftq_prf_pc_req, ftq_rob_pc_req}
-//   PreIduQueueOut = {pre2front, issue, ftq_prf_pc_resp, ftq_rob_pc_resp}
-// Internal FTQ, instruction buffers and slice logic are not top-level ports.
+//                     idu_br_latch, ftq_exu_pc_req, ftq_rob_pc_req}
+//   PreIduQueueOut = {pre2front, issue, ftq_exu_pc_resp,
+//                     ftq_rob_pc_resp}
+//
+// BSD 接口：
+//   u_preiduqueue_bsd_top(clk, rst_n, pi, po)
+//   pi = {front2pre, idu_consume, rob_bcast, rob_commit, idu_br_latch,
+//         ftq_exu_pc_req, ftq_rob_pc_req}
+//   po = {pre2front, pre_issue, ftq_exu_pc_resp, ftq_rob_pc_resp}
+//
+// 模拟器里 PreIduQueue 的 issue 输出在 back_top 层命名为 pre_issue。
+// pre2front 的展开字段只用于顶层 fire/stall 连接，不改变 BSD 的 po 打包边界。
+// FTQ PC 查询同时服务 EXU 和 ROB，两个查询路径分别打包，避免接错模块边界。
 
-// -----------------------------------------------------------------------------
-// 后端端口自查
-// 模块：preiduqueue_top
-// 文件：preiduqueue/preiduqueue_top.v:83
-// 来源：当前 back_end RTL module 声明
-// BSD 层：preiduqueue_bsd_top，实例名 u_preiduqueue_bsd_top，当前仓库未提供定义
-//
-// 输入端口：7 个，合计 7199 bit
-// 输出端口：6 个，合计 1537 bit
-//
-// 参数：
-//   FETCH_WIDTH              = 16  // 16
-//   DECODE_WIDTH             = 8  // 8
-//   COMMIT_WIDTH             = DECODE_WIDTH  // 8
-//   AREG_IDX_WIDTH           = 6  // 6
-//   PRF_IDX_WIDTH            = 11  // 11
-//   ROB_IDX_WIDTH            = 11  // 11
-//   STQ_IDX_WIDTH            = 9  // 9
-//   LDQ_IDX_WIDTH            = 9  // 9
-//   BR_TAG_WIDTH             = 6  // 6
-//   BR_MASK_WIDTH            = 64  // 64
-//   CSR_IDX_WIDTH            = 12  // 12
-//   FTQ_IDX_WIDTH            = 8  // 8
-//   FTQ_OFFSET_WIDTH         = 4  // 4
-//   INST_TYPE_WIDTH          = 5  // 5
-//   ROB_CPLT_MASK_WIDTH      = 3  // 3
-//   BPU_SCL_META_NTABLE      = 8  // 8
-//   BPU_SCL_META_IDX_BITS    = 16  // 16
-//   tage_scl_meta_sum_t_BITS = 16  // 16
-//   BPU_LOOP_META_IDX_BITS   = 16  // 16
-//   BPU_LOOP_META_TAG_BITS   = 16  // 16
-//   TN_MAX                   = 4  // 4
-//   TAGE_IDX_WIDTH           = 12  // 12
-//   TAGE_TAG_WIDTH           = 8  // 8
-//   pcpn_t_BITS              = 3  // 3
-//   FTQ_PRF_PC_PORT_NUM      = 12  // 12
-//   FTQ_ROB_PC_PORT_NUM      = 1  // 1
-//   W_InstructionBufferEntry = 1 + 32 + 32 + 1 + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1  // 79
-//   W_FrontPreIO             = (32 * FETCH_WIDTH) + (32 * FETCH_WIDTH) + FETCH_WIDTH + FETCH_WIDTH + FETCH_WIDTH + (pcpn_t_BITS * FETCH_WIDTH) + (pcpn_t_BITS * FETCH_WIDTH) + (32 * FETCH_WIDTH) + (TAGE_IDX_WIDTH * FETCH_WIDTH * TN_MAX) + (TAGE_TAG_WIDTH * FETCH_WIDTH * TN_MAX) + FETCH_WIDTH + FETCH_WIDTH + (tage_scl_meta_sum_t_BITS * FETCH_WIDTH) + (BPU_SCL_META_NTABLE * BPU_SCL_META_IDX_BITS * FETCH_WIDTH) + FETCH_WIDTH + FETCH_WIDTH + FETCH_WIDTH + (BPU_LOOP_META_IDX_BITS * FETCH_WIDTH) + (BPU_LOOP_META_TAG_BITS * FETCH_WIDTH) + FETCH_WIDTH  // 5872
-//   W_IduConsumeIO           = DECODE_WIDTH  // 8
-//   W_RobBroadcastIO         = 7 + 5 + 32 + 32 + ROB_IDX_WIDTH + 1 + ROB_IDX_WIDTH + 1  // 100
-//   W_RobCommitInst          = 32 + AREG_IDX_WIDTH + (2 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 2 + 1 + 7 + ROB_IDX_WIDTH + 1 + STQ_IDX_WIDTH + 1 + 4 + INST_TYPE_WIDTH + 1  // 115
-//   W_RobCommitIO            = COMMIT_WIDTH * (1 + W_RobCommitInst)  // 928
-//   W_ExuIdIO                = 1 + 32 + ROB_IDX_WIDTH + BR_TAG_WIDTH + FTQ_IDX_WIDTH + BR_MASK_WIDTH  // 122
-//   W_FtqPcReadReq           = 1 + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH  // 13
-//   W_FtqPcReadResp          = 1 + 1 + 32 + 1 + 32  // 67
-//   W_FtqPrfPcReqIO          = FTQ_PRF_PC_PORT_NUM * W_FtqPcReadReq  // 156
-//   W_FtqPrfPcRespIO         = FTQ_PRF_PC_PORT_NUM * W_FtqPcReadResp  // 804
-//   W_FtqRobPcReqIO          = FTQ_ROB_PC_PORT_NUM * W_FtqPcReadReq  // 13
-//   W_FtqRobPcRespIO         = FTQ_ROB_PC_PORT_NUM * W_FtqPcReadResp  // 67
-//   W_PreFrontIO             = FETCH_WIDTH + 1  // 17
-//   W_PreIssueIO             = W_InstructionBufferEntry * DECODE_WIDTH  // 632
-//   W_PreIduQueueIn          = W_FrontPreIO + W_IduConsumeIO + W_RobBroadcastIO + W_RobCommitIO + W_ExuIdIO + W_FtqPrfPcReqIO + W_FtqRobPcReqIO  // 7199
-//   W_PreIduQueueOut         = W_PreFrontIO + W_PreIssueIO + W_FtqPrfPcRespIO + W_FtqRobPcRespIO  // 1520
-//
-// 输入端口：
-//   front2pre       [W_FrontPreIO-1:0]      5872 bit
-//   idu_consume     [W_IduConsumeIO-1:0]    8 bit
-//   rob_bcast       [W_RobBroadcastIO-1:0]  100 bit
-//   rob_commit      [W_RobCommitIO-1:0]     928 bit
-//   idu_br_latch    [W_ExuIdIO-1:0]         122 bit
-//   ftq_prf_pc_req  [W_FtqPrfPcReqIO-1:0]   156 bit
-//   ftq_rob_pc_req  [W_FtqRobPcReqIO-1:0]   13 bit
-//
-// 输出端口：
-//   pre2front        [W_PreFrontIO-1:0]      17 bit
-//   pre_issue        [W_PreIssueIO-1:0]      632 bit
-//   ftq_prf_pc_resp  [W_FtqPrfPcRespIO-1:0]  804 bit
-//   ftq_rob_pc_resp  [W_FtqRobPcRespIO-1:0]  67 bit
-//   pre2front_fire   [FETCH_WIDTH-1:0]       16 bit
-//   pre2front_ready  1                       1 bit
-//
-// BSD 层端口：当前仓库只实例化该 bsd_top，未提供 module 定义。
-// 后续补 bsd_top 时，需要保持实例名和 pi/po 连接一致。
-// -----------------------------------------------------------------------------
 
 module preiduqueue_top #(
     parameter integer FETCH_WIDTH              = 16,
     parameter integer DECODE_WIDTH             = 8,
     parameter integer COMMIT_WIDTH             = DECODE_WIDTH,
     parameter integer AREG_IDX_WIDTH           = 6,
-    parameter integer PRF_IDX_WIDTH       = 11,
-    parameter integer ROB_IDX_WIDTH       = 11,
-    parameter integer STQ_IDX_WIDTH       = 9,
-    parameter integer LDQ_IDX_WIDTH       = 9,
+    parameter integer PRF_IDX_WIDTH            = 9,
+    parameter integer ROB_IDX_WIDTH            = 9,
+    parameter integer STQ_IDX_WIDTH            = 6,
+    parameter integer LDQ_IDX_WIDTH            = 6,
     parameter integer BR_TAG_WIDTH             = 6,
     parameter integer BR_MASK_WIDTH            = 64,
     parameter integer CSR_IDX_WIDTH            = 12,
-    parameter integer FTQ_IDX_WIDTH       = 8,
+    parameter integer FTQ_IDX_WIDTH            = 7,
     parameter integer FTQ_OFFSET_WIDTH         = 4,
     parameter integer INST_TYPE_WIDTH          = 5,
     parameter integer ROB_CPLT_MASK_WIDTH      = 3,
+    parameter integer W_TmaMeta              = 4,
+    parameter integer W_DebugMeta            = 32 + 32 + 8 + 1 + 64,
+    parameter integer W_RobDisTmaMeta        = 3,
     parameter integer BPU_SCL_META_NTABLE      = 8,
     parameter integer BPU_SCL_META_IDX_BITS    = 16,
     parameter integer tage_scl_meta_sum_t_BITS = 16,
@@ -105,11 +45,11 @@ module preiduqueue_top #(
     parameter integer TAGE_IDX_WIDTH           = 12,
     parameter integer TAGE_TAG_WIDTH           = 8,
     parameter integer pcpn_t_BITS              = 3,
-    parameter integer FTQ_PRF_PC_PORT_NUM    = 12,
+    parameter integer FTQ_EXU_PC_PORT_NUM      = 8,
     parameter integer FTQ_ROB_PC_PORT_NUM      = 1,
     parameter integer W_InstructionBufferEntry =
         1 + 32 + 32 + 1 + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1,
-    parameter integer W_FrontPreIO =
+    parameter integer W_FrontPreIO             =
         (32 * FETCH_WIDTH) + (32 * FETCH_WIDTH) + FETCH_WIDTH +
         FETCH_WIDTH + FETCH_WIDTH + (pcpn_t_BITS * FETCH_WIDTH) +
         (pcpn_t_BITS * FETCH_WIDTH) + (32 * FETCH_WIDTH) +
@@ -120,41 +60,45 @@ module preiduqueue_top #(
         FETCH_WIDTH + FETCH_WIDTH + FETCH_WIDTH +
         (BPU_LOOP_META_IDX_BITS * FETCH_WIDTH) +
         (BPU_LOOP_META_TAG_BITS * FETCH_WIDTH) + FETCH_WIDTH,
-    parameter integer W_IduConsumeIO   = DECODE_WIDTH,
-    parameter integer W_RobBroadcastIO =
+    parameter integer W_IduConsumeIO           = DECODE_WIDTH,
+    parameter integer W_RobBroadcastIO         =
         7 + 5 + 32 + 32 + ROB_IDX_WIDTH + 1 + ROB_IDX_WIDTH + 1,
-    parameter integer W_RobCommitInst =
+    parameter integer W_RobCommitInst          =
         32 + AREG_IDX_WIDTH + (2 * PRF_IDX_WIDTH) + FTQ_IDX_WIDTH +
         FTQ_OFFSET_WIDTH + 1 + 2 + 1 + 7 + ROB_IDX_WIDTH + 1 +
-        STQ_IDX_WIDTH + 1 + 4 + INST_TYPE_WIDTH + 1,
-    parameter integer W_RobCommitIO = COMMIT_WIDTH * (1 + W_RobCommitInst),
-    parameter integer W_ExuIdIO     =
+        STQ_IDX_WIDTH + 1 + 4 + INST_TYPE_WIDTH + W_TmaMeta +
+        W_DebugMeta + 1,
+    parameter integer W_RobCommitIO            = COMMIT_WIDTH * (1 + W_RobCommitInst),
+    parameter integer W_ExuIdIO                =
         1 + 32 + ROB_IDX_WIDTH + BR_TAG_WIDTH + FTQ_IDX_WIDTH + BR_MASK_WIDTH,
-    parameter integer W_FtqPcReadReq   = 1 + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH,
-    parameter integer W_FtqPcReadResp  = 1 + 1 + 32 + 1 + 32,
-    parameter integer W_FtqPrfPcReqIO  = FTQ_PRF_PC_PORT_NUM * W_FtqPcReadReq,
-    parameter integer W_FtqPrfPcRespIO = FTQ_PRF_PC_PORT_NUM * W_FtqPcReadResp,
-    parameter integer W_FtqRobPcReqIO  = FTQ_ROB_PC_PORT_NUM * W_FtqPcReadReq,
-    parameter integer W_FtqRobPcRespIO = FTQ_ROB_PC_PORT_NUM * W_FtqPcReadResp,
-    parameter integer W_PreFrontIO     = FETCH_WIDTH + 1,
-    parameter integer W_PreIssueIO     = W_InstructionBufferEntry * DECODE_WIDTH,
-    parameter integer W_PreIduQueueIn  =
+    parameter integer W_FtqPcReadReq           = 1 + FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH,
+    parameter integer W_FtqPcReadResp          = 1 + 1 + 32 + 1 + 32,
+    parameter integer W_FtqExuPcReqIO          = FTQ_EXU_PC_PORT_NUM * W_FtqPcReadReq,
+    parameter integer W_FtqExuPcRespIO         = FTQ_EXU_PC_PORT_NUM * W_FtqPcReadResp,
+    parameter integer W_FtqRobPcReqIO          = FTQ_ROB_PC_PORT_NUM * W_FtqPcReadReq,
+    parameter integer W_FtqRobPcRespIO         = FTQ_ROB_PC_PORT_NUM * W_FtqPcReadResp,
+    parameter integer W_PreFrontIO             = FETCH_WIDTH + 1,
+    parameter integer W_PreIssueIO             = W_InstructionBufferEntry * DECODE_WIDTH,
+    parameter integer W_PreIduQueueIn          =
         W_FrontPreIO + W_IduConsumeIO + W_RobBroadcastIO + W_RobCommitIO +
-        W_ExuIdIO + W_FtqPrfPcReqIO + W_FtqRobPcReqIO,
-    parameter integer W_PreIduQueueOut =
-        W_PreFrontIO + W_PreIssueIO + W_FtqPrfPcRespIO + W_FtqRobPcRespIO
+        W_ExuIdIO + W_FtqExuPcReqIO + W_FtqRobPcReqIO,
+    parameter integer W_PreIduQueueOut         =
+        W_PreFrontIO + W_PreIssueIO + W_FtqExuPcRespIO + W_FtqRobPcRespIO
 ) (
+    input wire clk,
+    input wire rst_n,
+
     input wire [W_FrontPreIO-1:0]     front2pre,
     input wire [W_IduConsumeIO-1:0]   idu_consume,
     input wire [W_RobBroadcastIO-1:0] rob_bcast,
     input wire [W_RobCommitIO-1:0]    rob_commit,
     input wire [W_ExuIdIO-1:0]        idu_br_latch,
-    input wire [W_FtqPrfPcReqIO-1:0]  ftq_prf_pc_req,
+    input wire [W_FtqExuPcReqIO-1:0]  ftq_exu_pc_req,
     input wire [W_FtqRobPcReqIO-1:0]  ftq_rob_pc_req,
 
     output wire [W_PreFrontIO-1:0]     pre2front,
     output wire [W_PreIssueIO-1:0]     pre_issue,
-    output wire [W_FtqPrfPcRespIO-1:0] ftq_prf_pc_resp,
+    output wire [W_FtqExuPcRespIO-1:0] ftq_exu_pc_resp,
     output wire [W_FtqRobPcRespIO-1:0] ftq_rob_pc_resp,
 
     output wire [FETCH_WIDTH-1:0] pre2front_fire,
@@ -283,6 +227,8 @@ module preiduqueue_top #(
     wire [COMMIT_WIDTH-1:0]                     rob_commit_entry_uop_page_fault_store;
     wire [COMMIT_WIDTH-1:0]                     rob_commit_entry_uop_illegal_inst;
     wire [(INST_TYPE_WIDTH * COMMIT_WIDTH)-1:0] rob_commit_entry_uop_type;
+    wire [(W_TmaMeta * COMMIT_WIDTH)-1:0]        rob_commit_entry_uop_tma;
+    wire [(W_DebugMeta * COMMIT_WIDTH)-1:0]      rob_commit_entry_uop_dbg;
     wire [COMMIT_WIDTH-1:0]                     rob_commit_entry_uop_flush_pipe;
     assign {
         rob_commit_entry_uop_diag_val,
@@ -305,6 +251,8 @@ module preiduqueue_top #(
         rob_commit_entry_uop_page_fault_store,
         rob_commit_entry_uop_illegal_inst,
         rob_commit_entry_uop_type,
+        rob_commit_entry_uop_tma,
+        rob_commit_entry_uop_dbg,
         rob_commit_entry_uop_flush_pipe
     } = rob_commit_entry_uop;
 
@@ -323,16 +271,16 @@ module preiduqueue_top #(
         idu_br_latch_clear_mask
     } = idu_br_latch;
 
-    wire [FTQ_PRF_PC_PORT_NUM-1:0] ftq_prf_pc_req_valid;
-    wire [(FTQ_IDX_WIDTH * FTQ_PRF_PC_PORT_NUM)-1:0]
-        ftq_prf_pc_req_ftq_idx;
-    wire [(FTQ_OFFSET_WIDTH * FTQ_PRF_PC_PORT_NUM)-1:0]
-        ftq_prf_pc_req_ftq_offset;
+    wire [FTQ_EXU_PC_PORT_NUM-1:0] ftq_exu_pc_req_valid;
+    wire [(FTQ_IDX_WIDTH * FTQ_EXU_PC_PORT_NUM)-1:0]
+        ftq_exu_pc_req_ftq_idx;
+    wire [(FTQ_OFFSET_WIDTH * FTQ_EXU_PC_PORT_NUM)-1:0]
+        ftq_exu_pc_req_ftq_offset;
     assign {
-        ftq_prf_pc_req_valid,
-        ftq_prf_pc_req_ftq_idx,
-        ftq_prf_pc_req_ftq_offset
-    } = ftq_prf_pc_req;
+        ftq_exu_pc_req_valid,
+        ftq_exu_pc_req_ftq_idx,
+        ftq_exu_pc_req_ftq_offset
+    } = ftq_exu_pc_req;
 
     wire [FTQ_ROB_PC_PORT_NUM-1:0] ftq_rob_pc_req_valid;
     wire [(FTQ_IDX_WIDTH * FTQ_ROB_PC_PORT_NUM)-1:0]
@@ -351,13 +299,13 @@ module preiduqueue_top #(
         rob_bcast,
         rob_commit,
         idu_br_latch,
-        ftq_prf_pc_req,
+        ftq_exu_pc_req,
         ftq_rob_pc_req
     };
     assign {
         pre2front,
         pre_issue,
-        ftq_prf_pc_resp,
+        ftq_exu_pc_resp,
         ftq_rob_pc_resp
     } = po;
 
@@ -369,18 +317,18 @@ module preiduqueue_top #(
     wire [(W_InstructionBufferEntry * DECODE_WIDTH)-1:0] pre_issue_entries;
     assign pre_issue_entries = pre_issue;
 
-    wire [FTQ_PRF_PC_PORT_NUM-1:0]        ftq_prf_pc_resp_valid;
-    wire [FTQ_PRF_PC_PORT_NUM-1:0]        ftq_prf_pc_resp_entry_valid;
-    wire [(32 * FTQ_PRF_PC_PORT_NUM)-1:0] ftq_prf_pc_resp_pc;
-    wire [FTQ_PRF_PC_PORT_NUM-1:0]        ftq_prf_pc_resp_pred_taken;
-    wire [(32 * FTQ_PRF_PC_PORT_NUM)-1:0] ftq_prf_pc_resp_next_pc;
+    wire [FTQ_EXU_PC_PORT_NUM-1:0]        ftq_exu_pc_resp_valid;
+    wire [FTQ_EXU_PC_PORT_NUM-1:0]        ftq_exu_pc_resp_entry_valid;
+    wire [(32 * FTQ_EXU_PC_PORT_NUM)-1:0] ftq_exu_pc_resp_pc;
+    wire [FTQ_EXU_PC_PORT_NUM-1:0]        ftq_exu_pc_resp_pred_taken;
+    wire [(32 * FTQ_EXU_PC_PORT_NUM)-1:0] ftq_exu_pc_resp_next_pc;
     assign {
-        ftq_prf_pc_resp_valid,
-        ftq_prf_pc_resp_entry_valid,
-        ftq_prf_pc_resp_pc,
-        ftq_prf_pc_resp_pred_taken,
-        ftq_prf_pc_resp_next_pc
-    } = ftq_prf_pc_resp;
+        ftq_exu_pc_resp_valid,
+        ftq_exu_pc_resp_entry_valid,
+        ftq_exu_pc_resp_pc,
+        ftq_exu_pc_resp_pred_taken,
+        ftq_exu_pc_resp_next_pc
+    } = ftq_exu_pc_resp;
 
     wire [FTQ_ROB_PC_PORT_NUM-1:0]        ftq_rob_pc_resp_valid;
     wire [FTQ_ROB_PC_PORT_NUM-1:0]        ftq_rob_pc_resp_entry_valid;
@@ -399,6 +347,8 @@ module preiduqueue_top #(
         .W_PreIduQueueIn(W_PreIduQueueIn),
         .W_PreIduQueueOut(W_PreIduQueueOut)
     ) u_preiduqueue_bsd_top (
+        .clk(clk),
+        .rst_n(rst_n),
         .pi(pi),
         .po(po)
     );

@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-05-20T00:14:05",
-  "sim_root": "simulator-ffc9fad707a7acb0be5c7d4fe7c06d48987c73e0",
+  "generated_at": "2026-05-31T23:41:21",
+  "sim_root": "simulator-front",
   "rtl_root": "top",
   "config": {
     "path": "include/config.h",
@@ -14529,7 +14529,7 @@
       "kind": "class",
       "file": "front-end/BPU/BPU.h",
       "line": 113,
-      "field_count": 475,
+      "field_count": 529,
       "fields": [
         {
           "type": "wire1_t",
@@ -15364,12 +15364,40 @@
           "name": "btb_result_valid_latch_next[FETCH_WIDTH]"
         },
         {
-          "type": "InputPayload",
-          "name": "inp"
+          "type": "wire1_t",
+          "name": "refetch"
         },
         {
-          "type": "ReadData",
-          "name": "rd"
+          "type": "fetch_addr_t",
+          "name": "refetch_address"
+        },
+        {
+          "type": "wire1_t",
+          "name": "icache_read_ready"
+        },
+        {
+          "type": "pc_t",
+          "name": "pc_reg_snapshot"
+        },
+        {
+          "type": "wire1_t",
+          "name": "pc_can_send_to_icache_snapshot"
+        },
+        {
+          "type": "queue_count_t",
+          "name": "q_count_snapshot[BPU_BANK_NUM]"
+        },
+        {
+          "type": "queue_ptr_t",
+          "name": "q_rd_ptr_snapshot[BPU_BANK_NUM]"
+        },
+        {
+          "type": "ras_count_t",
+          "name": "Arch_ras_count_snapshot"
+        },
+        {
+          "type": "ras_count_t",
+          "name": "Spec_ras_count_snapshot"
         },
         {
           "type": "wire1_t",
@@ -15408,22 +15436,6 @@
           "name": "do_pred_for_this_pc[FETCH_WIDTH]"
         },
         {
-          "type": "wire1_t",
-          "name": "pred_inst_type_re[FETCH_WIDTH]"
-        },
-        {
-          "type": "bpu_type_idx_t",
-          "name": "pred_inst_type_idx[FETCH_WIDTH]"
-        },
-        {
-          "type": "wire1_t",
-          "name": "q_full[BPU_BANK_NUM]"
-        },
-        {
-          "type": "wire1_t",
-          "name": "q_empty[BPU_BANK_NUM]"
-        },
-        {
           "type": "queue_ptr_t",
           "name": "q_read_slot[BPU_BANK_NUM]"
         },
@@ -15434,14 +15446,6 @@
         {
           "type": "wire1_t",
           "name": "going_to_do_upd[BPU_BANK_NUM]"
-        },
-        {
-          "type": "wire1_t",
-          "name": "going_to_do_upd_any"
-        },
-        {
-          "type": "wire1_t",
-          "name": "trans_ready_to_fire"
         },
         {
           "type": "wire1_t",
@@ -15464,12 +15468,68 @@
           "name": "nlp_train_idx"
         },
         {
-          "type": "InputPayload",
-          "name": "inp"
+          "type": "wire1_t",
+          "name": "refetch"
         },
         {
-          "type": "ReadData",
-          "name": "rd"
+          "type": "pc_t",
+          "name": "in_update_base_pc[COMMIT_WIDTH]"
+        },
+        {
+          "type": "wire1_t",
+          "name": "in_upd_valid[COMMIT_WIDTH]"
+        },
+        {
+          "type": "br_type_t",
+          "name": "in_actual_br_type[COMMIT_WIDTH]"
+        },
+        {
+          "type": "wire1_t",
+          "name": "ghr_snapshot[GHR_LENGTH]"
+        },
+        {
+          "type": "wire32_t",
+          "name": "fh_snapshot[FH_N_MAX][TN_MAX]"
+        },
+        {
+          "type": "tage_path_hist_t",
+          "name": "path_snapshot"
+        },
+        {
+          "type": "pc_t",
+          "name": "pred_base_pc"
+        },
+        {
+          "type": "wire1_t",
+          "name": "going_to_do_pred"
+        },
+        {
+          "type": "wire1_t",
+          "name": "set_submodule_input"
+        },
+        {
+          "type": "wire1_t",
+          "name": "do_pred_on_this_pc[FETCH_WIDTH]"
+        },
+        {
+          "type": "bpu_bank_sel_ext_t",
+          "name": "this_pc_bank_sel[FETCH_WIDTH]"
+        },
+        {
+          "type": "pc_t",
+          "name": "do_pred_for_this_pc[FETCH_WIDTH]"
+        },
+        {
+          "type": "wire1_t",
+          "name": "going_to_do_upd[BPU_BANK_NUM]"
+        },
+        {
+          "type": "ReadData::QueueEntrySnapshot",
+          "name": "q_data[BPU_BANK_NUM]"
+        },
+        {
+          "type": "ReadData::NlpEntrySnapshot",
+          "name": "nlp_pred_base_entry_snapshot"
         },
         {
           "type": "wire1_t",
@@ -15516,12 +15576,16 @@
           "name": "update_req"
         },
         {
-          "type": "ReadData",
-          "name": "rd"
+          "type": "wire1_t",
+          "name": "do_pred_on_this_pc[FETCH_WIDTH]"
         },
         {
-          "type": "BpuPostReadReqCombOut",
-          "name": "post_req"
+          "type": "bpu_bank_sel_ext_t",
+          "name": "this_pc_bank_sel[FETCH_WIDTH]"
+        },
+        {
+          "type": "BTB_TOP::InputPayload",
+          "name": "btb_in[BPU_BANK_NUM]"
         },
         {
           "type": "TypePredictor::OutputPayload",
@@ -15532,12 +15596,64 @@
           "name": "btb_in_with_type[BPU_BANK_NUM]"
         },
         {
-          "type": "InputPayload",
-          "name": "inp"
+          "type": "wire1_t",
+          "name": "refetch"
         },
         {
-          "type": "ReadData",
-          "name": "rd"
+          "type": "fetch_addr_t",
+          "name": "refetch_address"
+        },
+        {
+          "type": "pc_t",
+          "name": "pred_base_pc"
+        },
+        {
+          "type": "fetch_addr_t",
+          "name": "boundary_addr"
+        },
+        {
+          "type": "wire1_t",
+          "name": "pc_can_send_to_icache_snapshot"
+        },
+        {
+          "type": "wire1_t",
+          "name": "going_to_do_pred"
+        },
+        {
+          "type": "wire1_t",
+          "name": "do_pred_on_this_pc[FETCH_WIDTH]"
+        },
+        {
+          "type": "bpu_bank_sel_ext_t",
+          "name": "this_pc_bank_sel[FETCH_WIDTH]"
+        },
+        {
+          "type": "pc_t",
+          "name": "do_pred_for_this_pc[FETCH_WIDTH]"
+        },
+        {
+          "type": "wire1_t",
+          "name": "ras_has_entry_snapshot"
+        },
+        {
+          "type": "target_addr_t",
+          "name": "ras_top_snapshot"
+        },
+        {
+          "type": "fetch_addr_t",
+          "name": "saved_2ahead_prediction_snapshot"
+        },
+        {
+          "type": "wire1_t",
+          "name": "saved_2ahead_pred_valid_snapshot"
+        },
+        {
+          "type": "wire1_t",
+          "name": "saved_mini_flush_correct_snapshot"
+        },
+        {
+          "type": "fetch_addr_t",
+          "name": "saved_mini_flush_target_snapshot"
         },
         {
           "type": "TypePredictor::OutputPayload",
@@ -15676,12 +15792,84 @@
           "name": "nlp_entry_conf_next"
         },
         {
-          "type": "InputPayload",
-          "name": "inp"
+          "type": "wire1_t",
+          "name": "refetch"
         },
         {
-          "type": "ReadData",
-          "name": "rd"
+          "type": "pc_t",
+          "name": "in_update_base_pc[COMMIT_WIDTH]"
+        },
+        {
+          "type": "wire1_t",
+          "name": "in_upd_valid[COMMIT_WIDTH]"
+        },
+        {
+          "type": "wire1_t",
+          "name": "in_actual_dir[COMMIT_WIDTH]"
+        },
+        {
+          "type": "br_type_t",
+          "name": "in_actual_br_type[COMMIT_WIDTH]"
+        },
+        {
+          "type": "wire1_t",
+          "name": "in_pred_dir[COMMIT_WIDTH]"
+        },
+        {
+          "type": "wire1_t",
+          "name": "going_to_do_pred"
+        },
+        {
+          "type": "wire1_t",
+          "name": "do_pred_on_this_pc[FETCH_WIDTH]"
+        },
+        {
+          "type": "bpu_bank_sel_ext_t",
+          "name": "this_pc_bank_sel[FETCH_WIDTH]"
+        },
+        {
+          "type": "pc_t",
+          "name": "do_pred_for_this_pc[FETCH_WIDTH]"
+        },
+        {
+          "type": "wire1_t",
+          "name": "Spec_GHR_snapshot[GHR_LENGTH]"
+        },
+        {
+          "type": "wire32_t",
+          "name": "Spec_FH_snapshot[FH_N_MAX][TN_MAX]"
+        },
+        {
+          "type": "wire1_t",
+          "name": "Arch_GHR_snapshot[GHR_LENGTH]"
+        },
+        {
+          "type": "wire32_t",
+          "name": "Arch_FH_snapshot[FH_N_MAX][TN_MAX]"
+        },
+        {
+          "type": "tage_path_hist_t",
+          "name": "Spec_PATH_snapshot"
+        },
+        {
+          "type": "tage_path_hist_t",
+          "name": "Arch_PATH_snapshot"
+        },
+        {
+          "type": "target_addr_t",
+          "name": "Arch_ras_stack_snapshot[RAS_DEPTH]"
+        },
+        {
+          "type": "ras_count_t",
+          "name": "Arch_ras_count_snapshot"
+        },
+        {
+          "type": "target_addr_t",
+          "name": "Spec_ras_stack_snapshot[RAS_DEPTH]"
+        },
+        {
+          "type": "ras_count_t",
+          "name": "Spec_ras_count_snapshot"
         },
         {
           "type": "TypePredictor::OutputPayload",
@@ -15736,12 +15924,100 @@
           "name": "Spec_ras_count_next"
         },
         {
-          "type": "InputPayload",
-          "name": "inp"
+          "type": "pc_t",
+          "name": "in_update_base_pc[COMMIT_WIDTH]"
         },
         {
-          "type": "ReadData",
-          "name": "rd"
+          "type": "wire1_t",
+          "name": "in_upd_valid[COMMIT_WIDTH]"
+        },
+        {
+          "type": "wire1_t",
+          "name": "in_actual_dir[COMMIT_WIDTH]"
+        },
+        {
+          "type": "br_type_t",
+          "name": "in_actual_br_type[COMMIT_WIDTH]"
+        },
+        {
+          "type": "target_addr_t",
+          "name": "in_actual_targets[COMMIT_WIDTH]"
+        },
+        {
+          "type": "wire1_t",
+          "name": "in_pred_dir[COMMIT_WIDTH]"
+        },
+        {
+          "type": "wire1_t",
+          "name": "in_alt_pred[COMMIT_WIDTH]"
+        },
+        {
+          "type": "pcpn_t",
+          "name": "in_pcpn[COMMIT_WIDTH]"
+        },
+        {
+          "type": "pcpn_t",
+          "name": "in_altpcpn[COMMIT_WIDTH]"
+        },
+        {
+          "type": "tage_tag_t",
+          "name": "in_tage_tags[COMMIT_WIDTH][TN_MAX]"
+        },
+        {
+          "type": "tage_idx_t",
+          "name": "in_tage_idxs[COMMIT_WIDTH][TN_MAX]"
+        },
+        {
+          "type": "wire1_t",
+          "name": "in_sc_used[COMMIT_WIDTH]"
+        },
+        {
+          "type": "wire1_t",
+          "name": "in_sc_pred[COMMIT_WIDTH]"
+        },
+        {
+          "type": "tage_scl_meta_sum_t",
+          "name": "in_sc_sum[COMMIT_WIDTH]"
+        },
+        {
+          "type": "tage_scl_meta_idx_t",
+          "name": "in_sc_idx[COMMIT_WIDTH][BPU_SCL_META_NTABLE]"
+        },
+        {
+          "type": "wire1_t",
+          "name": "in_loop_used[COMMIT_WIDTH]"
+        },
+        {
+          "type": "wire1_t",
+          "name": "in_loop_hit[COMMIT_WIDTH]"
+        },
+        {
+          "type": "wire1_t",
+          "name": "in_loop_pred[COMMIT_WIDTH]"
+        },
+        {
+          "type": "tage_loop_meta_idx_t",
+          "name": "in_loop_idx[COMMIT_WIDTH]"
+        },
+        {
+          "type": "tage_loop_meta_tag_t",
+          "name": "in_loop_tag[COMMIT_WIDTH]"
+        },
+        {
+          "type": "queue_ptr_t",
+          "name": "q_wr_ptr_snapshot[BPU_BANK_NUM]"
+        },
+        {
+          "type": "queue_ptr_t",
+          "name": "q_rd_ptr_snapshot[BPU_BANK_NUM]"
+        },
+        {
+          "type": "queue_count_t",
+          "name": "q_count_snapshot[BPU_BANK_NUM]"
+        },
+        {
+          "type": "wire1_t",
+          "name": "going_to_do_upd[BPU_BANK_NUM]"
         },
         {
           "type": "wire1_t",
@@ -16084,20 +16360,16 @@
           "name": "nlp_s2_conf"
         },
         {
-          "type": "const",
-          "name": "inp"
-        },
-        {
-          "type": "const",
-          "name": "rd"
-        },
-        {
           "type": "out.use_arch_ras_snapshot",
           "name": "Spec_ras_count_snapshot"
         },
         {
           "type": ":",
           "name": "pc_plus_width"
+        },
+        {
+          "type": "wire1_t",
+          "name": "going_to_do_upd_any"
         },
         {
           "type": ":",
@@ -16116,30 +16388,6 @@
           "name": "entry"
         },
         {
-          "type": "const",
-          "name": "inp"
-        },
-        {
-          "type": "const",
-          "name": "rd"
-        },
-        {
-          "type": "const",
-          "name": "ghr_src"
-        },
-        {
-          "type": "const",
-          "name": "path_src"
-        },
-        {
-          "type": "const",
-          "name": "ghr_src"
-        },
-        {
-          "type": "const",
-          "name": "path_src"
-        },
-        {
           "type": "bool",
           "name": "pred_req_sent[BPU_BANK_NUM]"
         },
@@ -16149,27 +16397,11 @@
         },
         {
           "type": "const",
-          "name": "rd"
-        },
-        {
-          "type": "const",
-          "name": "post_req"
-        },
-        {
-          "type": "const",
           "name": "type_out"
         },
         {
           "type": "const",
           "name": "bank_sel"
-        },
-        {
-          "type": "const",
-          "name": "inp"
-        },
-        {
-          "type": "const",
-          "name": "rd"
         },
         {
           "type": "const",
@@ -16208,11 +16440,11 @@
           "name": "chosen_target"
         },
         {
-          "type": "inp.refetch",
+          "type": "in.refetch",
           "name": "saved_2ahead_pred_valid_snapshot"
         },
         {
-          "type": "rd.saved_mini_flush_correct_snapshot",
+          "type": "in.saved_mini_flush_correct_snapshot",
           "name": "refetch"
         },
         {
@@ -16254,14 +16486,6 @@
         {
           "type": "uint8_t",
           "name": "next_conf"
-        },
-        {
-          "type": "const",
-          "name": "inp"
-        },
-        {
-          "type": "const",
-          "name": "rd"
         },
         {
           "type": "const",
@@ -16362,14 +16586,6 @@
         {
           "type": "br_type_t",
           "name": "br_type"
-        },
-        {
-          "type": "const",
-          "name": "inp"
-        },
-        {
-          "type": "const",
-          "name": "rd"
         },
         {
           "type": "int",
@@ -17427,15 +17643,43 @@
       "kind": "struct",
       "file": "front-end/BPU/BPU.h",
       "line": 362,
-      "field_count": 2,
+      "field_count": 9,
       "fields": [
         {
-          "type": "InputPayload",
-          "name": "inp"
+          "type": "wire1_t",
+          "name": "refetch"
         },
         {
-          "type": "ReadData",
-          "name": "rd"
+          "type": "fetch_addr_t",
+          "name": "refetch_address"
+        },
+        {
+          "type": "wire1_t",
+          "name": "icache_read_ready"
+        },
+        {
+          "type": "pc_t",
+          "name": "pc_reg_snapshot"
+        },
+        {
+          "type": "wire1_t",
+          "name": "pc_can_send_to_icache_snapshot"
+        },
+        {
+          "type": "queue_count_t",
+          "name": "q_count_snapshot[BPU_BANK_NUM]"
+        },
+        {
+          "type": "queue_ptr_t",
+          "name": "q_rd_ptr_snapshot[BPU_BANK_NUM]"
+        },
+        {
+          "type": "ras_count_t",
+          "name": "Arch_ras_count_snapshot"
+        },
+        {
+          "type": "ras_count_t",
+          "name": "Spec_ras_count_snapshot"
         }
       ],
       "is_interface_like": true
@@ -17444,8 +17688,8 @@
       "name": "BpuPreReadReqCombOut",
       "kind": "struct",
       "file": "front-end/BPU/BPU.h",
-      "line": 367,
-      "field_count": 23,
+      "line": 374,
+      "field_count": 17,
       "fields": [
         {
           "type": "wire1_t",
@@ -17484,22 +17728,6 @@
           "name": "do_pred_for_this_pc[FETCH_WIDTH]"
         },
         {
-          "type": "wire1_t",
-          "name": "pred_inst_type_re[FETCH_WIDTH]"
-        },
-        {
-          "type": "bpu_type_idx_t",
-          "name": "pred_inst_type_idx[FETCH_WIDTH]"
-        },
-        {
-          "type": "wire1_t",
-          "name": "q_full[BPU_BANK_NUM]"
-        },
-        {
-          "type": "wire1_t",
-          "name": "q_empty[BPU_BANK_NUM]"
-        },
-        {
           "type": "queue_ptr_t",
           "name": "q_read_slot[BPU_BANK_NUM]"
         },
@@ -17510,14 +17738,6 @@
         {
           "type": "wire1_t",
           "name": "going_to_do_upd[BPU_BANK_NUM]"
-        },
-        {
-          "type": "wire1_t",
-          "name": "going_to_do_upd_any"
-        },
-        {
-          "type": "wire1_t",
-          "name": "trans_ready_to_fire"
         },
         {
           "type": "wire1_t",
@@ -17546,16 +17766,72 @@
       "name": "BpuPostReadReqCombIn",
       "kind": "struct",
       "file": "front-end/BPU/BPU.h",
-      "line": 393,
-      "field_count": 2,
+      "line": 394,
+      "field_count": 16,
       "fields": [
         {
-          "type": "InputPayload",
-          "name": "inp"
+          "type": "wire1_t",
+          "name": "refetch"
         },
         {
-          "type": "ReadData",
-          "name": "rd"
+          "type": "pc_t",
+          "name": "in_update_base_pc[COMMIT_WIDTH]"
+        },
+        {
+          "type": "wire1_t",
+          "name": "in_upd_valid[COMMIT_WIDTH]"
+        },
+        {
+          "type": "br_type_t",
+          "name": "in_actual_br_type[COMMIT_WIDTH]"
+        },
+        {
+          "type": "wire1_t",
+          "name": "ghr_snapshot[GHR_LENGTH]"
+        },
+        {
+          "type": "wire32_t",
+          "name": "fh_snapshot[FH_N_MAX][TN_MAX]"
+        },
+        {
+          "type": "tage_path_hist_t",
+          "name": "path_snapshot"
+        },
+        {
+          "type": "pc_t",
+          "name": "pred_base_pc"
+        },
+        {
+          "type": "wire1_t",
+          "name": "going_to_do_pred"
+        },
+        {
+          "type": "wire1_t",
+          "name": "set_submodule_input"
+        },
+        {
+          "type": "wire1_t",
+          "name": "do_pred_on_this_pc[FETCH_WIDTH]"
+        },
+        {
+          "type": "bpu_bank_sel_ext_t",
+          "name": "this_pc_bank_sel[FETCH_WIDTH]"
+        },
+        {
+          "type": "pc_t",
+          "name": "do_pred_for_this_pc[FETCH_WIDTH]"
+        },
+        {
+          "type": "wire1_t",
+          "name": "going_to_do_upd[BPU_BANK_NUM]"
+        },
+        {
+          "type": "ReadData::QueueEntrySnapshot",
+          "name": "q_data[BPU_BANK_NUM]"
+        },
+        {
+          "type": "ReadData::NlpEntrySnapshot",
+          "name": "nlp_pred_base_entry_snapshot"
         }
       ],
       "is_interface_like": true
@@ -17564,7 +17840,7 @@
       "name": "BpuPostReadReqCombOut",
       "kind": "struct",
       "file": "front-end/BPU/BPU.h",
-      "line": 398,
+      "line": 413,
       "field_count": 6,
       "fields": [
         {
@@ -17598,7 +17874,7 @@
       "name": "BpuCombIn",
       "kind": "struct",
       "file": "front-end/BPU/BPU.h",
-      "line": 407,
+      "line": 422,
       "field_count": 3,
       "fields": [
         {
@@ -17620,7 +17896,7 @@
       "name": "BpuCombOut",
       "kind": "struct",
       "file": "front-end/BPU/BPU.h",
-      "line": 413,
+      "line": 428,
       "field_count": 2,
       "fields": [
         {
@@ -17638,16 +17914,20 @@
       "name": "BpuSubmoduleBindCombIn",
       "kind": "struct",
       "file": "front-end/BPU/BPU.h",
-      "line": 418,
-      "field_count": 3,
+      "line": 433,
+      "field_count": 4,
       "fields": [
         {
-          "type": "ReadData",
-          "name": "rd"
+          "type": "wire1_t",
+          "name": "do_pred_on_this_pc[FETCH_WIDTH]"
         },
         {
-          "type": "BpuPostReadReqCombOut",
-          "name": "post_req"
+          "type": "bpu_bank_sel_ext_t",
+          "name": "this_pc_bank_sel[FETCH_WIDTH]"
+        },
+        {
+          "type": "BTB_TOP::InputPayload",
+          "name": "btb_in[BPU_BANK_NUM]"
         },
         {
           "type": "TypePredictor::OutputPayload",
@@ -17660,7 +17940,7 @@
       "name": "BpuSubmoduleBindCombOut",
       "kind": "struct",
       "file": "front-end/BPU/BPU.h",
-      "line": 424,
+      "line": 440,
       "field_count": 1,
       "fields": [
         {
@@ -17674,16 +17954,68 @@
       "name": "BpuPredictMainCombIn",
       "kind": "struct",
       "file": "front-end/BPU/BPU.h",
-      "line": 428,
-      "field_count": 5,
+      "line": 444,
+      "field_count": 18,
       "fields": [
         {
-          "type": "InputPayload",
-          "name": "inp"
+          "type": "wire1_t",
+          "name": "refetch"
         },
         {
-          "type": "ReadData",
-          "name": "rd"
+          "type": "fetch_addr_t",
+          "name": "refetch_address"
+        },
+        {
+          "type": "pc_t",
+          "name": "pred_base_pc"
+        },
+        {
+          "type": "fetch_addr_t",
+          "name": "boundary_addr"
+        },
+        {
+          "type": "wire1_t",
+          "name": "pc_can_send_to_icache_snapshot"
+        },
+        {
+          "type": "wire1_t",
+          "name": "going_to_do_pred"
+        },
+        {
+          "type": "wire1_t",
+          "name": "do_pred_on_this_pc[FETCH_WIDTH]"
+        },
+        {
+          "type": "bpu_bank_sel_ext_t",
+          "name": "this_pc_bank_sel[FETCH_WIDTH]"
+        },
+        {
+          "type": "pc_t",
+          "name": "do_pred_for_this_pc[FETCH_WIDTH]"
+        },
+        {
+          "type": "wire1_t",
+          "name": "ras_has_entry_snapshot"
+        },
+        {
+          "type": "target_addr_t",
+          "name": "ras_top_snapshot"
+        },
+        {
+          "type": "fetch_addr_t",
+          "name": "saved_2ahead_prediction_snapshot"
+        },
+        {
+          "type": "wire1_t",
+          "name": "saved_2ahead_pred_valid_snapshot"
+        },
+        {
+          "type": "wire1_t",
+          "name": "saved_mini_flush_correct_snapshot"
+        },
+        {
+          "type": "fetch_addr_t",
+          "name": "saved_mini_flush_target_snapshot"
         },
         {
           "type": "TypePredictor::OutputPayload",
@@ -17704,7 +18036,7 @@
       "name": "BpuPredictMainCombOut",
       "kind": "struct",
       "file": "front-end/BPU/BPU.h",
-      "line": 436,
+      "line": 465,
       "field_count": 13,
       "fields": [
         {
@@ -17766,7 +18098,7 @@
       "name": "BpuNlpCombIn",
       "kind": "struct",
       "file": "front-end/BPU/BPU.h",
-      "line": 452,
+      "line": 481,
       "field_count": 5,
       "fields": [
         {
@@ -17796,7 +18128,7 @@
       "name": "BpuNlpCombOut",
       "kind": "struct",
       "file": "front-end/BPU/BPU.h",
-      "line": 460,
+      "line": 489,
       "field_count": 13,
       "fields": [
         {
@@ -17858,16 +18190,88 @@
       "name": "BpuHistCombIn",
       "kind": "struct",
       "file": "front-end/BPU/BPU.h",
-      "line": 476,
-      "field_count": 4,
+      "line": 505,
+      "field_count": 22,
       "fields": [
         {
-          "type": "InputPayload",
-          "name": "inp"
+          "type": "wire1_t",
+          "name": "refetch"
         },
         {
-          "type": "ReadData",
-          "name": "rd"
+          "type": "pc_t",
+          "name": "in_update_base_pc[COMMIT_WIDTH]"
+        },
+        {
+          "type": "wire1_t",
+          "name": "in_upd_valid[COMMIT_WIDTH]"
+        },
+        {
+          "type": "wire1_t",
+          "name": "in_actual_dir[COMMIT_WIDTH]"
+        },
+        {
+          "type": "br_type_t",
+          "name": "in_actual_br_type[COMMIT_WIDTH]"
+        },
+        {
+          "type": "wire1_t",
+          "name": "in_pred_dir[COMMIT_WIDTH]"
+        },
+        {
+          "type": "wire1_t",
+          "name": "going_to_do_pred"
+        },
+        {
+          "type": "wire1_t",
+          "name": "do_pred_on_this_pc[FETCH_WIDTH]"
+        },
+        {
+          "type": "bpu_bank_sel_ext_t",
+          "name": "this_pc_bank_sel[FETCH_WIDTH]"
+        },
+        {
+          "type": "pc_t",
+          "name": "do_pred_for_this_pc[FETCH_WIDTH]"
+        },
+        {
+          "type": "wire1_t",
+          "name": "Spec_GHR_snapshot[GHR_LENGTH]"
+        },
+        {
+          "type": "wire32_t",
+          "name": "Spec_FH_snapshot[FH_N_MAX][TN_MAX]"
+        },
+        {
+          "type": "wire1_t",
+          "name": "Arch_GHR_snapshot[GHR_LENGTH]"
+        },
+        {
+          "type": "wire32_t",
+          "name": "Arch_FH_snapshot[FH_N_MAX][TN_MAX]"
+        },
+        {
+          "type": "tage_path_hist_t",
+          "name": "Spec_PATH_snapshot"
+        },
+        {
+          "type": "tage_path_hist_t",
+          "name": "Arch_PATH_snapshot"
+        },
+        {
+          "type": "target_addr_t",
+          "name": "Arch_ras_stack_snapshot[RAS_DEPTH]"
+        },
+        {
+          "type": "ras_count_t",
+          "name": "Arch_ras_count_snapshot"
+        },
+        {
+          "type": "target_addr_t",
+          "name": "Spec_ras_stack_snapshot[RAS_DEPTH]"
+        },
+        {
+          "type": "ras_count_t",
+          "name": "Spec_ras_count_snapshot"
         },
         {
           "type": "TypePredictor::OutputPayload",
@@ -17884,7 +18288,7 @@
       "name": "BpuHistCombOut",
       "kind": "struct",
       "file": "front-end/BPU/BPU.h",
-      "line": 483,
+      "line": 530,
       "field_count": 11,
       "fields": [
         {
@@ -17938,16 +18342,104 @@
       "name": "BpuQueueCombIn",
       "kind": "struct",
       "file": "front-end/BPU/BPU.h",
-      "line": 497,
-      "field_count": 2,
+      "line": 544,
+      "field_count": 24,
       "fields": [
         {
-          "type": "InputPayload",
-          "name": "inp"
+          "type": "pc_t",
+          "name": "in_update_base_pc[COMMIT_WIDTH]"
         },
         {
-          "type": "ReadData",
-          "name": "rd"
+          "type": "wire1_t",
+          "name": "in_upd_valid[COMMIT_WIDTH]"
+        },
+        {
+          "type": "wire1_t",
+          "name": "in_actual_dir[COMMIT_WIDTH]"
+        },
+        {
+          "type": "br_type_t",
+          "name": "in_actual_br_type[COMMIT_WIDTH]"
+        },
+        {
+          "type": "target_addr_t",
+          "name": "in_actual_targets[COMMIT_WIDTH]"
+        },
+        {
+          "type": "wire1_t",
+          "name": "in_pred_dir[COMMIT_WIDTH]"
+        },
+        {
+          "type": "wire1_t",
+          "name": "in_alt_pred[COMMIT_WIDTH]"
+        },
+        {
+          "type": "pcpn_t",
+          "name": "in_pcpn[COMMIT_WIDTH]"
+        },
+        {
+          "type": "pcpn_t",
+          "name": "in_altpcpn[COMMIT_WIDTH]"
+        },
+        {
+          "type": "tage_tag_t",
+          "name": "in_tage_tags[COMMIT_WIDTH][TN_MAX]"
+        },
+        {
+          "type": "tage_idx_t",
+          "name": "in_tage_idxs[COMMIT_WIDTH][TN_MAX]"
+        },
+        {
+          "type": "wire1_t",
+          "name": "in_sc_used[COMMIT_WIDTH]"
+        },
+        {
+          "type": "wire1_t",
+          "name": "in_sc_pred[COMMIT_WIDTH]"
+        },
+        {
+          "type": "tage_scl_meta_sum_t",
+          "name": "in_sc_sum[COMMIT_WIDTH]"
+        },
+        {
+          "type": "tage_scl_meta_idx_t",
+          "name": "in_sc_idx[COMMIT_WIDTH][BPU_SCL_META_NTABLE]"
+        },
+        {
+          "type": "wire1_t",
+          "name": "in_loop_used[COMMIT_WIDTH]"
+        },
+        {
+          "type": "wire1_t",
+          "name": "in_loop_hit[COMMIT_WIDTH]"
+        },
+        {
+          "type": "wire1_t",
+          "name": "in_loop_pred[COMMIT_WIDTH]"
+        },
+        {
+          "type": "tage_loop_meta_idx_t",
+          "name": "in_loop_idx[COMMIT_WIDTH]"
+        },
+        {
+          "type": "tage_loop_meta_tag_t",
+          "name": "in_loop_tag[COMMIT_WIDTH]"
+        },
+        {
+          "type": "queue_ptr_t",
+          "name": "q_wr_ptr_snapshot[BPU_BANK_NUM]"
+        },
+        {
+          "type": "queue_ptr_t",
+          "name": "q_rd_ptr_snapshot[BPU_BANK_NUM]"
+        },
+        {
+          "type": "queue_count_t",
+          "name": "q_count_snapshot[BPU_BANK_NUM]"
+        },
+        {
+          "type": "wire1_t",
+          "name": "going_to_do_upd[BPU_BANK_NUM]"
         }
       ],
       "is_interface_like": true
@@ -17956,7 +18448,7 @@
       "name": "BpuQueueCombOut",
       "kind": "struct",
       "file": "front-end/BPU/BPU.h",
-      "line": 502,
+      "line": 571,
       "field_count": 10,
       "fields": [
         {
@@ -18006,7 +18498,7 @@
       "name": "QueueEntry",
       "kind": "struct",
       "file": "front-end/BPU/BPU.h",
-      "line": 521,
+      "line": 590,
       "field_count": 20,
       "fields": [
         {
@@ -18096,7 +18588,7 @@
       "name": "NLPEntry",
       "kind": "struct",
       "file": "front-end/BPU/BPU.h",
-      "line": 544,
+      "line": 613,
       "field_count": 4,
       "fields": [
         {
@@ -24682,9 +25174,17 @@
       "name": "PTABModel",
       "kind": "class",
       "file": "front-end/fifo/PTAB.cpp",
-      "line": 132,
-      "field_count": 2,
+      "line": 136,
+      "field_count": 5,
       "fields": [
+        {
+          "type": "const",
+          "name": "size_before_ops"
+        },
+        {
+          "type": "bool",
+          "name": "first_push_recorded"
+        },
         {
           "type": "return",
           "name": "false"
@@ -24692,6 +25192,64 @@
         {
           "type": "return",
           "name": "need_mini_flush"
+        },
+        {
+          "type": "ptab_size_t",
+          "name": "size_"
+        }
+      ],
+      "is_interface_like": true
+    },
+    {
+      "name": "FetchAddressFifoModel",
+      "kind": "class",
+      "file": "front-end/fifo/fetch_address_FIFO.cpp",
+      "line": 60,
+      "field_count": 2,
+      "fields": [
+        {
+          "type": "const",
+          "name": "size_before_ops"
+        },
+        {
+          "type": "fetch_addr_fifo_size_t",
+          "name": "size_"
+        }
+      ],
+      "is_interface_like": false
+    },
+    {
+      "name": "Front2BackFifoModel",
+      "kind": "class",
+      "file": "front-end/fifo/front2bank_FIFO.cpp",
+      "line": 132,
+      "field_count": 2,
+      "fields": [
+        {
+          "type": "const",
+          "name": "size_before_ops"
+        },
+        {
+          "type": "front2back_fifo_size_t",
+          "name": "size_"
+        }
+      ],
+      "is_interface_like": false
+    },
+    {
+      "name": "InstructionFifoModel",
+      "kind": "class",
+      "file": "front-end/fifo/instruction_FIFO.cpp",
+      "line": 84,
+      "field_count": 2,
+      "fields": [
+        {
+          "type": "const",
+          "name": "size_before_ops"
+        },
+        {
+          "type": "instruction_fifo_size_t",
+          "name": "size_"
         }
       ],
       "is_interface_like": true
@@ -25853,15 +26411,19 @@
       "kind": "struct",
       "file": "front-end/front_module.h",
       "line": 18,
-      "field_count": 2,
+      "field_count": 3,
       "fields": [
-        {
-          "type": "fetch_addr_t",
-          "name": "entries[FETCH_ADDR_FIFO_SIZE]"
-        },
         {
           "type": "fetch_addr_fifo_size_t",
           "name": "size"
+        },
+        {
+          "type": "wire1_t",
+          "name": "head_valid"
+        },
+        {
+          "type": "fetch_addr_t",
+          "name": "head_entry"
         }
       ],
       "is_interface_like": true
@@ -25870,7 +26432,7 @@
       "name": "instruction_FIFO_entry",
       "kind": "struct",
       "file": "front-end/front_module.h",
-      "line": 23,
+      "line": 24,
       "field_count": 7,
       "fields": [
         {
@@ -25908,16 +26470,20 @@
       "name": "instruction_FIFO_read_data",
       "kind": "struct",
       "file": "front-end/front_module.h",
-      "line": 33,
-      "field_count": 2,
+      "line": 34,
+      "field_count": 3,
       "fields": [
-        {
-          "type": "instruction_FIFO_entry",
-          "name": "entries[INSTRUCTION_FIFO_SIZE]"
-        },
         {
           "type": "instruction_fifo_size_t",
           "name": "size"
+        },
+        {
+          "type": "wire1_t",
+          "name": "head_valid"
+        },
+        {
+          "type": "instruction_FIFO_entry",
+          "name": "head_entry"
         }
       ],
       "is_interface_like": true
@@ -25926,7 +26492,7 @@
       "name": "PTAB_entry",
       "kind": "struct",
       "file": "front-end/front_module.h",
-      "line": 38,
+      "line": 40,
       "field_count": 19,
       "fields": [
         {
@@ -26012,16 +26578,20 @@
       "name": "PTAB_read_data",
       "kind": "struct",
       "file": "front-end/front_module.h",
-      "line": 60,
-      "field_count": 2,
+      "line": 62,
+      "field_count": 3,
       "fields": [
-        {
-          "type": "PTAB_entry",
-          "name": "entries[PTAB_SIZE]"
-        },
         {
           "type": "ptab_size_t",
           "name": "size"
+        },
+        {
+          "type": "wire1_t",
+          "name": "head_valid"
+        },
+        {
+          "type": "PTAB_entry",
+          "name": "head_entry"
         }
       ],
       "is_interface_like": true
@@ -26030,7 +26600,7 @@
       "name": "front2back_FIFO_entry",
       "kind": "struct",
       "file": "front-end/front_module.h",
-      "line": 65,
+      "line": 68,
       "field_count": 20,
       "fields": [
         {
@@ -26120,16 +26690,20 @@
       "name": "front2back_FIFO_read_data",
       "kind": "struct",
       "file": "front-end/front_module.h",
-      "line": 88,
-      "field_count": 2,
+      "line": 91,
+      "field_count": 3,
       "fields": [
-        {
-          "type": "front2back_FIFO_entry",
-          "name": "entries[FRONT2BACK_FIFO_SIZE]"
-        },
         {
           "type": "front2back_fifo_size_t",
           "name": "size"
+        },
+        {
+          "type": "wire1_t",
+          "name": "head_valid"
+        },
+        {
+          "type": "front2back_FIFO_entry",
+          "name": "head_entry"
         }
       ],
       "is_interface_like": true
@@ -28499,23 +29073,55 @@
       "kind": "struct",
       "file": "front-end/train_IO.h",
       "line": 312,
-      "field_count": 4,
+      "field_count": 12,
       "fields": [
         {
-          "type": "fetch_address_FIFO_in",
-          "name": "fetch_addr_fifo_in"
+          "type": "wire1_t",
+          "name": "fetch_addr_fifo_reset"
         },
         {
-          "type": "instruction_FIFO_in",
-          "name": "fifo_in"
+          "type": "wire1_t",
+          "name": "fetch_addr_fifo_refetch"
         },
         {
-          "type": "PTAB_in",
-          "name": "ptab_in"
+          "type": "wire1_t",
+          "name": "fetch_addr_fifo_read_enable"
         },
         {
-          "type": "front2back_FIFO_in",
-          "name": "front2back_fifo_in"
+          "type": "wire1_t",
+          "name": "fifo_reset"
+        },
+        {
+          "type": "wire1_t",
+          "name": "fifo_refetch"
+        },
+        {
+          "type": "wire1_t",
+          "name": "fifo_read_enable"
+        },
+        {
+          "type": "wire1_t",
+          "name": "ptab_reset"
+        },
+        {
+          "type": "wire1_t",
+          "name": "ptab_refetch"
+        },
+        {
+          "type": "wire1_t",
+          "name": "ptab_read_enable"
+        },
+        {
+          "type": "wire1_t",
+          "name": "front2back_fifo_reset"
+        },
+        {
+          "type": "wire1_t",
+          "name": "front2back_fifo_refetch"
+        },
+        {
+          "type": "wire1_t",
+          "name": "front2back_fifo_read_enable"
         }
       ],
       "is_interface_like": true
@@ -28524,7 +29130,7 @@
       "name": "FrontBpuControlCombIn",
       "kind": "struct",
       "file": "front-end/train_IO.h",
-      "line": 319,
+      "line": 327,
       "field_count": 6,
       "fields": [
         {
@@ -28558,7 +29164,7 @@
       "name": "FrontBpuControlCombOut",
       "kind": "struct",
       "file": "front-end/train_IO.h",
-      "line": 328,
+      "line": 336,
       "field_count": 5,
       "fields": [
         {
@@ -28588,7 +29194,7 @@
       "name": "FrontBpuOutputCombIn",
       "kind": "struct",
       "file": "front-end/train_IO.h",
-      "line": 336,
+      "line": 344,
       "field_count": 1,
       "fields": [
         {
@@ -28602,7 +29208,7 @@
       "name": "FrontBpuOutputCombOut",
       "kind": "struct",
       "file": "front-end/train_IO.h",
-      "line": 340,
+      "line": 348,
       "field_count": 1,
       "fields": [
         {
@@ -28616,7 +29222,7 @@
       "name": "FrontPtabWriteCombIn",
       "kind": "struct",
       "file": "front-end/train_IO.h",
-      "line": 344,
+      "line": 352,
       "field_count": 4,
       "fields": [
         {
@@ -28642,7 +29248,7 @@
       "name": "FrontPtabWriteCombOut",
       "kind": "struct",
       "file": "front-end/train_IO.h",
-      "line": 351,
+      "line": 359,
       "field_count": 1,
       "fields": [
         {
@@ -28656,7 +29262,7 @@
       "name": "FrontCheckerInputCombIn",
       "kind": "struct",
       "file": "front-end/train_IO.h",
-      "line": 355,
+      "line": 363,
       "field_count": 2,
       "fields": [
         {
@@ -28674,7 +29280,7 @@
       "name": "FrontCheckerInputCombOut",
       "kind": "struct",
       "file": "front-end/train_IO.h",
-      "line": 360,
+      "line": 368,
       "field_count": 1,
       "fields": [
         {
@@ -28688,7 +29294,7 @@
       "name": "FrontFront2backWriteCombIn",
       "kind": "struct",
       "file": "front-end/train_IO.h",
-      "line": 364,
+      "line": 372,
       "field_count": 4,
       "fields": [
         {
@@ -28714,7 +29320,7 @@
       "name": "FrontFront2backWriteCombOut",
       "kind": "struct",
       "file": "front-end/train_IO.h",
-      "line": 371,
+      "line": 379,
       "field_count": 2,
       "fields": [
         {
@@ -28732,7 +29338,7 @@
       "name": "FrontOutputCombIn",
       "kind": "struct",
       "file": "front-end/train_IO.h",
-      "line": 376,
+      "line": 384,
       "field_count": 3,
       "fields": [
         {
@@ -28754,7 +29360,7 @@
       "name": "FrontOutputCombOut",
       "kind": "struct",
       "file": "front-end/train_IO.h",
-      "line": 382,
+      "line": 390,
       "field_count": 1,
       "fields": [
         {
@@ -30327,63 +30933,63 @@
       "name": "bpu_pre_read_req_comb",
       "bare_name": "bpu_pre_read_req_comb",
       "file": "front-end/BPU/BPU.h",
-      "line": 738,
+      "line": 807,
       "args": "const BpuPreReadReqCombIn &in, BpuPreReadReqCombOut &out"
     },
     {
       "name": "bpu_post_read_req_comb",
       "bare_name": "bpu_post_read_req_comb",
       "file": "front-end/BPU/BPU.h",
-      "line": 888,
+      "line": 943,
       "args": "const BpuPostReadReqCombIn &in, BpuPostReadReqCombOut &out"
     },
     {
       "name": "bpu_submodule_bind_comb",
       "bare_name": "bpu_submodule_bind_comb",
       "file": "front-end/BPU/BPU.h",
-      "line": 1006,
+      "line": 1049,
       "args": "const BpuSubmoduleBindCombIn &in, BpuSubmoduleBindCombOut &out"
     },
     {
       "name": "bpu_predict_main_comb",
       "bare_name": "bpu_predict_main_comb",
       "file": "front-end/BPU/BPU.h",
-      "line": 1029,
+      "line": 1070,
       "args": "const BpuPredictMainCombIn &in, BpuPredictMainCombOut &out"
     },
     {
       "name": "bpu_nlp_comb",
       "bare_name": "bpu_nlp_comb",
       "file": "front-end/BPU/BPU.h",
-      "line": 1134,
+      "line": 1173,
       "args": "const BpuNlpCombIn &in, BpuNlpCombOut &out"
     },
     {
       "name": "bpu_hist_comb",
       "bare_name": "bpu_hist_comb",
       "file": "front-end/BPU/BPU.h",
-      "line": 1222,
+      "line": 1261,
       "args": "const BpuHistCombIn &in, BpuHistCombOut &out"
     },
     {
       "name": "bpu_queue_comb",
       "bare_name": "bpu_queue_comb",
       "file": "front-end/BPU/BPU.h",
-      "line": 1370,
+      "line": 1407,
       "args": "const BpuQueueCombIn &in, BpuQueueCombOut &out"
     },
     {
       "name": "bpu_core_comb_calc",
       "bare_name": "bpu_core_comb_calc",
       "file": "front-end/BPU/BPU.h",
-      "line": 1459,
+      "line": 1494,
       "args": "const InputPayload &inp, ReadData &rd, const BpuPostReadReqCombOut &post_req, BpuCombOut &comb_out"
     },
     {
       "name": "bpu_comb_calc",
       "bare_name": "bpu_comb_calc",
       "file": "front-end/BPU/BPU.h",
-      "line": 1903,
+      "line": 2015,
       "args": "const InputPayload &inp, ReadData &rd, OutputPayload &out, UpdateRequest &req"
     },
     {
@@ -30782,15 +31388,15 @@
       "name": "comb_calc",
       "bare_name": "comb_calc",
       "file": "front-end/fifo/PTAB.cpp",
-      "line": 172,
-      "args": "const PTAB_in &inp, const PTAB_read_data &rd, PTAB_out &out, PTAB_read_data &next_rd"
+      "line": 204,
+      "args": "const PTAB_in &inp, const PTAB_read_data &rd, PTAB_out &out, PTAB_read_data &next_rd, PtabCombOut &step_req"
     },
     {
       "name": "PTAB_comb_calc",
       "bare_name": "PTAB_comb_calc",
       "file": "front-end/fifo/PTAB.cpp",
-      "line": 212,
-      "args": "struct PTAB_in *in, const struct PTAB_read_data *rd, struct PTAB_out *out, struct PTAB_read_data *next_rd"
+      "line": 271,
+      "args": "struct PTAB_in *in, const struct PTAB_read_data *rd, struct PTAB_out *out, struct PTAB_read_data *next_rd, PtabCombOut *step_req"
     },
     {
       "name": "fetch_address_FIFO_comb",
@@ -30803,15 +31409,15 @@
       "name": "comb_calc",
       "bare_name": "comb_calc",
       "file": "front-end/fifo/fetch_address_FIFO.cpp",
-      "line": 90,
-      "args": "const fetch_address_FIFO_in &inp, const fetch_address_FIFO_read_data &rd, fetch_address_FIFO_out &out, fetch_address_FIFO_read_data &next_rd"
+      "line": 110,
+      "args": "const fetch_address_FIFO_in &inp, const fetch_address_FIFO_read_data &rd, fetch_address_FIFO_out &out, fetch_address_FIFO_read_data &next_rd, FetchAddrCombOut &step_req"
     },
     {
       "name": "fetch_address_FIFO_comb_calc",
       "bare_name": "fetch_address_FIFO_comb_calc",
       "file": "front-end/fifo/fetch_address_FIFO.cpp",
-      "line": 123,
-      "args": "struct fetch_address_FIFO_in *in, const struct fetch_address_FIFO_read_data *rd, struct fetch_address_FIFO_out *out, struct fetch_address_FIFO_read_data *next_rd"
+      "line": 165,
+      "args": "struct fetch_address_FIFO_in *in, const struct fetch_address_FIFO_read_data *rd, struct fetch_address_FIFO_out *out, struct fetch_address_FIFO_read_data *next_rd, FetchAddrCombOut *step_req"
     },
     {
       "name": "front2back_FIFO_comb",
@@ -30824,15 +31430,15 @@
       "name": "comb_calc",
       "bare_name": "comb_calc",
       "file": "front-end/fifo/front2bank_FIFO.cpp",
-      "line": 162,
-      "args": "const front2back_FIFO_in &inp, const front2back_FIFO_read_data &rd, front2back_FIFO_out &out, front2back_FIFO_read_data &next_rd"
+      "line": 182,
+      "args": "const front2back_FIFO_in &inp, const front2back_FIFO_read_data &rd, front2back_FIFO_out &out, front2back_FIFO_read_data &next_rd, Front2BackCombOut &step_req"
     },
     {
       "name": "front2back_FIFO_comb_calc",
       "bare_name": "front2back_FIFO_comb_calc",
       "file": "front-end/fifo/front2bank_FIFO.cpp",
-      "line": 195,
-      "args": "struct front2back_FIFO_in *in, const struct front2back_FIFO_read_data *rd, struct front2back_FIFO_out *out, struct front2back_FIFO_read_data *next_rd"
+      "line": 237,
+      "args": "struct front2back_FIFO_in *in, const struct front2back_FIFO_read_data *rd, struct front2back_FIFO_out *out, struct front2back_FIFO_read_data *next_rd, Front2BackCombOut *step_req"
     },
     {
       "name": "instruction_FIFO_comb",
@@ -30845,85 +31451,85 @@
       "name": "comb_calc",
       "bare_name": "comb_calc",
       "file": "front-end/fifo/instruction_FIFO.cpp",
-      "line": 114,
-      "args": "const instruction_FIFO_in &inp, const instruction_FIFO_read_data &rd, instruction_FIFO_out &out, instruction_FIFO_read_data &next_rd"
+      "line": 134,
+      "args": "const instruction_FIFO_in &inp, const instruction_FIFO_read_data &rd, instruction_FIFO_out &out, instruction_FIFO_read_data &next_rd, InstructionCombOut &step_req"
     },
     {
       "name": "instruction_FIFO_comb_calc",
       "bare_name": "instruction_FIFO_comb_calc",
       "file": "front-end/fifo/instruction_FIFO.cpp",
-      "line": 147,
-      "args": "struct instruction_FIFO_in *in, const struct instruction_FIFO_read_data *rd, struct instruction_FIFO_out *out, struct instruction_FIFO_read_data *next_rd"
+      "line": 189,
+      "args": "struct instruction_FIFO_in *in, const struct instruction_FIFO_read_data *rd, struct instruction_FIFO_out *out, struct instruction_FIFO_read_data *next_rd, InstructionCombOut *step_req"
     },
     {
       "name": "icache_comb_calc",
       "bare_name": "icache_comb_calc",
       "file": "front-end/front_module.h",
-      "line": 106,
+      "line": 110,
       "args": "struct icache_in *in, struct icache_out *out"
     },
     {
       "name": "instruction_FIFO_comb",
       "bare_name": "instruction_FIFO_comb",
       "file": "front-end/front_module.h",
-      "line": 117,
+      "line": 121,
       "args": "const InstructionCombIn &input, InstructionCombOut &output"
     },
     {
       "name": "instruction_FIFO_comb_calc",
       "bare_name": "instruction_FIFO_comb_calc",
       "file": "front-end/front_module.h",
-      "line": 119,
-      "args": "struct instruction_FIFO_in *in, const struct instruction_FIFO_read_data *rd, struct instruction_FIFO_out *out, struct instruction_FIFO_read_data *next_rd"
+      "line": 123,
+      "args": "struct instruction_FIFO_in *in, const struct instruction_FIFO_read_data *rd, struct instruction_FIFO_out *out, struct instruction_FIFO_read_data *next_rd, InstructionCombOut *step_req"
     },
     {
       "name": "PTAB_comb",
       "bare_name": "PTAB_comb",
       "file": "front-end/front_module.h",
-      "line": 126,
+      "line": 131,
       "args": "const PtabCombIn &input, PtabCombOut &output"
     },
     {
       "name": "PTAB_comb_calc",
       "bare_name": "PTAB_comb_calc",
       "file": "front-end/front_module.h",
-      "line": 127,
-      "args": "struct PTAB_in *in, const struct PTAB_read_data *rd, struct PTAB_out *out, struct PTAB_read_data *next_rd"
+      "line": 132,
+      "args": "struct PTAB_in *in, const struct PTAB_read_data *rd, struct PTAB_out *out, struct PTAB_read_data *next_rd, PtabCombOut *step_req"
     },
     {
       "name": "front_top",
       "bare_name": "front_top",
       "file": "front-end/front_module.h",
-      "line": 131,
+      "line": 137,
       "args": "struct front_top_in *in, struct front_top_out *out"
     },
     {
       "name": "front2back_FIFO_comb",
       "bare_name": "front2back_FIFO_comb",
       "file": "front-end/front_module.h",
-      "line": 136,
+      "line": 142,
       "args": "const Front2BackCombIn &input, Front2BackCombOut &output"
     },
     {
       "name": "front2back_FIFO_comb_calc",
       "bare_name": "front2back_FIFO_comb_calc",
       "file": "front-end/front_module.h",
-      "line": 138,
-      "args": "struct front2back_FIFO_in *in, const struct front2back_FIFO_read_data *rd, struct front2back_FIFO_out *out, struct front2back_FIFO_read_data *next_rd"
+      "line": 144,
+      "args": "struct front2back_FIFO_in *in, const struct front2back_FIFO_read_data *rd, struct front2back_FIFO_out *out, struct front2back_FIFO_read_data *next_rd, Front2BackCombOut *step_req"
     },
     {
       "name": "fetch_address_FIFO_comb",
       "bare_name": "fetch_address_FIFO_comb",
       "file": "front-end/front_module.h",
-      "line": 146,
+      "line": 153,
       "args": "const FetchAddrCombIn &input, FetchAddrCombOut &output"
     },
     {
       "name": "fetch_address_FIFO_comb_calc",
       "bare_name": "fetch_address_FIFO_comb_calc",
       "file": "front-end/front_module.h",
-      "line": 148,
-      "args": "struct fetch_address_FIFO_in *in, const struct fetch_address_FIFO_read_data *rd, struct fetch_address_FIFO_out *out, struct fetch_address_FIFO_read_data *next_rd"
+      "line": 155,
+      "args": "struct fetch_address_FIFO_in *in, const struct fetch_address_FIFO_read_data *rd, struct fetch_address_FIFO_out *out, struct fetch_address_FIFO_read_data *next_rd, FetchAddrCombOut *step_req"
     },
     {
       "name": "front_bpu_input_comb",
@@ -30957,70 +31563,70 @@
       "name": "front_bpu_control_comb",
       "bare_name": "front_bpu_control_comb",
       "file": "front-end/front_top.cpp",
-      "line": 679,
+      "line": 674,
       "args": "const FrontBpuControlCombIn &input, FrontBpuControlCombOut &output"
     },
     {
       "name": "front_ptab_write_comb",
       "bare_name": "front_ptab_write_comb",
       "file": "front-end/front_top.cpp",
-      "line": 730,
+      "line": 725,
       "args": "const FrontPtabWriteCombIn &input, FrontPtabWriteCombOut &output"
     },
     {
       "name": "front_checker_input_comb",
       "bare_name": "front_checker_input_comb",
       "file": "front-end/front_top.cpp",
-      "line": 770,
+      "line": 765,
       "args": "const FrontCheckerInputCombIn &input, FrontCheckerInputCombOut &output"
     },
     {
       "name": "front_front2back_write_comb",
       "bare_name": "front_front2back_write_comb",
       "file": "front-end/front_top.cpp",
-      "line": 785,
+      "line": 780,
       "args": "const FrontFront2backWriteCombIn &input, FrontFront2backWriteCombOut &output"
     },
     {
       "name": "front_output_comb",
       "bare_name": "front_output_comb",
       "file": "front-end/front_top.cpp",
-      "line": 863,
+      "line": 858,
       "args": "const FrontOutputCombIn &input, FrontOutputCombOut &output"
     },
     {
       "name": "front_bpu_input_comb",
       "bare_name": "front_bpu_input_comb",
       "file": "front-end/front_top.cpp",
-      "line": 908,
+      "line": 903,
       "args": "const FrontBpuInputCombIn &input, FrontBpuInputCombOut &output"
     },
     {
       "name": "front_comb_calc",
       "bare_name": "front_comb_calc",
       "file": "front-end/front_top.cpp",
-      "line": 920,
+      "line": 1002,
       "args": "const struct front_top_in &inp, const FrontReadData &rd, struct front_top_out &out, FrontUpdateRequest &req"
     },
     {
       "name": "front_seq_read",
       "bare_name": "front_seq_read",
       "file": "front-end/front_top.cpp",
-      "line": 1865,
+      "line": 1996,
       "args": "const struct front_top_in &inp, FrontReadData &rd"
     },
     {
       "name": "front_seq_write",
       "bare_name": "front_seq_write",
       "file": "front-end/front_top.cpp",
-      "line": 1902,
+      "line": 2033,
       "args": "const struct front_top_in &inp, const FrontUpdateRequest &req, bool reset"
     },
     {
       "name": "front_top",
       "bare_name": "front_top",
       "file": "front-end/front_top.cpp",
-      "line": 1936,
+      "line": 2067,
       "args": "struct front_top_in *in, struct front_top_out *out"
     },
     {
@@ -31215,309 +31821,9 @@
   ],
   "verilog_modules": [
     {
-      "name": "axi_ddr_top",
-      "file": "axi_end/axi_ddr/axi_ddr_top.v",
-      "line": 4,
-      "port_count": 2,
-      "inputs": 1,
-      "outputs": 1,
-      "ports": [
-        {
-          "direction": "input",
-          "width": "[W_AxiDdrIo-1:0]",
-          "name": "ddr_io_in"
-        },
-        {
-          "direction": "output",
-          "width": "[W_AxiDdrIo-1:0]",
-          "name": "ddr_io_out"
-        }
-      ]
-    },
-    {
-      "name": "axi_interconnect_top",
-      "file": "axi_end/axi_interconnect/axi_interconnect_top.v",
-      "line": 6,
-      "port_count": 11,
-      "inputs": 6,
-      "outputs": 5,
-      "ports": [
-        {
-          "direction": "input",
-          "width": "1",
-          "name": "reset"
-        },
-        {
-          "direction": "input",
-          "width": "[W_AxiLlcConfig-1:0]",
-          "name": "llc_config"
-        },
-        {
-          "direction": "input",
-          "width": "[W_AxiLlcLookupIn-1:0]",
-          "name": "llc_lookup_in"
-        },
-        {
-          "direction": "input",
-          "width": "[W_AxiReadPorts-1:0]",
-          "name": "read_ports_in"
-        },
-        {
-          "direction": "input",
-          "width": "[W_AxiWritePorts-1:0]",
-          "name": "write_ports_in"
-        },
-        {
-          "direction": "input",
-          "width": "[W_AxiIo-1:0]",
-          "name": "axi_io_in"
-        },
-        {
-          "direction": "output",
-          "width": "[W_AxiReadPorts-1:0]",
-          "name": "read_ports_out"
-        },
-        {
-          "direction": "output",
-          "width": "[W_AxiWritePorts-1:0]",
-          "name": "write_ports_out"
-        },
-        {
-          "direction": "output",
-          "width": "[W_AxiIo-1:0]",
-          "name": "axi_io_out"
-        },
-        {
-          "direction": "output",
-          "width": "[W_AxiLlcTableOut-1:0]",
-          "name": "llc_table_out"
-        },
-        {
-          "direction": "output",
-          "width": "[W_AxiLlcPerfCounters-1:0]",
-          "name": "llc_perf_counters"
-        }
-      ]
-    },
-    {
-      "name": "axi_mmio_top",
-      "file": "axi_end/axi_mmio/axi_mmio_top.v",
-      "line": 5,
-      "port_count": 2,
-      "inputs": 1,
-      "outputs": 1,
-      "ports": [
-        {
-          "direction": "input",
-          "width": "[W_AxiMmioIo-1:0]",
-          "name": "mmio_io_in"
-        },
-        {
-          "direction": "output",
-          "width": "[W_AxiMmioIo-1:0]",
-          "name": "mmio_io_out"
-        }
-      ]
-    },
-    {
-      "name": "axi_router_top",
-      "file": "axi_end/axi_router/axi_router_top.v",
-      "line": 5,
-      "port_count": 2,
-      "inputs": 1,
-      "outputs": 1,
-      "ports": [
-        {
-          "direction": "input",
-          "width": "[W_AxiRouterIn-1:0]",
-          "name": "router_in"
-        },
-        {
-          "direction": "output",
-          "width": "[W_AxiRouterOut-1:0]",
-          "name": "router_out"
-        }
-      ]
-    },
-    {
-      "name": "axi_top",
-      "file": "axi_end/axi_top.v",
-      "line": 11,
-      "port_count": 15,
-      "inputs": 8,
-      "outputs": 7,
-      "ports": [
-        {
-          "direction": "input",
-          "width": "1",
-          "name": "reset"
-        },
-        {
-          "direction": "input",
-          "width": "[W_MshrAxiOut-1:0]",
-          "name": "mshr_axi_out"
-        },
-        {
-          "direction": "input",
-          "width": "[W_WbAxiOut-1:0]",
-          "name": "wb_axi_out"
-        },
-        {
-          "direction": "input",
-          "width": "[W_PeripheralAxiReadOut-1:0]",
-          "name": "peripheral_axi_read_out"
-        },
-        {
-          "direction": "input",
-          "width": "[W_PeripheralAxiWriteOut-1:0]",
-          "name": "peripheral_axi_write_out"
-        },
-        {
-          "direction": "input",
-          "width": "[W_AxiReadMasterPort-1:0]",
-          "name": "icache_axi_read_port_in"
-        },
-        {
-          "direction": "input",
-          "width": "[W_AxiLlcConfig-1:0]",
-          "name": "llc_config"
-        },
-        {
-          "direction": "input",
-          "width": "[W_AxiLlcLookupIn-1:0]",
-          "name": "llc_lookup_in"
-        },
-        {
-          "direction": "output",
-          "width": "[W_MshrAxiIn-1:0]",
-          "name": "mshr_axi_in"
-        },
-        {
-          "direction": "output",
-          "width": "[W_WbAxiIn-1:0]",
-          "name": "wb_axi_in"
-        },
-        {
-          "direction": "output",
-          "width": "[W_PeripheralAxiReadIn-1:0]",
-          "name": "peripheral_axi_read_in"
-        },
-        {
-          "direction": "output",
-          "width": "[W_PeripheralAxiWriteIn-1:0]",
-          "name": "peripheral_axi_write_in"
-        },
-        {
-          "direction": "output",
-          "width": "[W_AxiReadMasterPort-1:0]",
-          "name": "icache_axi_read_port_out"
-        },
-        {
-          "direction": "output",
-          "width": "[W_AxiLlcTableOut-1:0]",
-          "name": "llc_table_out"
-        },
-        {
-          "direction": "output",
-          "width": "[W_AxiLlcPerfCounters-1:0]",
-          "name": "llc_perf_counters"
-        }
-      ]
-    },
-    {
-      "name": "mem_axi_bridge_top",
-      "file": "axi_end/mem_axi_bridge/mem_axi_bridge_top.v",
-      "line": 10,
-      "port_count": 16,
-      "inputs": 8,
-      "outputs": 8,
-      "ports": [
-        {
-          "direction": "input",
-          "width": "[W_MshrAxiOut-1:0]",
-          "name": "mshr_axi_out"
-        },
-        {
-          "direction": "input",
-          "width": "[W_WbAxiOut-1:0]",
-          "name": "wb_axi_out"
-        },
-        {
-          "direction": "input",
-          "width": "[W_PeripheralAxiReadOut-1:0]",
-          "name": "peripheral_axi_read_out"
-        },
-        {
-          "direction": "input",
-          "width": "[W_PeripheralAxiWriteOut-1:0]",
-          "name": "peripheral_axi_write_out"
-        },
-        {
-          "direction": "input",
-          "width": "[W_AxiReadMasterPort-1:0]",
-          "name": "dcache_read_port_from_axi"
-        },
-        {
-          "direction": "input",
-          "width": "[W_AxiWriteMasterPort-1:0]",
-          "name": "dcache_write_port_from_axi"
-        },
-        {
-          "direction": "input",
-          "width": "[W_AxiReadMasterPort-1:0]",
-          "name": "peripheral_read_port_from_axi"
-        },
-        {
-          "direction": "input",
-          "width": "[W_AxiWriteMasterPort-1:0]",
-          "name": "peripheral_write_port_from_axi"
-        },
-        {
-          "direction": "output",
-          "width": "[W_MshrAxiIn-1:0]",
-          "name": "mshr_axi_in"
-        },
-        {
-          "direction": "output",
-          "width": "[W_WbAxiIn-1:0]",
-          "name": "wb_axi_in"
-        },
-        {
-          "direction": "output",
-          "width": "[W_PeripheralAxiReadIn-1:0]",
-          "name": "peripheral_axi_read_in"
-        },
-        {
-          "direction": "output",
-          "width": "[W_PeripheralAxiWriteIn-1:0]",
-          "name": "peripheral_axi_write_in"
-        },
-        {
-          "direction": "output",
-          "width": "[W_AxiReadMasterPort-1:0]",
-          "name": "dcache_read_port_to_axi"
-        },
-        {
-          "direction": "output",
-          "width": "[W_AxiWriteMasterPort-1:0]",
-          "name": "dcache_write_port_to_axi"
-        },
-        {
-          "direction": "output",
-          "width": "[W_AxiReadMasterPort-1:0]",
-          "name": "peripheral_read_port_to_axi"
-        },
-        {
-          "direction": "output",
-          "width": "[W_AxiWriteMasterPort-1:0]",
-          "name": "peripheral_write_port_to_axi"
-        }
-      ]
-    },
-    {
       "name": "back_top",
       "file": "back_end/back_top.v",
-      "line": 12,
+      "line": 204,
       "port_count": 38,
       "inputs": 23,
       "outputs": 15,
@@ -31717,7 +32023,7 @@
     {
       "name": "csr_top",
       "file": "back_end/csr/csr_top.v",
-      "line": 6,
+      "line": 50,
       "port_count": 13,
       "inputs": 3,
       "outputs": 10,
@@ -31792,7 +32098,7 @@
     {
       "name": "dispatch_top",
       "file": "back_end/dispatch/dispatch_top.v",
-      "line": 7,
+      "line": 80,
       "port_count": 12,
       "inputs": 8,
       "outputs": 4,
@@ -31862,7 +32168,7 @@
     {
       "name": "exu_top",
       "file": "back_end/exu/exu_top.v",
-      "line": 7,
+      "line": 76,
       "port_count": 12,
       "inputs": 6,
       "outputs": 6,
@@ -31932,7 +32238,7 @@
     {
       "name": "idu_top",
       "file": "back_end/idu/idu_top.v",
-      "line": 8,
+      "line": 71,
       "port_count": 19,
       "inputs": 4,
       "outputs": 15,
@@ -32037,7 +32343,7 @@
     {
       "name": "isu_top",
       "file": "back_end/isu/isu_top.v",
-      "line": 6,
+      "line": 65,
       "port_count": 8,
       "inputs": 5,
       "outputs": 3,
@@ -32087,7 +32393,7 @@
     {
       "name": "lsu_top",
       "file": "back_end/lsu/lsu_top.v",
-      "line": 8,
+      "line": 95,
       "port_count": 15,
       "inputs": 9,
       "outputs": 6,
@@ -32172,7 +32478,7 @@
     {
       "name": "preiduqueue_top",
       "file": "back_end/preiduqueue/preiduqueue_top.v",
-      "line": 7,
+      "line": 83,
       "port_count": 13,
       "inputs": 7,
       "outputs": 6,
@@ -32247,7 +32553,7 @@
     {
       "name": "prf_top",
       "file": "back_end/prf/prf_top.v",
-      "line": 6,
+      "line": 66,
       "port_count": 8,
       "inputs": 5,
       "outputs": 3,
@@ -32297,7 +32603,7 @@
     {
       "name": "ren_top",
       "file": "back_end/ren/ren_top.v",
-      "line": 6,
+      "line": 59,
       "port_count": 7,
       "inputs": 5,
       "outputs": 2,
@@ -32342,7 +32648,7 @@
     {
       "name": "rob_top",
       "file": "back_end/rob/rob_top.v",
-      "line": 6,
+      "line": 93,
       "port_count": 29,
       "inputs": 6,
       "outputs": 23,
@@ -32497,7 +32803,7 @@
     {
       "name": "bpu_hist_comb_top",
       "file": "front_end/bpu/bpu_hist_comb/bpu_hist_comb_top.v",
-      "line": 8,
+      "line": 78,
       "port_count": 2,
       "inputs": 1,
       "outputs": 1,
@@ -32505,19 +32811,19 @@
         {
           "direction": "input",
           "width": "[W_BpuHistCombIn-1:0]",
-          "name": "bsd_pi"
+          "name": "bpu_predict_main_bundle"
         },
         {
           "direction": "output",
           "width": "[W_BpuHistCombOut-1:0]",
-          "name": "bsd_po"
+          "name": "bpu_hist_bundle"
         }
       ]
     },
     {
       "name": "bpu_hist_comb_bsd_top",
       "file": "front_end/bpu/bpu_hist_comb/bpu_hist_comb_top.v",
-      "line": 48,
+      "line": 103,
       "port_count": 2,
       "inputs": 1,
       "outputs": 1,
@@ -32525,19 +32831,19 @@
         {
           "direction": "input",
           "width": "[W_BpuHistCombIn-1:0]",
-          "name": "bsd_pi"
+          "name": "pi"
         },
         {
           "direction": "output",
           "width": "[W_BpuHistCombOut-1:0]",
-          "name": "bsd_po"
+          "name": "po"
         }
       ]
     },
     {
       "name": "bpu_post_read_req_comb_top",
       "file": "front_end/bpu/bpu_post_read_req_comb/bpu_post_read_req_comb_top.v",
-      "line": 8,
+      "line": 71,
       "port_count": 2,
       "inputs": 1,
       "outputs": 1,
@@ -32545,19 +32851,19 @@
         {
           "direction": "input",
           "width": "[W_BpuPostReadReqCombIn-1:0]",
-          "name": "bsd_pi"
+          "name": "bpu_pre_read_req_bundle"
         },
         {
           "direction": "output",
           "width": "[W_BpuPostReadReqCombOut-1:0]",
-          "name": "bsd_po"
+          "name": "bpu_post_read_req_bundle"
         }
       ]
     },
     {
       "name": "bpu_post_read_req_comb_bsd_top",
       "file": "front_end/bpu/bpu_post_read_req_comb/bpu_post_read_req_comb_top.v",
-      "line": 48,
+      "line": 96,
       "port_count": 2,
       "inputs": 1,
       "outputs": 1,
@@ -32565,19 +32871,19 @@
         {
           "direction": "input",
           "width": "[W_BpuPostReadReqCombIn-1:0]",
-          "name": "bsd_pi"
+          "name": "pi"
         },
         {
           "direction": "output",
           "width": "[W_BpuPostReadReqCombOut-1:0]",
-          "name": "bsd_po"
+          "name": "po"
         }
       ]
     },
     {
       "name": "bpu_pre_read_req_comb_top",
       "file": "front_end/bpu/bpu_pre_read_req_comb/bpu_pre_read_req_comb_top.v",
-      "line": 8,
+      "line": 68,
       "port_count": 2,
       "inputs": 1,
       "outputs": 1,
@@ -32585,19 +32891,19 @@
         {
           "direction": "input",
           "width": "[W_BpuPreReadReqCombIn-1:0]",
-          "name": "bsd_pi"
+          "name": "bpu_input_bundle"
         },
         {
           "direction": "output",
           "width": "[W_BpuPreReadReqCombOut-1:0]",
-          "name": "bsd_po"
+          "name": "bpu_pre_read_req_bundle"
         }
       ]
     },
     {
       "name": "bpu_pre_read_req_comb_bsd_top",
       "file": "front_end/bpu/bpu_pre_read_req_comb/bpu_pre_read_req_comb_top.v",
-      "line": 48,
+      "line": 93,
       "port_count": 2,
       "inputs": 1,
       "outputs": 1,
@@ -32605,19 +32911,19 @@
         {
           "direction": "input",
           "width": "[W_BpuPreReadReqCombIn-1:0]",
-          "name": "bsd_pi"
+          "name": "pi"
         },
         {
           "direction": "output",
           "width": "[W_BpuPreReadReqCombOut-1:0]",
-          "name": "bsd_po"
+          "name": "po"
         }
       ]
     },
     {
       "name": "bpu_predict_main_comb_top",
       "file": "front_end/bpu/bpu_predict_main_comb/bpu_predict_main_comb_top.v",
-      "line": 8,
+      "line": 79,
       "port_count": 2,
       "inputs": 1,
       "outputs": 1,
@@ -32625,19 +32931,19 @@
         {
           "direction": "input",
           "width": "[W_BpuPredictMainCombIn-1:0]",
-          "name": "bsd_pi"
+          "name": "bpu_submodule_bind_bundle"
         },
         {
           "direction": "output",
           "width": "[W_BpuPredictMainCombOut-1:0]",
-          "name": "bsd_po"
+          "name": "bpu_predict_main_bundle"
         }
       ]
     },
     {
       "name": "bpu_predict_main_comb_bsd_top",
       "file": "front_end/bpu/bpu_predict_main_comb/bpu_predict_main_comb_top.v",
-      "line": 48,
+      "line": 104,
       "port_count": 2,
       "inputs": 1,
       "outputs": 1,
@@ -32645,19 +32951,19 @@
         {
           "direction": "input",
           "width": "[W_BpuPredictMainCombIn-1:0]",
-          "name": "bsd_pi"
+          "name": "pi"
         },
         {
           "direction": "output",
           "width": "[W_BpuPredictMainCombOut-1:0]",
-          "name": "bsd_po"
+          "name": "po"
         }
       ]
     },
     {
       "name": "bpu_queue_comb_top",
       "file": "front_end/bpu/bpu_queue_comb/bpu_queue_comb_top.v",
-      "line": 8,
+      "line": 79,
       "port_count": 2,
       "inputs": 1,
       "outputs": 1,
@@ -32665,19 +32971,19 @@
         {
           "direction": "input",
           "width": "[W_BpuQueueCombIn-1:0]",
-          "name": "bsd_pi"
+          "name": "bpu_predict_main_bundle"
         },
         {
           "direction": "output",
           "width": "[W_BpuQueueCombOut-1:0]",
-          "name": "bsd_po"
+          "name": "bpu_queue_bundle"
         }
       ]
     },
     {
       "name": "bpu_queue_comb_bsd_top",
       "file": "front_end/bpu/bpu_queue_comb/bpu_queue_comb_top.v",
-      "line": 48,
+      "line": 104,
       "port_count": 2,
       "inputs": 1,
       "outputs": 1,
@@ -32685,19 +32991,19 @@
         {
           "direction": "input",
           "width": "[W_BpuQueueCombIn-1:0]",
-          "name": "bsd_pi"
+          "name": "pi"
         },
         {
           "direction": "output",
           "width": "[W_BpuQueueCombOut-1:0]",
-          "name": "bsd_po"
+          "name": "po"
         }
       ]
     },
     {
       "name": "bpu_submodule_bind_comb_top",
       "file": "front_end/bpu/bpu_submodule_bind_comb/bpu_submodule_bind_comb_top.v",
-      "line": 8,
+      "line": 52,
       "port_count": 2,
       "inputs": 1,
       "outputs": 1,
@@ -32705,19 +33011,19 @@
         {
           "direction": "input",
           "width": "[W_BpuSubmoduleBindCombIn-1:0]",
-          "name": "bsd_pi"
+          "name": "bpu_submodule_bind_input_bundle"
         },
         {
           "direction": "output",
           "width": "[W_BpuSubmoduleBindCombOut-1:0]",
-          "name": "bsd_po"
+          "name": "bpu_submodule_bind_bundle"
         }
       ]
     },
     {
       "name": "bpu_submodule_bind_comb_bsd_top",
       "file": "front_end/bpu/bpu_submodule_bind_comb/bpu_submodule_bind_comb_top.v",
-      "line": 48,
+      "line": 77,
       "port_count": 2,
       "inputs": 1,
       "outputs": 1,
@@ -32725,23 +33031,38 @@
         {
           "direction": "input",
           "width": "[W_BpuSubmoduleBindCombIn-1:0]",
-          "name": "bsd_pi"
+          "name": "pi"
         },
         {
           "direction": "output",
           "width": "[W_BpuSubmoduleBindCombOut-1:0]",
-          "name": "bsd_po"
+          "name": "po"
         }
       ]
     },
     {
       "name": "bpu_top",
       "file": "front_end/bpu/bpu_top.v",
-      "line": 5,
-      "port_count": 2,
-      "inputs": 1,
+      "line": 16,
+      "port_count": 5,
+      "inputs": 4,
       "outputs": 1,
       "ports": [
+        {
+          "direction": "input",
+          "width": "1",
+          "name": "clk"
+        },
+        {
+          "direction": "input",
+          "width": "1",
+          "name": "rst_n"
+        },
+        {
+          "direction": "input",
+          "width": "1",
+          "name": "reset"
+        },
         {
           "direction": "input",
           "width": "[W_BpuIn-1:0]",
@@ -32757,7 +33078,7 @@
     {
       "name": "tage_comb_top",
       "file": "front_end/bpu/dir_predictor/tage_comb/tage_comb_top.v",
-      "line": 8,
+      "line": 52,
       "port_count": 2,
       "inputs": 1,
       "outputs": 1,
@@ -32765,19 +33086,19 @@
         {
           "direction": "input",
           "width": "[W_TageCombIn-1:0]",
-          "name": "bsd_pi"
+          "name": "tage_input_bundle"
         },
         {
           "direction": "output",
           "width": "[W_TageCombOut-1:0]",
-          "name": "bsd_po"
+          "name": "tage_bundle"
         }
       ]
     },
     {
       "name": "tage_comb_bsd_top",
       "file": "front_end/bpu/dir_predictor/tage_comb/tage_comb_top.v",
-      "line": 48,
+      "line": 77,
       "port_count": 2,
       "inputs": 1,
       "outputs": 1,
@@ -32785,19 +33106,19 @@
         {
           "direction": "input",
           "width": "[W_TageCombIn-1:0]",
-          "name": "bsd_pi"
+          "name": "pi"
         },
         {
           "direction": "output",
           "width": "[W_TageCombOut-1:0]",
-          "name": "bsd_po"
+          "name": "po"
         }
       ]
     },
     {
       "name": "tage_pre_read_comb_top",
       "file": "front_end/bpu/dir_predictor/tage_pre_read_comb/tage_pre_read_comb_top.v",
-      "line": 8,
+      "line": 56,
       "port_count": 2,
       "inputs": 1,
       "outputs": 1,
@@ -32805,19 +33126,19 @@
         {
           "direction": "input",
           "width": "[W_TagePreReadCombIn-1:0]",
-          "name": "bsd_pi"
+          "name": "bpu_pre_read_req_bundle"
         },
         {
           "direction": "output",
           "width": "[W_TagePreReadCombOut-1:0]",
-          "name": "bsd_po"
+          "name": "tage_pre_read_bundle"
         }
       ]
     },
     {
       "name": "tage_pre_read_comb_bsd_top",
       "file": "front_end/bpu/dir_predictor/tage_pre_read_comb/tage_pre_read_comb_top.v",
-      "line": 48,
+      "line": 81,
       "port_count": 2,
       "inputs": 1,
       "outputs": 1,
@@ -32825,19 +33146,19 @@
         {
           "direction": "input",
           "width": "[W_TagePreReadCombIn-1:0]",
-          "name": "bsd_pi"
+          "name": "pi"
         },
         {
           "direction": "output",
           "width": "[W_TagePreReadCombOut-1:0]",
-          "name": "bsd_po"
+          "name": "po"
         }
       ]
     },
     {
       "name": "btb_comb_top",
       "file": "front_end/bpu/target_predictor/btb_comb/btb_comb_top.v",
-      "line": 8,
+      "line": 52,
       "port_count": 2,
       "inputs": 1,
       "outputs": 1,
@@ -32845,19 +33166,19 @@
         {
           "direction": "input",
           "width": "[W_BtbCombIn-1:0]",
-          "name": "bsd_pi"
+          "name": "btb_post_read_req_bundle"
         },
         {
           "direction": "output",
           "width": "[W_BtbCombOut-1:0]",
-          "name": "bsd_po"
+          "name": "btb_bundle"
         }
       ]
     },
     {
       "name": "btb_comb_bsd_top",
       "file": "front_end/bpu/target_predictor/btb_comb/btb_comb_top.v",
-      "line": 48,
+      "line": 77,
       "port_count": 2,
       "inputs": 1,
       "outputs": 1,
@@ -32865,19 +33186,19 @@
         {
           "direction": "input",
           "width": "[W_BtbCombIn-1:0]",
-          "name": "bsd_pi"
+          "name": "pi"
         },
         {
           "direction": "output",
           "width": "[W_BtbCombOut-1:0]",
-          "name": "bsd_po"
+          "name": "po"
         }
       ]
     },
     {
       "name": "btb_post_read_req_comb_top",
       "file": "front_end/bpu/target_predictor/btb_post_read_req_comb/btb_post_read_req_comb_top.v",
-      "line": 8,
+      "line": 54,
       "port_count": 2,
       "inputs": 1,
       "outputs": 1,
@@ -32885,19 +33206,19 @@
         {
           "direction": "input",
           "width": "[W_BtbPostReadReqCombIn-1:0]",
-          "name": "bsd_pi"
+          "name": "btb_post_read_req_input_bundle"
         },
         {
           "direction": "output",
           "width": "[W_BtbPostReadReqCombOut-1:0]",
-          "name": "bsd_po"
+          "name": "btb_post_read_req_bundle"
         }
       ]
     },
     {
       "name": "btb_post_read_req_comb_bsd_top",
       "file": "front_end/bpu/target_predictor/btb_post_read_req_comb/btb_post_read_req_comb_top.v",
-      "line": 48,
+      "line": 79,
       "port_count": 2,
       "inputs": 1,
       "outputs": 1,
@@ -32905,19 +33226,19 @@
         {
           "direction": "input",
           "width": "[W_BtbPostReadReqCombIn-1:0]",
-          "name": "bsd_pi"
+          "name": "pi"
         },
         {
           "direction": "output",
           "width": "[W_BtbPostReadReqCombOut-1:0]",
-          "name": "bsd_po"
+          "name": "po"
         }
       ]
     },
     {
       "name": "btb_pre_read_comb_top",
       "file": "front_end/bpu/target_predictor/btb_pre_read_comb/btb_pre_read_comb_top.v",
-      "line": 8,
+      "line": 50,
       "port_count": 2,
       "inputs": 1,
       "outputs": 1,
@@ -32925,19 +33246,19 @@
         {
           "direction": "input",
           "width": "[W_BtbPreReadCombIn-1:0]",
-          "name": "bsd_pi"
+          "name": "bpu_pre_read_req_bundle"
         },
         {
           "direction": "output",
           "width": "[W_BtbPreReadCombOut-1:0]",
-          "name": "bsd_po"
+          "name": "btb_pre_read_bundle"
         }
       ]
     },
     {
       "name": "btb_pre_read_comb_bsd_top",
       "file": "front_end/bpu/target_predictor/btb_pre_read_comb/btb_pre_read_comb_top.v",
-      "line": 48,
+      "line": 75,
       "port_count": 2,
       "inputs": 1,
       "outputs": 1,
@@ -32945,19 +33266,19 @@
         {
           "direction": "input",
           "width": "[W_BtbPreReadCombIn-1:0]",
-          "name": "bsd_pi"
+          "name": "pi"
         },
         {
           "direction": "output",
           "width": "[W_BtbPreReadCombOut-1:0]",
-          "name": "bsd_po"
+          "name": "po"
         }
       ]
     },
     {
       "name": "type_pred_comb_top",
       "file": "front_end/bpu/type_predictor/type_pred_comb/type_pred_comb_top.v",
-      "line": 8,
+      "line": 54,
       "port_count": 2,
       "inputs": 1,
       "outputs": 1,
@@ -32965,19 +33286,19 @@
         {
           "direction": "input",
           "width": "[W_TypePredCombIn-1:0]",
-          "name": "bsd_pi"
+          "name": "type_pred_input_bundle"
         },
         {
           "direction": "output",
           "width": "[W_TypePredCombOut-1:0]",
-          "name": "bsd_po"
+          "name": "type_pred_bundle"
         }
       ]
     },
     {
       "name": "type_pred_comb_bsd_top",
       "file": "front_end/bpu/type_predictor/type_pred_comb/type_pred_comb_top.v",
-      "line": 48,
+      "line": 79,
       "port_count": 2,
       "inputs": 1,
       "outputs": 1,
@@ -32985,78 +33306,18 @@
         {
           "direction": "input",
           "width": "[W_TypePredCombIn-1:0]",
-          "name": "bsd_pi"
+          "name": "pi"
         },
         {
           "direction": "output",
           "width": "[W_TypePredCombOut-1:0]",
-          "name": "bsd_po"
+          "name": "po"
         }
       ]
     },
     {
       "name": "type_predictor_pre_read_comb_top",
       "file": "front_end/bpu/type_predictor/type_predictor_pre_read_comb/type_predictor_pre_read_comb_top.v",
-      "line": 8,
-      "port_count": 2,
-      "inputs": 1,
-      "outputs": 1,
-      "ports": [
-        {
-          "direction": "input",
-          "width": "[W_TypePredictorPreReadCombIn-1:0]",
-          "name": "bsd_pi"
-        },
-        {
-          "direction": "output",
-          "width": "[W_TypePredictorPreReadCombOut-1:0]",
-          "name": "bsd_po"
-        }
-      ]
-    },
-    {
-      "name": "type_predictor_pre_read_comb_bsd_top",
-      "file": "front_end/bpu/type_predictor/type_predictor_pre_read_comb/type_predictor_pre_read_comb_top.v",
-      "line": 48,
-      "port_count": 2,
-      "inputs": 1,
-      "outputs": 1,
-      "ports": [
-        {
-          "direction": "input",
-          "width": "[W_TypePredictorPreReadCombIn-1:0]",
-          "name": "bsd_pi"
-        },
-        {
-          "direction": "output",
-          "width": "[W_TypePredictorPreReadCombOut-1:0]",
-          "name": "bsd_po"
-        }
-      ]
-    },
-    {
-      "name": "PTAB_comb_top",
-      "file": "front_end/fifo/PTAB_comb/PTAB_comb_top.v",
-      "line": 8,
-      "port_count": 2,
-      "inputs": 1,
-      "outputs": 1,
-      "ports": [
-        {
-          "direction": "input",
-          "width": "[W_PtabCombIn-1:0]",
-          "name": "bsd_pi"
-        },
-        {
-          "direction": "output",
-          "width": "[W_PtabCombOut-1:0]",
-          "name": "bsd_po"
-        }
-      ]
-    },
-    {
-      "name": "PTAB_comb_bsd_top",
-      "file": "front_end/fifo/PTAB_comb/PTAB_comb_top.v",
       "line": 53,
       "port_count": 2,
       "inputs": 1,
@@ -33064,133 +33325,213 @@
       "ports": [
         {
           "direction": "input",
-          "width": "[W_PtabCombIn-1:0]",
-          "name": "bsd_pi"
+          "width": "[W_TypePredictorPreReadCombIn-1:0]",
+          "name": "bpu_pre_read_req_bundle"
+        },
+        {
+          "direction": "output",
+          "width": "[W_TypePredictorPreReadCombOut-1:0]",
+          "name": "type_predictor_pre_read_bundle"
+        }
+      ]
+    },
+    {
+      "name": "type_predictor_pre_read_comb_bsd_top",
+      "file": "front_end/bpu/type_predictor/type_predictor_pre_read_comb/type_predictor_pre_read_comb_top.v",
+      "line": 78,
+      "port_count": 2,
+      "inputs": 1,
+      "outputs": 1,
+      "ports": [
+        {
+          "direction": "input",
+          "width": "[W_TypePredictorPreReadCombIn-1:0]",
+          "name": "pi"
+        },
+        {
+          "direction": "output",
+          "width": "[W_TypePredictorPreReadCombOut-1:0]",
+          "name": "po"
+        }
+      ]
+    },
+    {
+      "name": "PTAB_comb_top",
+      "file": "front_end/fifo/PTAB_comb/PTAB_comb_top.v",
+      "line": 32,
+      "port_count": 3,
+      "inputs": 2,
+      "outputs": 1,
+      "ports": [
+        {
+          "direction": "input",
+          "width": "[W_PtabIn-1:0]",
+          "name": "ptab_in"
+        },
+        {
+          "direction": "input",
+          "width": "[W_PtabReadData-1:0]",
+          "name": "ptab_rd"
         },
         {
           "direction": "output",
           "width": "[W_PtabCombOut-1:0]",
-          "name": "bsd_po"
+          "name": "ptab_req"
+        }
+      ]
+    },
+    {
+      "name": "PTAB_comb_bsd_top",
+      "file": "front_end/fifo/PTAB_comb/PTAB_comb_top.v",
+      "line": 69,
+      "port_count": 2,
+      "inputs": 1,
+      "outputs": 1,
+      "ports": [
+        {
+          "direction": "input",
+          "width": "[W_PtabCombIn-1:0]",
+          "name": "pi"
+        },
+        {
+          "direction": "output",
+          "width": "[W_PtabCombOut-1:0]",
+          "name": "po"
         }
       ]
     },
     {
       "name": "fetch_address_FIFO_comb_top",
       "file": "front_end/fifo/fetch_address_FIFO_comb/fetch_address_FIFO_comb_top.v",
-      "line": 8,
-      "port_count": 2,
-      "inputs": 1,
+      "line": 30,
+      "port_count": 3,
+      "inputs": 2,
       "outputs": 1,
       "ports": [
         {
           "direction": "input",
-          "width": "[W_FetchAddressFifoCombIn-1:0]",
-          "name": "bsd_pi"
+          "width": "[W_FetchAddressFifoIn-1:0]",
+          "name": "fetch_addr_fifo_in"
+        },
+        {
+          "direction": "input",
+          "width": "[W_FetchAddressFifoReadData-1:0]",
+          "name": "fetch_addr_fifo_rd"
         },
         {
           "direction": "output",
-          "width": "[W_FetchAddressFifoCombOut-1:0]",
-          "name": "bsd_po"
+          "width": "[W_FetchAddrCombOut-1:0]",
+          "name": "fetch_addr_fifo_req"
         }
       ]
     },
     {
       "name": "fetch_address_FIFO_comb_bsd_top",
       "file": "front_end/fifo/fetch_address_FIFO_comb/fetch_address_FIFO_comb_top.v",
-      "line": 54,
+      "line": 67,
       "port_count": 2,
       "inputs": 1,
       "outputs": 1,
       "ports": [
         {
           "direction": "input",
-          "width": "[W_FetchAddressFifoCombIn-1:0]",
-          "name": "bsd_pi"
+          "width": "[W_FetchAddrCombIn-1:0]",
+          "name": "pi"
         },
         {
           "direction": "output",
-          "width": "[W_FetchAddressFifoCombOut-1:0]",
-          "name": "bsd_po"
+          "width": "[W_FetchAddrCombOut-1:0]",
+          "name": "po"
         }
       ]
     },
     {
       "name": "front2back_FIFO_comb_top",
       "file": "front_end/fifo/front2back_FIFO_comb/front2back_FIFO_comb_top.v",
-      "line": 8,
-      "port_count": 2,
-      "inputs": 1,
+      "line": 30,
+      "port_count": 3,
+      "inputs": 2,
       "outputs": 1,
       "ports": [
         {
           "direction": "input",
-          "width": "[W_Front2backFifoCombIn-1:0]",
-          "name": "bsd_pi"
+          "width": "[W_Front2BackFifoIn-1:0]",
+          "name": "front2back_fifo_in"
+        },
+        {
+          "direction": "input",
+          "width": "[W_Front2BackFifoReadData-1:0]",
+          "name": "front2back_fifo_rd"
         },
         {
           "direction": "output",
-          "width": "[W_Front2backFifoCombOut-1:0]",
-          "name": "bsd_po"
+          "width": "[W_Front2BackCombOut-1:0]",
+          "name": "front2back_fifo_req"
         }
       ]
     },
     {
       "name": "front2back_FIFO_comb_bsd_top",
       "file": "front_end/fifo/front2back_FIFO_comb/front2back_FIFO_comb_top.v",
-      "line": 54,
+      "line": 67,
       "port_count": 2,
       "inputs": 1,
       "outputs": 1,
       "ports": [
         {
           "direction": "input",
-          "width": "[W_Front2backFifoCombIn-1:0]",
-          "name": "bsd_pi"
+          "width": "[W_Front2BackCombIn-1:0]",
+          "name": "pi"
         },
         {
           "direction": "output",
-          "width": "[W_Front2backFifoCombOut-1:0]",
-          "name": "bsd_po"
+          "width": "[W_Front2BackCombOut-1:0]",
+          "name": "po"
         }
       ]
     },
     {
       "name": "instruction_FIFO_comb_top",
       "file": "front_end/fifo/instruction_FIFO_comb/instruction_FIFO_comb_top.v",
-      "line": 8,
-      "port_count": 2,
-      "inputs": 1,
+      "line": 30,
+      "port_count": 3,
+      "inputs": 2,
       "outputs": 1,
       "ports": [
         {
           "direction": "input",
-          "width": "[W_InstructionFifoCombIn-1:0]",
-          "name": "bsd_pi"
+          "width": "[W_InstructionFifoIn-1:0]",
+          "name": "instruction_fifo_in"
+        },
+        {
+          "direction": "input",
+          "width": "[W_InstructionFifoReadData-1:0]",
+          "name": "fifo_rd"
         },
         {
           "direction": "output",
-          "width": "[W_InstructionFifoCombOut-1:0]",
-          "name": "bsd_po"
+          "width": "[W_InstructionCombOut-1:0]",
+          "name": "instruction_fifo_req"
         }
       ]
     },
     {
       "name": "instruction_FIFO_comb_bsd_top",
       "file": "front_end/fifo/instruction_FIFO_comb/instruction_FIFO_comb_top.v",
-      "line": 54,
+      "line": 67,
       "port_count": 2,
       "inputs": 1,
       "outputs": 1,
       "ports": [
         {
           "direction": "input",
-          "width": "[W_InstructionFifoCombIn-1:0]",
-          "name": "bsd_pi"
+          "width": "[W_InstructionCombIn-1:0]",
+          "name": "pi"
         },
         {
           "direction": "output",
-          "width": "[W_InstructionFifoCombOut-1:0]",
-          "name": "bsd_po"
+          "width": "[W_InstructionCombOut-1:0]",
+          "name": "po"
         }
       ]
     },
@@ -33198,9 +33539,9 @@
       "name": "front_top",
       "file": "front_end/front_top.v",
       "line": 7,
-      "port_count": 71,
+      "port_count": 79,
       "inputs": 44,
-      "outputs": 27,
+      "outputs": 35,
       "ports": [
         {
           "direction": "input",
@@ -33445,12 +33786,52 @@
         {
           "direction": "output",
           "width": "1",
+          "name": "icache_reset"
+        },
+        {
+          "direction": "output",
+          "width": "1",
+          "name": "icache_refetch"
+        },
+        {
+          "direction": "output",
+          "width": "1",
+          "name": "icache_itlb_flush"
+        },
+        {
+          "direction": "output",
+          "width": "1",
+          "name": "icache_fence_i"
+        },
+        {
+          "direction": "output",
+          "width": "1",
           "name": "icache_invalidate_req"
         },
         {
           "direction": "output",
           "width": "1",
           "name": "icache_run_comb_only"
+        },
+        {
+          "direction": "output",
+          "width": "[31:0]",
+          "name": "icache_csr_status_sstatus"
+        },
+        {
+          "direction": "output",
+          "width": "[31:0]",
+          "name": "icache_csr_status_mstatus"
+        },
+        {
+          "direction": "output",
+          "width": "[31:0]",
+          "name": "icache_csr_status_satp"
+        },
+        {
+          "direction": "output",
+          "width": "[PRIVILEGE_BITS-1:0]",
+          "name": "icache_csr_status_privilege"
         },
         {
           "direction": "output",
@@ -33562,7 +33943,7 @@
     {
       "name": "front_bpu_control_comb_top",
       "file": "front_end/front_top_glue/front_bpu_control_comb/front_bpu_control_comb_top.v",
-      "line": 8,
+      "line": 58,
       "port_count": 2,
       "inputs": 1,
       "outputs": 1,
@@ -33570,19 +33951,19 @@
         {
           "direction": "input",
           "width": "[W_FrontBpuControlCombIn-1:0]",
-          "name": "bsd_pi"
+          "name": "front_bpu_control_input_bundle"
         },
         {
           "direction": "output",
           "width": "[W_FrontBpuControlCombOut-1:0]",
-          "name": "bsd_po"
+          "name": "front_bpu_control_output_bundle"
         }
       ]
     },
     {
       "name": "front_bpu_control_comb_bsd_top",
       "file": "front_end/front_top_glue/front_bpu_control_comb/front_bpu_control_comb_top.v",
-      "line": 77,
+      "line": 85,
       "port_count": 2,
       "inputs": 1,
       "outputs": 1,
@@ -33590,358 +33971,18 @@
         {
           "direction": "input",
           "width": "[W_FrontBpuControlCombIn-1:0]",
-          "name": "bsd_pi"
+          "name": "pi"
         },
         {
           "direction": "output",
           "width": "[W_FrontBpuControlCombOut-1:0]",
-          "name": "bsd_po"
+          "name": "po"
         }
       ]
     },
     {
       "name": "front_checker_input_comb_top",
       "file": "front_end/front_top_glue/front_checker_input_comb/front_checker_input_comb_top.v",
-      "line": 8,
-      "port_count": 2,
-      "inputs": 1,
-      "outputs": 1,
-      "ports": [
-        {
-          "direction": "input",
-          "width": "[W_FrontCheckerInputCombIn-1:0]",
-          "name": "bsd_pi"
-        },
-        {
-          "direction": "output",
-          "width": "[W_FrontCheckerInputCombOut-1:0]",
-          "name": "bsd_po"
-        }
-      ]
-    },
-    {
-      "name": "front_checker_input_comb_bsd_top",
-      "file": "front_end/front_top_glue/front_checker_input_comb/front_checker_input_comb_top.v",
-      "line": 54,
-      "port_count": 2,
-      "inputs": 1,
-      "outputs": 1,
-      "ports": [
-        {
-          "direction": "input",
-          "width": "[W_FrontCheckerInputCombIn-1:0]",
-          "name": "bsd_pi"
-        },
-        {
-          "direction": "output",
-          "width": "[W_FrontCheckerInputCombOut-1:0]",
-          "name": "bsd_po"
-        }
-      ]
-    },
-    {
-      "name": "front_front2back_write_comb_top",
-      "file": "front_end/front_top_glue/front_front2back_write_comb/front_front2back_write_comb_top.v",
-      "line": 8,
-      "port_count": 2,
-      "inputs": 1,
-      "outputs": 1,
-      "ports": [
-        {
-          "direction": "input",
-          "width": "[W_FrontFront2backWriteCombIn-1:0]",
-          "name": "bsd_pi"
-        },
-        {
-          "direction": "output",
-          "width": "[W_FrontFront2backWriteCombOut-1:0]",
-          "name": "bsd_po"
-        }
-      ]
-    },
-    {
-      "name": "front_front2back_write_comb_bsd_top",
-      "file": "front_end/front_top_glue/front_front2back_write_comb/front_front2back_write_comb_top.v",
-      "line": 65,
-      "port_count": 2,
-      "inputs": 1,
-      "outputs": 1,
-      "ports": [
-        {
-          "direction": "input",
-          "width": "[W_FrontFront2backWriteCombIn-1:0]",
-          "name": "bsd_pi"
-        },
-        {
-          "direction": "output",
-          "width": "[W_FrontFront2backWriteCombOut-1:0]",
-          "name": "bsd_po"
-        }
-      ]
-    },
-    {
-      "name": "front_global_control_comb_top",
-      "file": "front_end/front_top_glue/front_global_control_comb/front_global_control_comb_top.v",
-      "line": 8,
-      "port_count": 2,
-      "inputs": 1,
-      "outputs": 1,
-      "ports": [
-        {
-          "direction": "input",
-          "width": "[W_FrontGlobalControlCombIn-1:0]",
-          "name": "bsd_pi"
-        },
-        {
-          "direction": "output",
-          "width": "[W_FrontGlobalControlCombOut-1:0]",
-          "name": "bsd_po"
-        }
-      ]
-    },
-    {
-      "name": "front_global_control_comb_bsd_top",
-      "file": "front_end/front_top_glue/front_global_control_comb/front_global_control_comb_top.v",
-      "line": 67,
-      "port_count": 2,
-      "inputs": 1,
-      "outputs": 1,
-      "ports": [
-        {
-          "direction": "input",
-          "width": "[W_FrontGlobalControlCombIn-1:0]",
-          "name": "bsd_pi"
-        },
-        {
-          "direction": "output",
-          "width": "[W_FrontGlobalControlCombOut-1:0]",
-          "name": "bsd_po"
-        }
-      ]
-    },
-    {
-      "name": "front_output_comb_top",
-      "file": "front_end/front_top_glue/front_output_comb/front_output_comb_top.v",
-      "line": 8,
-      "port_count": 2,
-      "inputs": 1,
-      "outputs": 1,
-      "ports": [
-        {
-          "direction": "input",
-          "width": "[W_FrontOutputCombIn-1:0]",
-          "name": "bsd_pi"
-        },
-        {
-          "direction": "output",
-          "width": "[W_FrontOutputCombOut-1:0]",
-          "name": "bsd_po"
-        }
-      ]
-    },
-    {
-      "name": "front_output_comb_bsd_top",
-      "file": "front_end/front_top_glue/front_output_comb/front_output_comb_top.v",
-      "line": 56,
-      "port_count": 2,
-      "inputs": 1,
-      "outputs": 1,
-      "ports": [
-        {
-          "direction": "input",
-          "width": "[W_FrontOutputCombIn-1:0]",
-          "name": "bsd_pi"
-        },
-        {
-          "direction": "output",
-          "width": "[W_FrontOutputCombOut-1:0]",
-          "name": "bsd_po"
-        }
-      ]
-    },
-    {
-      "name": "front_ptab_write_comb_top",
-      "file": "front_end/front_top_glue/front_ptab_write_comb/front_ptab_write_comb_top.v",
-      "line": 8,
-      "port_count": 2,
-      "inputs": 1,
-      "outputs": 1,
-      "ports": [
-        {
-          "direction": "input",
-          "width": "[W_FrontPtabWriteCombIn-1:0]",
-          "name": "bsd_pi"
-        },
-        {
-          "direction": "output",
-          "width": "[W_FrontPtabWriteCombOut-1:0]",
-          "name": "bsd_po"
-        }
-      ]
-    },
-    {
-      "name": "front_ptab_write_comb_bsd_top",
-      "file": "front_end/front_top_glue/front_ptab_write_comb/front_ptab_write_comb_top.v",
-      "line": 59,
-      "port_count": 2,
-      "inputs": 1,
-      "outputs": 1,
-      "ports": [
-        {
-          "direction": "input",
-          "width": "[W_FrontPtabWriteCombIn-1:0]",
-          "name": "bsd_pi"
-        },
-        {
-          "direction": "output",
-          "width": "[W_FrontPtabWriteCombOut-1:0]",
-          "name": "bsd_po"
-        }
-      ]
-    },
-    {
-      "name": "front_read_enable_comb_top",
-      "file": "front_end/front_top_glue/front_read_enable_comb/front_read_enable_comb_top.v",
-      "line": 8,
-      "port_count": 2,
-      "inputs": 1,
-      "outputs": 1,
-      "ports": [
-        {
-          "direction": "input",
-          "width": "[W_FrontReadEnableCombIn-1:0]",
-          "name": "bsd_pi"
-        },
-        {
-          "direction": "output",
-          "width": "[W_FrontReadEnableCombOut-1:0]",
-          "name": "bsd_po"
-        }
-      ]
-    },
-    {
-      "name": "front_read_enable_comb_bsd_top",
-      "file": "front_end/front_top_glue/front_read_enable_comb/front_read_enable_comb_top.v",
-      "line": 87,
-      "port_count": 2,
-      "inputs": 1,
-      "outputs": 1,
-      "ports": [
-        {
-          "direction": "input",
-          "width": "[W_FrontReadEnableCombIn-1:0]",
-          "name": "bsd_pi"
-        },
-        {
-          "direction": "output",
-          "width": "[W_FrontReadEnableCombOut-1:0]",
-          "name": "bsd_po"
-        }
-      ]
-    },
-    {
-      "name": "front_read_stage_input_comb_top",
-      "file": "front_end/front_top_glue/front_read_stage_input_comb/front_read_stage_input_comb_top.v",
-      "line": 8,
-      "port_count": 2,
-      "inputs": 1,
-      "outputs": 1,
-      "ports": [
-        {
-          "direction": "input",
-          "width": "[W_FrontReadStageInputCombIn-1:0]",
-          "name": "bsd_pi"
-        },
-        {
-          "direction": "output",
-          "width": "[W_FrontReadStageInputCombOut-1:0]",
-          "name": "bsd_po"
-        }
-      ]
-    },
-    {
-      "name": "front_read_stage_input_comb_bsd_top",
-      "file": "front_end/front_top_glue/front_read_stage_input_comb/front_read_stage_input_comb_top.v",
-      "line": 99,
-      "port_count": 2,
-      "inputs": 1,
-      "outputs": 1,
-      "ports": [
-        {
-          "direction": "input",
-          "width": "[W_FrontReadStageInputCombIn-1:0]",
-          "name": "bsd_pi"
-        },
-        {
-          "direction": "output",
-          "width": "[W_FrontReadStageInputCombOut-1:0]",
-          "name": "bsd_po"
-        }
-      ]
-    },
-    {
-      "name": "predecode_comb_top",
-      "file": "front_end/predecode/predecode_comb/predecode_comb_top.v",
-      "line": 8,
-      "port_count": 2,
-      "inputs": 1,
-      "outputs": 1,
-      "ports": [
-        {
-          "direction": "input",
-          "width": "[W_PredecodeCombIn-1:0]",
-          "name": "bsd_pi"
-        },
-        {
-          "direction": "output",
-          "width": "[W_PredecodeCombOut-1:0]",
-          "name": "bsd_po"
-        }
-      ]
-    },
-    {
-      "name": "predecode_comb_bsd_top",
-      "file": "front_end/predecode/predecode_comb/predecode_comb_top.v",
-      "line": 55,
-      "port_count": 2,
-      "inputs": 1,
-      "outputs": 1,
-      "ports": [
-        {
-          "direction": "input",
-          "width": "[W_PredecodeCombIn-1:0]",
-          "name": "bsd_pi"
-        },
-        {
-          "direction": "output",
-          "width": "[W_PredecodeCombOut-1:0]",
-          "name": "bsd_po"
-        }
-      ]
-    },
-    {
-      "name": "predecode_checker_comb_top",
-      "file": "front_end/predecode_checker/predecode_checker_comb/predecode_checker_comb_top.v",
-      "line": 8,
-      "port_count": 2,
-      "inputs": 1,
-      "outputs": 1,
-      "ports": [
-        {
-          "direction": "input",
-          "width": "[W_PredecodeCheckerCombIn-1:0]",
-          "name": "bsd_pi"
-        },
-        {
-          "direction": "output",
-          "width": "[W_PredecodeCheckerCombOut-1:0]",
-          "name": "bsd_po"
-        }
-      ]
-    },
-    {
-      "name": "predecode_checker_comb_bsd_top",
-      "file": "front_end/predecode_checker/predecode_checker_comb/predecode_checker_comb_top.v",
       "line": 50,
       "port_count": 2,
       "inputs": 1,
@@ -33949,383 +33990,353 @@
       "ports": [
         {
           "direction": "input",
-          "width": "[W_PredecodeCheckerCombIn-1:0]",
-          "name": "bsd_pi"
+          "width": "[W_FrontCheckerInputCombIn-1:0]",
+          "name": "front_checker_input_bundle"
         },
         {
           "direction": "output",
-          "width": "[W_PredecodeCheckerCombOut-1:0]",
-          "name": "bsd_po"
+          "width": "[W_FrontCheckerInputCombOut-1:0]",
+          "name": "front_checker_output_bundle"
         }
       ]
     },
     {
-      "name": "top_top",
-      "file": "top_top.v",
-      "line": 14,
-      "port_count": 72,
-      "inputs": 44,
-      "outputs": 28,
+      "name": "front_checker_input_comb_bsd_top",
+      "file": "front_end/front_top_glue/front_checker_input_comb/front_checker_input_comb_top.v",
+      "line": 79,
+      "port_count": 2,
+      "inputs": 1,
+      "outputs": 1,
       "ports": [
         {
           "direction": "input",
-          "width": "1",
-          "name": "clk"
-        },
-        {
-          "direction": "input",
-          "width": "1",
-          "name": "rst_n"
-        },
-        {
-          "direction": "input",
-          "width": "1",
-          "name": "reset"
-        },
-        {
-          "direction": "input",
-          "width": "[W_PeripheralRespIO-1:0]",
-          "name": "peripheral_resp"
-        },
-        {
-          "direction": "input",
-          "width": "[W_DcacheLsuIO-1:0]",
-          "name": "dcache2lsu"
-        },
-        {
-          "direction": "input",
-          "width": "[W_MMULsuIO-1:0]",
-          "name": "mmu2lsu_io"
+          "width": "[W_FrontCheckerInputCombIn-1:0]",
+          "name": "pi"
         },
         {
           "direction": "output",
-          "width": "[W_PeripheralReqIO-1:0]",
-          "name": "peripheral_req"
+          "width": "[W_FrontCheckerInputCombOut-1:0]",
+          "name": "po"
+        }
+      ]
+    },
+    {
+      "name": "front_front2back_write_comb_top",
+      "file": "front_end/front_top_glue/front_front2back_write_comb/front_front2back_write_comb_top.v",
+      "line": 55,
+      "port_count": 2,
+      "inputs": 1,
+      "outputs": 1,
+      "ports": [
+        {
+          "direction": "input",
+          "width": "[W_FrontFront2backWriteCombIn-1:0]",
+          "name": "front_front2back_write_input_bundle"
         },
         {
           "direction": "output",
-          "width": "[W_LsuDcacheIO-1:0]",
-          "name": "lsu2dcache"
+          "width": "[W_FrontFront2backWriteCombOut-1:0]",
+          "name": "front_front2back_write_output_bundle"
+        }
+      ]
+    },
+    {
+      "name": "front_front2back_write_comb_bsd_top",
+      "file": "front_end/front_top_glue/front_front2back_write_comb/front_front2back_write_comb_top.v",
+      "line": 86,
+      "port_count": 2,
+      "inputs": 1,
+      "outputs": 1,
+      "ports": [
+        {
+          "direction": "input",
+          "width": "[W_FrontFront2backWriteCombIn-1:0]",
+          "name": "pi"
         },
         {
           "direction": "output",
-          "width": "[W_LsuMMUIO-1:0]",
-          "name": "lsu2mmu_io"
-        },
+          "width": "[W_FrontFront2backWriteCombOut-1:0]",
+          "name": "po"
+        }
+      ]
+    },
+    {
+      "name": "front_global_control_comb_top",
+      "file": "front_end/front_top_glue/front_global_control_comb/front_global_control_comb_top.v",
+      "line": 50,
+      "port_count": 2,
+      "inputs": 1,
+      "outputs": 1,
+      "ports": [
         {
           "direction": "input",
-          "width": "[W_MshrAxiOut-1:0]",
-          "name": "mshr_axi_out"
-        },
-        {
-          "direction": "input",
-          "width": "[W_WbAxiOut-1:0]",
-          "name": "wb_axi_out"
-        },
-        {
-          "direction": "input",
-          "width": "[W_PeripheralAxiReadOut-1:0]",
-          "name": "peripheral_axi_read_out"
-        },
-        {
-          "direction": "input",
-          "width": "[W_PeripheralAxiWriteOut-1:0]",
-          "name": "peripheral_axi_write_out"
-        },
-        {
-          "direction": "input",
-          "width": "[W_AxiReadMasterPort-1:0]",
-          "name": "icache_axi_read_port_in"
-        },
-        {
-          "direction": "input",
-          "width": "[W_AxiLlcConfig-1:0]",
-          "name": "llc_config"
-        },
-        {
-          "direction": "input",
-          "width": "[W_AxiLlcLookupIn-1:0]",
-          "name": "llc_lookup_in"
+          "width": "[W_FrontGlobalControlCombIn-1:0]",
+          "name": "front_global_control_input_bundle"
         },
         {
           "direction": "output",
-          "width": "[W_MshrAxiIn-1:0]",
-          "name": "mshr_axi_in"
+          "width": "[W_FrontGlobalControlCombOut-1:0]",
+          "name": "front_global_control_output_bundle"
+        }
+      ]
+    },
+    {
+      "name": "front_global_control_comb_bsd_top",
+      "file": "front_end/front_top_glue/front_global_control_comb/front_global_control_comb_top.v",
+      "line": 75,
+      "port_count": 2,
+      "inputs": 1,
+      "outputs": 1,
+      "ports": [
+        {
+          "direction": "input",
+          "width": "[W_FrontGlobalControlCombIn-1:0]",
+          "name": "pi"
         },
         {
           "direction": "output",
-          "width": "[W_WbAxiIn-1:0]",
-          "name": "wb_axi_in"
+          "width": "[W_FrontGlobalControlCombOut-1:0]",
+          "name": "po"
+        }
+      ]
+    },
+    {
+      "name": "front_output_comb_top",
+      "file": "front_end/front_top_glue/front_output_comb/front_output_comb_top.v",
+      "line": 51,
+      "port_count": 2,
+      "inputs": 1,
+      "outputs": 1,
+      "ports": [
+        {
+          "direction": "input",
+          "width": "[W_FrontOutputCombIn-1:0]",
+          "name": "front_output_input_bundle"
         },
         {
           "direction": "output",
-          "width": "[W_PeripheralAxiReadIn-1:0]",
-          "name": "peripheral_axi_read_in"
+          "width": "[W_FrontOutputCombOut-1:0]",
+          "name": "front_output_output_bundle"
+        }
+      ]
+    },
+    {
+      "name": "front_output_comb_bsd_top",
+      "file": "front_end/front_top_glue/front_output_comb/front_output_comb_top.v",
+      "line": 79,
+      "port_count": 2,
+      "inputs": 1,
+      "outputs": 1,
+      "ports": [
+        {
+          "direction": "input",
+          "width": "[W_FrontOutputCombIn-1:0]",
+          "name": "pi"
         },
         {
           "direction": "output",
-          "width": "[W_PeripheralAxiWriteIn-1:0]",
-          "name": "peripheral_axi_write_in"
+          "width": "[W_FrontOutputCombOut-1:0]",
+          "name": "po"
+        }
+      ]
+    },
+    {
+      "name": "front_ptab_write_comb_top",
+      "file": "front_end/front_top_glue/front_ptab_write_comb/front_ptab_write_comb_top.v",
+      "line": 51,
+      "port_count": 2,
+      "inputs": 1,
+      "outputs": 1,
+      "ports": [
+        {
+          "direction": "input",
+          "width": "[W_FrontPtabWriteCombIn-1:0]",
+          "name": "front_ptab_write_input_bundle"
         },
         {
           "direction": "output",
-          "width": "[W_AxiReadMasterPort-1:0]",
-          "name": "icache_axi_read_port_out"
+          "width": "[W_FrontPtabWriteCombOut-1:0]",
+          "name": "front_ptab_write_output_bundle"
+        }
+      ]
+    },
+    {
+      "name": "front_ptab_write_comb_bsd_top",
+      "file": "front_end/front_top_glue/front_ptab_write_comb/front_ptab_write_comb_top.v",
+      "line": 77,
+      "port_count": 2,
+      "inputs": 1,
+      "outputs": 1,
+      "ports": [
+        {
+          "direction": "input",
+          "width": "[W_FrontPtabWriteCombIn-1:0]",
+          "name": "pi"
         },
         {
           "direction": "output",
-          "width": "[W_AxiLlcTableOut-1:0]",
-          "name": "llc_table_out"
+          "width": "[W_FrontPtabWriteCombOut-1:0]",
+          "name": "po"
+        }
+      ]
+    },
+    {
+      "name": "front_read_enable_comb_top",
+      "file": "front_end/front_top_glue/front_read_enable_comb/front_read_enable_comb_top.v",
+      "line": 57,
+      "port_count": 2,
+      "inputs": 1,
+      "outputs": 1,
+      "ports": [
+        {
+          "direction": "input",
+          "width": "[W_FrontReadEnableCombIn-1:0]",
+          "name": "front_read_enable_input_bundle"
         },
         {
           "direction": "output",
-          "width": "[W_AxiLlcPerfCounters-1:0]",
-          "name": "llc_perf_counters"
-        },
+          "width": "[W_FrontReadEnableCombOut-1:0]",
+          "name": "front_read_enable_output_bundle"
+        }
+      ]
+    },
+    {
+      "name": "front_read_enable_comb_bsd_top",
+      "file": "front_end/front_top_glue/front_read_enable_comb/front_read_enable_comb_top.v",
+      "line": 81,
+      "port_count": 2,
+      "inputs": 1,
+      "outputs": 1,
+      "ports": [
         {
           "direction": "input",
-          "width": "1",
-          "name": "front_icache_read_ready"
-        },
-        {
-          "direction": "input",
-          "width": "1",
-          "name": "front_icache_read_complete"
-        },
-        {
-          "direction": "input",
-          "width": "1",
-          "name": "front_icache_read_ready_2"
-        },
-        {
-          "direction": "input",
-          "width": "1",
-          "name": "front_icache_read_complete_2"
-        },
-        {
-          "direction": "input",
-          "width": "[(FETCH_WIDTH * 32)-1:0]",
-          "name": "front_icache_fetch_group"
-        },
-        {
-          "direction": "input",
-          "width": "[FETCH_WIDTH-1:0]",
-          "name": "front_icache_page_fault_inst"
-        },
-        {
-          "direction": "input",
-          "width": "[FETCH_WIDTH-1:0]",
-          "name": "front_icache_inst_valid"
-        },
-        {
-          "direction": "input",
-          "width": "[31:0]",
-          "name": "front_icache_fetch_pc"
-        },
-        {
-          "direction": "input",
-          "width": "[(FETCH_WIDTH * 32)-1:0]",
-          "name": "front_icache_fetch_group_2"
-        },
-        {
-          "direction": "input",
-          "width": "[FETCH_WIDTH-1:0]",
-          "name": "front_icache_page_fault_inst_2"
-        },
-        {
-          "direction": "input",
-          "width": "[FETCH_WIDTH-1:0]",
-          "name": "front_icache_inst_valid_2"
-        },
-        {
-          "direction": "input",
-          "width": "[31:0]",
-          "name": "front_icache_fetch_pc_2"
+          "width": "[W_FrontReadEnableCombIn-1:0]",
+          "name": "pi"
         },
         {
           "direction": "output",
-          "width": "1",
-          "name": "front_icache_read_valid"
+          "width": "[W_FrontReadEnableCombOut-1:0]",
+          "name": "po"
+        }
+      ]
+    },
+    {
+      "name": "front_read_stage_input_comb_top",
+      "file": "front_end/front_top_glue/front_read_stage_input_comb/front_read_stage_input_comb_top.v",
+      "line": 61,
+      "port_count": 2,
+      "inputs": 1,
+      "outputs": 1,
+      "ports": [
+        {
+          "direction": "input",
+          "width": "[W_FrontReadStageInputCombIn-1:0]",
+          "name": "front_read_stage_input_bundle"
         },
         {
           "direction": "output",
-          "width": "[31:0]",
-          "name": "front_fetch_address"
+          "width": "[W_FrontReadStageInputCombOut-1:0]",
+          "name": "front_read_stage_output_bundle"
+        }
+      ]
+    },
+    {
+      "name": "front_read_stage_input_comb_bsd_top",
+      "file": "front_end/front_top_glue/front_read_stage_input_comb/front_read_stage_input_comb_top.v",
+      "line": 85,
+      "port_count": 2,
+      "inputs": 1,
+      "outputs": 1,
+      "ports": [
+        {
+          "direction": "input",
+          "width": "[W_FrontReadStageInputCombIn-1:0]",
+          "name": "pi"
         },
         {
           "direction": "output",
-          "width": "1",
-          "name": "front_icache_read_valid_2"
+          "width": "[W_FrontReadStageInputCombOut-1:0]",
+          "name": "po"
+        }
+      ]
+    },
+    {
+      "name": "predecode_comb_top",
+      "file": "front_end/predecode/predecode_comb/predecode_comb_top.v",
+      "line": 46,
+      "port_count": 2,
+      "inputs": 1,
+      "outputs": 1,
+      "ports": [
+        {
+          "direction": "input",
+          "width": "[W_PredecodeCombIn-1:0]",
+          "name": "predecode_input_bundle"
         },
         {
           "direction": "output",
-          "width": "[31:0]",
-          "name": "front_fetch_address_2"
+          "width": "[W_PredecodeCombOut-1:0]",
+          "name": "predecode_output_bundle"
+        }
+      ]
+    },
+    {
+      "name": "predecode_comb_bsd_top",
+      "file": "front_end/predecode/predecode_comb/predecode_comb_top.v",
+      "line": 73,
+      "port_count": 2,
+      "inputs": 1,
+      "outputs": 1,
+      "ports": [
+        {
+          "direction": "input",
+          "width": "[W_PredecodeCombIn-1:0]",
+          "name": "pi"
         },
         {
           "direction": "output",
-          "width": "1",
-          "name": "front_icache_invalidate_req"
+          "width": "[W_PredecodeCombOut-1:0]",
+          "name": "po"
+        }
+      ]
+    },
+    {
+      "name": "predecode_checker_comb_top",
+      "file": "front_end/predecode_checker/predecode_checker_comb/predecode_checker_comb_top.v",
+      "line": 49,
+      "port_count": 2,
+      "inputs": 1,
+      "outputs": 1,
+      "ports": [
+        {
+          "direction": "input",
+          "width": "[W_PredecodeCheckerCombIn-1:0]",
+          "name": "predecode_checker_input_bundle"
         },
         {
           "direction": "output",
-          "width": "1",
-          "name": "front_icache_run_comb_only"
-        },
+          "width": "[W_PredecodeCheckerCombOut-1:0]",
+          "name": "predecode_checker_output_bundle"
+        }
+      ]
+    },
+    {
+      "name": "predecode_checker_comb_bsd_top",
+      "file": "front_end/predecode_checker/predecode_checker_comb/predecode_checker_comb_top.v",
+      "line": 75,
+      "port_count": 2,
+      "inputs": 1,
+      "outputs": 1,
+      "ports": [
         {
           "direction": "input",
-          "width": "[(32 * COMMIT_WIDTH)-1:0]",
-          "name": "back2front_predict_base_pc"
-        },
-        {
-          "direction": "input",
-          "width": "[COMMIT_WIDTH-1:0]",
-          "name": "back2front_predict_dir"
-        },
-        {
-          "direction": "input",
-          "width": "[COMMIT_WIDTH-1:0]",
-          "name": "back2front_actual_dir"
-        },
-        {
-          "direction": "input",
-          "width": "[(br_type_t_BITS * COMMIT_WIDTH)-1:0]",
-          "name": "back2front_actual_br_type"
-        },
-        {
-          "direction": "input",
-          "width": "[(32 * COMMIT_WIDTH)-1:0]",
-          "name": "back2front_actual_target"
-        },
-        {
-          "direction": "input",
-          "width": "[COMMIT_WIDTH-1:0]",
-          "name": "back2front_alt_pred"
-        },
-        {
-          "direction": "input",
-          "width": "[(pcpn_t_BITS * COMMIT_WIDTH)-1:0]",
-          "name": "back2front_altpcpn"
-        },
-        {
-          "direction": "input",
-          "width": "[(pcpn_t_BITS * COMMIT_WIDTH)-1:0]",
-          "name": "back2front_pcpn"
-        },
-        {
-          "direction": "input",
-          "width": "[(TAGE_IDX_WIDTH * COMMIT_WIDTH * TN_MAX)-1:0]",
-          "name": "back2front_tage_idx"
-        },
-        {
-          "direction": "input",
-          "width": "[(TAGE_TAG_WIDTH * COMMIT_WIDTH * TN_MAX)-1:0]",
-          "name": "back2front_tage_tag"
-        },
-        {
-          "direction": "input",
-          "width": "[COMMIT_WIDTH-1:0]",
-          "name": "back2front_sc_used"
-        },
-        {
-          "direction": "input",
-          "width": "[COMMIT_WIDTH-1:0]",
-          "name": "back2front_sc_pred"
-        },
-        {
-          "direction": "input",
-          "width": "[(tage_scl_meta_sum_t_BITS * COMMIT_WIDTH)-1:0]",
-          "name": "back2front_sc_sum"
-        },
-        {
-          "direction": "input",
-          "width": "[(BPU_SCL_META_NTABLE * BPU_SCL_META_IDX_BITS * COMMIT_WIDTH)-1:0]",
-          "name": "back2front_sc_idx"
-        },
-        {
-          "direction": "input",
-          "width": "[COMMIT_WIDTH-1:0]",
-          "name": "back2front_loop_used"
-        },
-        {
-          "direction": "input",
-          "width": "[COMMIT_WIDTH-1:0]",
-          "name": "back2front_loop_hit"
-        },
-        {
-          "direction": "input",
-          "width": "[COMMIT_WIDTH-1:0]",
-          "name": "back2front_loop_pred"
-        },
-        {
-          "direction": "input",
-          "width": "[(BPU_LOOP_META_IDX_BITS * COMMIT_WIDTH)-1:0]",
-          "name": "back2front_loop_idx"
-        },
-        {
-          "direction": "input",
-          "width": "[(BPU_LOOP_META_TAG_BITS * COMMIT_WIDTH)-1:0]",
-          "name": "back2front_loop_tag"
+          "width": "[W_PredecodeCheckerCombIn-1:0]",
+          "name": "pi"
         },
         {
           "direction": "output",
-          "width": "1",
-          "name": "mispred"
-        },
-        {
-          "direction": "output",
-          "width": "1",
-          "name": "stall"
-        },
-        {
-          "direction": "output",
-          "width": "1",
-          "name": "flush"
-        },
-        {
-          "direction": "output",
-          "width": "1",
-          "name": "fence_i"
-        },
-        {
-          "direction": "output",
-          "width": "1",
-          "name": "itlb_flush"
-        },
-        {
-          "direction": "output",
-          "width": "[FETCH_WIDTH-1:0]",
-          "name": "fire"
-        },
-        {
-          "direction": "output",
-          "width": "[31:0]",
-          "name": "redirect_pc"
-        },
-        {
-          "direction": "output",
-          "width": "[(W_BackCommitEntry * COMMIT_WIDTH)-1:0]",
-          "name": "commit_entry"
-        },
-        {
-          "direction": "output",
-          "width": "[31:0]",
-          "name": "sstatus"
-        },
-        {
-          "direction": "output",
-          "width": "[31:0]",
-          "name": "mstatus"
-        },
-        {
-          "direction": "output",
-          "width": "[31:0]",
-          "name": "satp"
-        },
-        {
-          "direction": "output",
-          "width": "[1:0]",
-          "name": "privilege"
+          "width": "[W_PredecodeCheckerCombOut-1:0]",
+          "name": "po"
         }
       ]
     }

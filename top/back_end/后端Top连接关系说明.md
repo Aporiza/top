@@ -16,9 +16,9 @@ simulator-ffc9fad707a7acb0be5c7d4fe7c06d48987c73e0
 preiduqueue / idu / ren / dispatch / isu / prf / exu / rob / csr / lsu
 ```
 
-## 2. ff 接口修正
+## 2. ffc large 接口修正
 
-ff 版本与旧版模拟器最大差异之一是：
+ffc 版本与旧版模拟器最大差异之一是：
 
 | 字段 | ff 状态 | 依据 |
 |---|---|---|
@@ -91,8 +91,8 @@ ff 版本与旧版模拟器最大差异之一是：
 | `ren_top` | `ren2dis` | `dispatch_top` |
 | `dispatch_top` | `dis2ren/dis2iss/dis2rob/dis2lsu` | `ren/isu/rob/lsu` |
 | `isu_top` | `iss2dis/iss2prf/iss_awake` | `dispatch/prf/dispatch+isu` |
-| `prf_top` | `prf2exe/prf_awake/ftq_prf_pc_req` | `exu/dispatch+isu/preiduqueue` |
-| `preiduqueue_top` | `ftq_prf_pc_resp` | `prf_top` |
+| `exu_top` | `ftq_exu_pc_req` | `preiduqueue_top` |
+| `preiduqueue_top` | `ftq_exu_pc_resp` | `exu_top` |
 | `exu_top` | `exe2prf/exe2iss/exe2csr/exe2lsu/exu2id/exu2rob` | `prf/isu/csr/lsu/idu/rob` |
 | `rob_top` | `rob_bcast/rob_commit/rob2dis/rob2csr` | 多模块广播、commit、dispatch、CSR |
 | `csr_top` | `csr2exe/csr2rob/csr2front/csr_status` | `exu/rob/back_top/exu+lsu+back_top` |
@@ -100,23 +100,27 @@ ff 版本与旧版模拟器最大差异之一是：
 
 ## 6. 位宽口径
 
-本次后端参数已按 ff 生效配置对齐：
+本次后端参数按 `simulator-ffc.../include/config.h.large` 对齐。控制端口 `clk/rst_n` 单独连接，不计入各模块业务 `pi/po` 位宽。
 
 | 参数 | 当前值 |
 |---|---:|
-| `PRF_IDX_WIDTH` | 11 |
-| `ROB_IDX_WIDTH` | 11 |
-| `STQ_IDX_WIDTH` | 9 |
-| `LDQ_IDX_WIDTH` | 9 |
-| `FTQ_IDX_WIDTH` | 8 |
-| `IQ_READY_NUM_WIDTH` | 11 |
-| `MAX_WAKEUP_PORTS` | 16 |
-| `ISSUE_WIDTH` | 24 |
-| `TOTAL_FU_COUNT` | 30 |
-| `LSU_LOAD_WB_WIDTH` | 4 |
-| `W_STQ_COUNT/W_LDQ_COUNT` | 10 / 10 |
+| `PRF_IDX_WIDTH` | 9 |
+| `ROB_IDX_WIDTH` | 9 |
+| `STQ_IDX_WIDTH` | 6 |
+| `LDQ_IDX_WIDTH` | 6 |
+| `FTQ_IDX_WIDTH` | 7 |
+| `IQ_READY_NUM_WIDTH` | 8 |
+| `MAX_WAKEUP_PORTS` | 11 |
+| `ISSUE_WIDTH` | 15 |
+| `TOTAL_FU_COUNT` | 19 |
+| `LSU_LOAD_WB_WIDTH` | 3 |
+| `W_STQ_COUNT/W_LDQ_COUNT` | 7 / 7 |
 
-这些值来自 `simulator-ffc.../include/config.h`，不是 `config.h.large`。
+逐模块接口位宽和 `pi/po` 拼接顺序见：
+
+```text
+top/back_end/后端端口自查汇总.md
+```
 
 ## 7. HTML
 
@@ -126,7 +130,7 @@ ff 版本与旧版模拟器最大差异之一是：
 top/back_end/back_top_interactive.html
 ```
 
-其中代码依据应按 ff 路径理解，核心入口是：
+其中代码依据应按 ffc large 路径理解，核心入口是：
 
 ```text
 simulator-ffc.../back-end/BackTop.cpp:39
