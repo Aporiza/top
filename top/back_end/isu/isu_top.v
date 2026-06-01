@@ -9,6 +9,10 @@
 //   pi = {dis2iss, prf_awake, exe2iss, rob_bcast, dec_bcast}
 //   po = {iss2prf, iss2dis, iss_awake}
 //
+// 端口命名统一按 back_end 包规范使用 clk/rst_n/pi/po。
+// qm3dc 里部分历史网表使用 din/dout、pi_ext/po_ext 等名字，属于生成器输出名；
+// 若复用那类网表，需要先套一层同名 *_bsd_top 薄适配，转换成本包规范后再接入。
+//
 // ExeIssIO 按 {ready[ISSUE_WIDTH], fu_ready_mask[ISSUE_WIDTH]} 打包。
 // ready 和 fu_ready_mask 都参与 ffc ISU 发射检查，BSD 不能只保留 mask。
 

@@ -9,6 +9,10 @@
 //   pi = {iss2prf, exe2prf, dec_bcast, rob_bcast}
 //   po = {prf2exe, prf_awake}
 //
+// 端口命名统一按 back_end 包规范使用 clk/rst_n/pi/po。
+// qm3dc 里部分历史网表使用 din/dout、pi_ext/po_ext 等名字，属于生成器输出名；
+// 若复用那类网表，需要先套一层同名 *_bsd_top 薄适配，转换成本包规范后再接入。
+//
 // FTQ PC 查询不是 PRF 边界，ffc 中由 EXU 发起查询。
 // 因此本封装不再给 PRF 暴露 ftq_*_pc_req/resp，避免 BSD 端口和模拟器不一致。
 

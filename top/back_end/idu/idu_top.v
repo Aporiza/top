@@ -9,6 +9,10 @@
 //   pi = {pre_issue, ren2dec, rob_bcast, exu2id}
 //   po = {dec2ren, dec_bcast, idu_consume, idu_br_latch}
 //
+// 端口命名统一按 back_end 包规范使用 clk/rst_n/pi/po。
+// qm3dc 里部分历史网表使用 din/dout、pi_ext/po_ext 等名字，属于生成器输出名；
+// 若复用那类网表，需要先套一层同名 *_bsd_top 薄适配，转换成本包规范后再接入。
+//
 // 模拟器里 IDU 的 issue 输入在本封装中命名为 pre_issue，表示来自 PreIduQueue。
 // idu_br_latch 是 BackTop.cpp 会读取的 IDU 状态，这里把它随 po 一起带出，
 // 让分支重定向反馈仍然保持在后端包内部，不新增额外顶层业务端口。

@@ -11,6 +11,10 @@
 //         rob_bcast, dec_bcast}
 //   po = {dis2ren, dis2rob, dis2iss, dis2lsu}
 //
+// 端口命名统一按 back_end 包规范使用 clk/rst_n/pi/po。
+// qm3dc 里部分历史网表使用 din/dout、pi_ext/po_ext 等名字，属于生成器输出名；
+// 若复用那类网表，需要先套一层同名 *_bsd_top 薄适配，转换成本包规范后再接入。
+//
 // 该封装只负责把 ffc 的 Dispatch 输入/输出结构按字段顺序打包。
 // 下方展开的 wire 是本地可读性视图，用于核对字段顺序，不改变 BSD 的 pi/po 边界。
 

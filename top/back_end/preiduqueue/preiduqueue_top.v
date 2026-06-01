@@ -12,6 +12,10 @@
 //         ftq_exu_pc_req, ftq_rob_pc_req}
 //   po = {pre2front, pre_issue, ftq_exu_pc_resp, ftq_rob_pc_resp}
 //
+// 端口命名统一按 back_end 包规范使用 clk/rst_n/pi/po。
+// qm3dc 里部分历史网表使用 din/dout、pi_ext/po_ext 等名字，属于生成器输出名；
+// 若复用那类网表，需要先套一层同名 *_bsd_top 薄适配，转换成本包规范后再接入。
+//
 // 模拟器里 PreIduQueue 的 issue 输出在 back_top 层命名为 pre_issue。
 // pre2front 的展开字段只用于顶层 fire/stall 连接，不改变 BSD 的 po 打包边界。
 // FTQ PC 查询同时服务 EXU 和 ROB，两个查询路径分别打包，避免接错模块边界。

@@ -10,6 +10,10 @@
 //   pi = {dis2rob, csr2rob, lsu2rob, dec_bcast, exu2rob, ftq_rob_pc_resp}
 //   po = {rob2dis, rob2csr, rob_commit, rob_bcast, ftq_rob_pc_req}
 //
+// 端口命名统一按 back_end 包规范使用 clk/rst_n/pi/po。
+// qm3dc 里部分历史网表使用 din/dout、pi_ext/po_ext 等名字，属于生成器输出名；
+// 若复用那类网表，需要先套一层同名 *_bsd_top 薄适配，转换成本包规范后再接入。
+//
 // 展开的 rob_bcast 字段只给 back_top 拼 flush、fence、异常和重定向输出使用。
 // LsuRobIO 按 ffc 保留 miss_mask、committed_store_pending 和 translation_pending，
 // ROB BSD 可据此阻止 SFENCE.VMA 等指令过早提交。

@@ -11,6 +11,10 @@
 //         peripheral_resp, dcache2lsu}
 //   po = {lsu2dis, lsu2rob, lsu2exe, peripheral_req, lsu2dcache}
 //
+// 端口命名统一按 back_end 包规范使用 clk/rst_n/pi/po。
+// qm3dc 里部分历史网表使用 din/dout、pi_ext/po_ext 等名字，属于生成器输出名；
+// 若复用那类网表，需要先套一层同名 *_bsd_top 薄适配，转换成本包规范后再接入。
+//
 // LsuRobIO 按 {tma.miss_mask, committed_store_pending, translation_pending} 打包。
 // MMU 行为留在 LSU BSD 模型内部，保持和 ffc RealLsu 的模块边界一致。
 // peripheral/DCache 总线携带 MicroOp、StqEntry、req_id、replay 等上下文，

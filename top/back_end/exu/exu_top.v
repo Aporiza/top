@@ -12,6 +12,10 @@
 //   po = {exe2prf, exe2iss, exe2csr, exe2lsu, exu2id, exu2rob,
 //         ftq_exu_pc_req}
 //
+// 端口命名统一按 back_end 包规范使用 clk/rst_n/pi/po。
+// qm3dc 里部分历史网表使用 din/dout、pi_ext/po_ext 等名字，属于生成器输出名；
+// 若复用那类网表，需要先套一层同名 *_bsd_top 薄适配，转换成本包规范后再接入。
+//
 // Fu2ExuIO/Exu2FuIO 属于 EXU 内部功能单元接口，留在 EXU BSD 模型内部。
 // 这里不接 csr_status，保持和 ffc BackTop.cpp 的 EXU 一级边界一致。
 

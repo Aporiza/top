@@ -9,6 +9,10 @@
 //   pi = {dec2ren, dec_bcast, dis2ren, rob_bcast, rob_commit}
 //   po = {ren2dec, ren2dis}
 //
+// 端口命名统一按 back_end 包规范使用 clk/rst_n/pi/po。
+// qm3dc 里部分历史网表使用 din/dout、pi_ext/po_ext 等名字，属于生成器输出名；
+// 若复用那类网表，需要先套一层同名 *_bsd_top 薄适配，转换成本包规范后再接入。
+//
 // dec2ren 和 ren2dis 都保留 TmaMeta/DebugMeta，保证后续提交回训和 difftest
 // 相关边带不会在重命名边界被裁掉。
 
