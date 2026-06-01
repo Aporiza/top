@@ -558,6 +558,13 @@ module back_top #(
     wire [31:0] csr_out_csr_status_satp;
     wire [1:0]  csr_out_csr_status_privilege;
 
+    // BackTop::comb() 只有在非 flush 分支刷新 out.stall。
+    // flush 分支只覆盖 mispred 和 redirect_pc，因此 stall 需要保持上一个
+    // 非 flush 周期已经对前端可见的值，不能在 flush 当拍继续跟随
+    // pre2front.ready 的组合变化。
+    wire stall_from_preiduqueue;
+    reg  stall_hold_q;
+
     // 顶层本地胶水信号，只在 back_top 内部组合使用。
     wire [W_FrontPreIO-1:0] front2pre;
     wire [31:0] redirect_pc_from_flush;
@@ -715,6 +722,16 @@ module back_top #(
     assign commit_entry_zero_cplt_mask   =
         {(ROB_CPLT_MASK_WIDTH * COMMIT_WIDTH){1'b0}};
     assign commit_entry_zero_is_atomic   = {COMMIT_WIDTH{1'b0}};
+
+    assign stall_from_preiduqueue = ~preiduqueue_out_pre2front_ready;
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            stall_hold_q <= 1'b0;
+        end else if (!rob_out_rob_bcast_flush) begin
+            stall_hold_q <= stall_from_preiduqueue;
+        end
+    end
 
     // ---------------------------------------------------------------------
     // 5. 按后端数据流顺序例化各模块。
@@ -967,7 +984,7 @@ module back_top #(
     assign itlb_flush = rob_out_rob_bcast_fence;
 
     assign mispred = rob_out_rob_bcast_flush ? 1'b1 : idu_out_dec_bcast_mispred;
-    assign stall   = ~preiduqueue_out_pre2front_ready;
+    assign stall   = rob_out_rob_bcast_flush ? stall_hold_q : stall_from_preiduqueue;
 
     // 重定向 PC 选择规则对齐 BackTop.cpp：
     //   普通分支路径来自 IDU 的分支锁存信息；
