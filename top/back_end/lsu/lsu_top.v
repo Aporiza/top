@@ -13,6 +13,8 @@
 //
 // simulator-main 中 DTLB/MMU 是 BackTop 的一级连接，LSU BSD 只需要实现
 // MMU 请求/响应总线本身，不在包内部私自吞掉这条边界。
+// lsu2rob 按去掉 tma.miss_mask 后的 LsuRobIO 裁剪口径打包，只保留
+// committed_store_pending，和 ROB 侧 W_LsuRobIO=1 保持一致。
 // peripheral/DCache 总线按 main 版压缩硬件接口打包，字段只包含有效位、地址、
 // 数据、请求号、replay 和少量控制位，组员按这个包即可对齐 main 后端行为。
 

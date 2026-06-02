@@ -7,11 +7,11 @@
 // BSD 接口规范：
 //   u_idu_bsd_top(clk, rst_n, pi, po)
 //   pi = {pre_issue, ren2dec, rob_bcast, exu2id}
-//   po = {dec2ren, dec_bcast, idu_consume, idu_br_latch}
+//   po = {dec2ren, dec_bcast, idu_consume}
 //
 // 模拟器里 IDU 的 issue 输入在本封装中命名为 pre_issue，表示来自 PreIduQueue。
-// idu_br_latch 是 BackTop.cpp 会读取的 IDU 状态，这里把它随 po 一起带出，
-// 让分支重定向反馈仍然保持在后端包内部，不新增额外顶层业务端口。
+// idu_br_latch 是 class Idu 的公开成员状态，不属于 IduOut，因此不能进入 BSD po。
+// 这里由 idu_top 包装层单独锁存它，供 BackTop.cpp 等价的重定向路径和 PreIduQueue 使用。
 
 
 module idu_top #(
@@ -47,7 +47,7 @@ module idu_top #(
     parameter integer W_IduIn                  =
         W_PreIssueIO + W_RenDecIO + W_RobBroadcastIO + W_ExuIdIO,
     parameter integer W_IduOut                 =
-        W_DecRenIO + W_DecBroadcastIO + W_IduConsumeIO + W_ExuIdIO
+        W_DecRenIO + W_DecBroadcastIO + W_IduConsumeIO
 ) (
     input wire clk,
     input wire rst_n,
@@ -76,8 +76,9 @@ module idu_top #(
     output wire [BR_MASK_WIDTH-1:0] idu_br_latch_clear_mask
 );
 
-    wire [W_IduIn-1:0]  pi;
-    wire [W_IduOut-1:0] po;
+    wire [W_IduIn-1:0]     pi;
+    wire [W_IduOut-1:0]    po;
+    reg  [W_ExuIdIO-1:0]   idu_br_latch_q;
 
     wire [(W_InstructionBufferEntry * DECODE_WIDTH)-1:0] pre_issue_entries;
     assign pre_issue_entries = pre_issue;
@@ -148,9 +149,26 @@ module idu_top #(
     assign {
         dec2ren,
         dec_bcast,
-        idu_consume,
-        idu_br_latch
+        idu_consume
     } = po;
+
+    // simulator-main 的 br_latch 是 IDU 类对象内部的顺序状态：
+    //   - Idu::init() 把 br_latch 清零；
+    //   - 非 flush 周期，Idu::seq() 后 br_latch 等于本拍 exu2id；
+    //   - flush 周期，comb_fire() 先把 br_latch_1 清零，seq() 再写回 br_latch。
+    // BSD po 必须只对应 IduOut，所以这里在包装层复刻这个状态，供 BackTop 和
+    // PreIduQueue 读取；组员实现 idu_bsd_top 时不需要把该状态再塞进 po。
+    assign idu_br_latch = idu_br_latch_q;
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            idu_br_latch_q <= {W_ExuIdIO{1'b0}};
+        end else if (rob_bcast_flush) begin
+            idu_br_latch_q <= {W_ExuIdIO{1'b0}};
+        end else begin
+            idu_br_latch_q <= exu2id;
+        end
+    end
 
     wire [(W_DecRenInst * DECODE_WIDTH)-1:0] dec2ren_uop;
     wire [DECODE_WIDTH-1:0]                  dec2ren_valid;

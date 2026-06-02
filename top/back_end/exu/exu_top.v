@@ -1,16 +1,20 @@
 // simulator-main 默认配置 EXU 边界的 BSD 封装。
 //
-// BackTop 一级连接关系：
+// Exu.h 结构体边界：
 //   ExuIn  = {prf2exe, dec_bcast, rob_bcast, csr2exe, lsu2exe,
-//             csr_status}
-//   ExuOut = {exe2prf, exe2iss, exe2csr, exe2lsu, exu2id, exu2rob}
+//             csr_status, fu2exu}
+//   ExuOut = {exe2prf, exe2iss, exe2csr, exe2lsu, exu2id, exu2rob,
+//             exu2fu}
 //
 // BSD 接口规范：
 //   u_exu_bsd_top(clk, rst_n, pi, po)
-//   pi = {prf2exe, dec_bcast, rob_bcast, csr2exe, lsu2exe, csr_status}
-//   po = {exe2prf, exe2iss, exe2csr, exe2lsu, exu2id, exu2rob}
+//   pi = {prf2exe, dec_bcast, rob_bcast, csr2exe, lsu2exe, csr_status,
+//         fu2exu}
+//   po = {exe2prf, exe2iss, exe2csr, exe2lsu, exu2id, exu2rob, exu2fu}
 //
-// Fu2ExuIO/Exu2FuIO 属于 EXU 内部功能单元接口，留在 EXU BSD 模型内部。
+// fu2exu/exu2fu 是 Exu.h 里显式写进 ExuIn/ExuOut 的 FU 边界。
+// BackTop.cpp 没有把它们暴露成后端顶层端口，但 EXU BSD 的 pi/po 必须按
+// Exu.h 保留这两个字段，避免组员按源码生成的接口和 wrapper 位宽不一致。
 // main 版 EXU 重新接入 csr_status，CSR 读写和异常相关逻辑都在 EXU 内部使用。
 
 
@@ -37,6 +41,13 @@ module exu_top #(
         FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 3 + 2 + 3 + 7 + 32 +
         BR_TAG_WIDTH + BR_MASK_WIDTH + CSR_IDX_WIDTH + ROB_IDX_WIDTH +
         STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + 1 + UOP_TYPE_WIDTH,
+    parameter integer W_ExuInst           =
+        W_PrfExeUop + 32 + 32 + 1 + 1 + 1 + 1 + 1,
+    parameter integer W_FuInput            =
+        1 + 1 + 1 + BR_MASK_WIDTH + BR_MASK_WIDTH + W_ExuInst,
+    parameter integer W_FuOutput           = 1 + 1 + W_ExuInst,
+    parameter integer W_Exu2FuIO           = TOTAL_FU_COUNT * W_FuInput,
+    parameter integer W_Fu2ExuIO           = TOTAL_FU_COUNT * W_FuOutput,
     parameter integer W_PrfExeIO          = ISSUE_WIDTH * (1 + W_PrfExeUop),
     parameter integer W_DecBroadcastIO    =
         1 + BR_MASK_WIDTH + BR_TAG_WIDTH + ROB_IDX_WIDTH + BR_MASK_WIDTH,
@@ -68,10 +79,10 @@ module exu_top #(
     parameter integer W_CsrStatusIO       = 32 + 32 + 32 + 2,
     parameter integer W_ExuIn             =
         W_PrfExeIO + W_DecBroadcastIO + W_RobBroadcastIO + W_CsrExeIO +
-        W_LsuExeIO + W_CsrStatusIO,
+        W_LsuExeIO + W_CsrStatusIO + W_Fu2ExuIO,
     parameter integer W_ExuOut            =
         W_ExePrfIO + W_ExeIssIO + W_ExeCsrIO + W_ExeLsuIO + W_ExuIdIO +
-        W_ExuRobIO
+        W_ExuRobIO + W_Exu2FuIO
 ) (
     input wire clk,
     input wire rst_n,
@@ -82,13 +93,15 @@ module exu_top #(
     input wire [W_CsrExeIO-1:0]       csr2exe,
     input wire [W_LsuExeIO-1:0]       lsu2exe,
     input wire [W_CsrStatusIO-1:0]    csr_status,
+    input wire [W_Fu2ExuIO-1:0]       fu2exu,
 
     output wire [W_ExePrfIO-1:0] exe2prf,
     output wire [W_ExeIssIO-1:0] exe2iss,
     output wire [W_ExeCsrIO-1:0] exe2csr,
     output wire [W_ExeLsuIO-1:0] exe2lsu,
     output wire [W_ExuIdIO-1:0]  exu2id,
-    output wire [W_ExuRobIO-1:0] exu2rob
+    output wire [W_ExuRobIO-1:0] exu2rob,
+    output wire [W_Exu2FuIO-1:0] exu2fu
 );
 
     wire [W_ExuIn-1:0]  pi;
@@ -407,7 +420,8 @@ module exu_top #(
         rob_bcast,
         csr2exe,
         lsu2exe,
-        csr_status
+        csr_status,
+        fu2exu
     };
     assign {
         exe2prf,
@@ -415,7 +429,8 @@ module exu_top #(
         exe2csr,
         exe2lsu,
         exu2id,
-        exu2rob
+        exu2rob,
+        exu2fu
     } = po;
 
     exu_bsd_top #(

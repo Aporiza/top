@@ -12,8 +12,9 @@
 //   po = {rob2dis, rob2csr, rob_commit, rob_bcast, ftq_rob_pc_req}
 //
 // 展开的 rob_bcast 字段只给 back_top 拼 flush、fence、异常和重定向输出使用。
-// simulator-main 的 LsuRobIO 不再包含旧版的翻译等待位；ROB 包里只按源码结构
-// 保留 miss_mask 和 committed_store_pending 两个字段，等待语义由 LSU/MMU 边界配合建模。
+// simulator-main 的 LsuRobIO 源码里有 tma.miss_mask 和 committed_store_pending。
+// 当前后端包按“不需要 dbg/tma 相关信号”的评测口径裁掉 tma.miss_mask，
+// 因此 W_LsuRobIO 只保留 committed_store_pending 这 1 bit。
 
 
 module rob_top #(

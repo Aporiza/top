@@ -21,7 +21,7 @@
 module back_top #(
     // ---------------------------------------------------------------------
     // 后端基础结构参数。
-    // 从 config.h.large 派生的宽度保留模拟器常量名，避免 BSD 对接时重新翻译。
+    // 从 config.h.default 派生的宽度保留模拟器常量名，避免 BSD 对接时重新翻译。
     // ---------------------------------------------------------------------
     parameter integer FETCH_WIDTH              = 16,
     parameter integer DECODE_WIDTH             = 8,
@@ -179,6 +179,16 @@ module back_top #(
         FTQ_IDX_WIDTH + FTQ_OFFSET_WIDTH + 1 + 3 + 2 + 3 + 7 + 32 +
         BR_TAG_WIDTH + BR_MASK_WIDTH + CSR_IDX_WIDTH + ROB_IDX_WIDTH +
         STQ_IDX_WIDTH + 1 + LDQ_IDX_WIDTH + 1 + UOP_TYPE_WIDTH,
+    // Exu.h 里的 FU 边界使用 ExuInst；当前包仍按“去掉 dbg/tma 旁带”的口径计算。
+    // ExuInst = PrfExeUop + {diag_val, result, mispred, br_taken,
+    //                       page_fault_inst, flush_pipe, ftq_entry_valid}。
+    parameter integer W_ExuInst                =
+        W_PrfExeUop + 32 + 32 + 1 + 1 + 1 + 1 + 1,
+    parameter integer W_FuInput                =
+        1 + 1 + 1 + BR_MASK_WIDTH + BR_MASK_WIDTH + W_ExuInst,
+    parameter integer W_FuOutput               = 1 + 1 + W_ExuInst,
+    parameter integer W_Exu2FuIO               = TOTAL_FU_COUNT * W_FuInput,
+    parameter integer W_Fu2ExuIO               = TOTAL_FU_COUNT * W_FuOutput,
     parameter integer W_PrfExeIO               = ISSUE_WIDTH * (1 + W_PrfExeUop),
     parameter integer W_ExePrfWbUop            =
         PRF_IDX_WIDTH + 32 + BR_MASK_WIDTH + 1 + UOP_TYPE_WIDTH,
@@ -296,13 +306,13 @@ module back_top #(
         + W_RenDecIO
         + W_RobBroadcastIO
         + W_ExuIdIO,
-    // BackTop.cpp 会读取 idu->br_latch 并送回 PreIduQueue。
-    // 这里把该状态打包在 IduOut 内部传递，而不是额外增加顶层端口。
+    // Idu.h 里的 IduOut 只包含 dec2ren、dec_bcast、idu_consume。
+    // idu->br_latch 是 class Idu 的公开成员状态，不属于 IduOut/po；
+    // 由 idu_top 包装层按 Idu::seq() 单独锁存后送回 PreIduQueue 和 redirect_pc 路径。
     parameter integer W_IduOut                 =
         W_DecRenIO
         + W_DecBroadcastIO
-        + W_IduConsumeIO
-        + W_ExuIdIO,
+        + W_IduConsumeIO,
     parameter integer W_RenIn                  =
         W_DecRenIO
         + W_DecBroadcastIO
@@ -352,14 +362,16 @@ module back_top #(
         + W_RobBroadcastIO
         + W_CsrExeIO
         + W_LsuExeIO
-        + W_CsrStatusIO,
+        + W_CsrStatusIO
+        + W_Fu2ExuIO,
     parameter integer W_ExuOut                 =
         W_ExePrfIO
         + W_ExeIssIO
         + W_ExeCsrIO
         + W_ExeLsuIO
         + W_ExuIdIO
-        + W_ExuRobIO,
+        + W_ExuRobIO
+        + W_Exu2FuIO,
     parameter integer W_RobIn                  =
         W_DisRobIO
         + W_CsrRobIO
@@ -486,6 +498,8 @@ module back_top #(
     wire [W_ExeCsrIO-1:0] exe2csr;
     wire [W_ExuIdIO-1:0]  exu2id;
     wire [W_ExuRobIO-1:0] exu2rob;
+    wire [W_Fu2ExuIO-1:0] fu2exu;
+    wire [W_Exu2FuIO-1:0] exu2fu;
 
     wire [W_LsuExeIO-1:0] lsu2exe;
     wire [W_LsuDisIO-1:0] lsu2dis;
@@ -723,6 +737,16 @@ module back_top #(
         {(ROB_CPLT_MASK_WIDTH * COMMIT_WIDTH){1'b0}};
     assign commit_entry_zero_is_atomic   = {COMMIT_WIDTH{1'b0}};
 
+    // Exu.h 把 fu2exu/exu2fu 写进 ExuIn/ExuOut，但 BackTop.h 没有把 FU
+    // 边界提升成后端顶层端口。这里先提供确定的内部占位输入，保证按 .h
+    // 完整打包后的 exu_bsd_top 可以例化；若后续单独接 FU BSD，应在这里
+    // 用真实 FU 输出替换该占位总线，并消费 exu2fu。
+    // 这个补零宽度超过 8K bit，Verilator 会按 WIDTHCONCAT 给出保守告警；
+    // 这里是明确的占位清零，不是拼接位宽错误，因此只关闭这一行附近的告警。
+    /* verilator lint_off WIDTHCONCAT */
+    assign fu2exu = '0;
+    /* verilator lint_on WIDTHCONCAT */
+
     assign stall_from_preiduqueue = ~preiduqueue_out_pre2front_ready;
 
     always @(posedge clk or negedge rst_n) begin
@@ -875,12 +899,14 @@ module back_top #(
         .csr2exe(csr2exe),
         .lsu2exe(lsu2exe),
         .csr_status(csr_status),
+        .fu2exu(fu2exu),
         .exe2prf(exe2prf),
         .exe2iss(exe2iss),
         .exe2csr(exe2csr),
         .exe2lsu(exe2lsu),
         .exu2id(exu2id),
-        .exu2rob(exu2rob)
+        .exu2rob(exu2rob),
+        .exu2fu(exu2fu)
     );
 
     // 重排序缓冲模块。

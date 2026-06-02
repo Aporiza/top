@@ -16,6 +16,7 @@
 // simulator-main 里 FTQ PC 查询边界是 PreIduQueue <-> PRF，不再走 EXU。
 // ftq_commit_info 是提交阶段回训前端分支预测器所需的旁带信息，必须从 BSD 包原样透出。
 // pre2front 的展开字段只用于顶层 fire/stall 连接，不改变 BSD 的 po 打包边界。
+// idu_br_latch 来自 IDU 包装层锁存的 class Idu 成员状态，不来自 idu_bsd_top 的 IduOut/po。
 
 
 module preiduqueue_top #(
