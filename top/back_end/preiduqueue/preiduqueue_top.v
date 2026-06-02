@@ -19,6 +19,7 @@
 // 模拟器里 PreIduQueue 的 issue 输出在 back_top 层命名为 pre_issue。
 // pre2front 的展开字段只用于顶层 fire/stall 连接，不改变 BSD 的 po 打包边界。
 // FTQ PC 查询同时服务 EXU 和 ROB，两个查询路径分别打包，避免接错模块边界。
+// idu_br_latch 来自 IDU 包装层锁存的 class Idu 成员状态，不来自 idu_bsd_top 的 IduOut/po。
 
 
 module preiduqueue_top #(

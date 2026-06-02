@@ -1,14 +1,15 @@
 // ffc EXU 边界的 BSD 封装。
 //
-// BackTop 一级连接关系：
+// Exu.h 结构体边界：
 //   ExuIn  = {prf2exe, dec_bcast, rob_bcast, csr2exe, lsu2exe,
-//             ftq_exu_pc_resp}
+//             csr_status, ftq_exu_pc_resp}
 //   ExuOut = {exe2prf, exe2iss, exe2csr, exe2lsu, exu2id, exu2rob,
 //             ftq_exu_pc_req}
 //
 // BSD 接口：
 //   u_exu_bsd_top(clk, rst_n, pi, po)
-//   pi = {prf2exe, dec_bcast, rob_bcast, csr2exe, lsu2exe, ftq_exu_pc_resp}
+//   pi = {prf2exe, dec_bcast, rob_bcast, csr2exe, lsu2exe,
+//         csr_status, ftq_exu_pc_resp}
 //   po = {exe2prf, exe2iss, exe2csr, exe2lsu, exu2id, exu2rob,
 //         ftq_exu_pc_req}
 //
@@ -16,8 +17,8 @@
 // qm3dc 里部分历史网表使用 din/dout、pi_ext/po_ext 等名字，属于生成器输出名；
 // 若复用那类网表，需要先套一层同名 *_bsd_top 薄适配，转换成本包规范后再接入。
 //
-// Fu2ExuIO/Exu2FuIO 属于 EXU 内部功能单元接口，留在 EXU BSD 模型内部。
-// 这里不接 csr_status，保持和 ffc BackTop.cpp 的 EXU 一级边界一致。
+// ffc 的 BackTop.cpp 没有显式连接 exu->in.csr_status，且 Exu.cpp 当前不使用它；
+// 但 Exu.h 的 ExuIn 已声明该字段，所以 BSD pi 仍按 .h 保留 csr_status。
 
 
 module exu_top #(
@@ -76,9 +77,10 @@ module exu_top #(
     parameter integer W_FtqPcReadResp     = 1 + 1 + 32 + 1 + 32,
     parameter integer W_FtqExuPcReqIO     = FTQ_EXU_PC_PORT_NUM * W_FtqPcReadReq,
     parameter integer W_FtqExuPcRespIO    = FTQ_EXU_PC_PORT_NUM * W_FtqPcReadResp,
+    parameter integer W_CsrStatusIO       = 32 + 32 + 32 + 2,
     parameter integer W_ExuIn             =
         W_PrfExeIO + W_DecBroadcastIO + W_RobBroadcastIO + W_CsrExeIO +
-        W_LsuExeIO + W_FtqExuPcRespIO,
+        W_LsuExeIO + W_CsrStatusIO + W_FtqExuPcRespIO,
     parameter integer W_ExuOut            =
         W_ExePrfIO + W_ExeIssIO + W_ExeCsrIO + W_ExeLsuIO + W_ExuIdIO +
         W_ExuRobIO + W_FtqExuPcReqIO
@@ -91,6 +93,7 @@ module exu_top #(
     input wire [W_RobBroadcastIO-1:0] rob_bcast,
     input wire [W_CsrExeIO-1:0]       csr2exe,
     input wire [W_LsuExeIO-1:0]       lsu2exe,
+    input wire [W_CsrStatusIO-1:0]    csr_status,
     input wire [W_FtqExuPcRespIO-1:0] ftq_exu_pc_resp,
 
     output wire [W_ExePrfIO-1:0] exe2prf,
@@ -438,6 +441,7 @@ module exu_top #(
         rob_bcast,
         csr2exe,
         lsu2exe,
+        csr_status,
         ftq_exu_pc_resp
     };
     assign {

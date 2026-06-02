@@ -280,13 +280,13 @@ module back_top #(
         + W_RenDecIO
         + W_RobBroadcastIO
         + W_ExuIdIO,
-    // BackTop.cpp 会读取 idu->br_latch 并送回 PreIduQueue。
-    // 这里把该状态打包在 IduOut 内部传递，而不是额外增加顶层端口。
+    // Idu.h 里的 IduOut 只包含 dec2ren、dec_bcast、idu_consume。
+    // idu->br_latch 是 class Idu 的公开成员状态，不属于 IduOut/po；
+    // 由 idu_top 包装层按 Idu::seq() 单独锁存后送回 PreIduQueue 和 redirect_pc 路径。
     parameter integer W_IduOut                 =
         W_DecRenIO
         + W_DecBroadcastIO
-        + W_IduConsumeIO
-        + W_ExuIdIO,
+        + W_IduConsumeIO,
     parameter integer W_RenIn                  =
         W_DecRenIO
         + W_DecBroadcastIO
@@ -334,6 +334,7 @@ module back_top #(
         + W_RobBroadcastIO
         + W_CsrExeIO
         + W_LsuExeIO
+        + W_CsrStatusIO
         + W_FtqExuPcRespIO,
     parameter integer W_ExuOut                 =
         W_ExePrfIO
@@ -844,6 +845,7 @@ module back_top #(
         .rob_bcast(rob_bcast),
         .csr2exe(csr2exe),
         .lsu2exe(lsu2exe),
+        .csr_status(csr_status),
         .ftq_exu_pc_resp(ftq_exu_pc_resp),
         .exe2prf(exe2prf),
         .exe2iss(exe2iss),
