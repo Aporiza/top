@@ -7,10 +7,10 @@
 //
 // BSD 接口规范：
 //   u_lsu_bsd_top(clk, rst_n, pi, po)
-//   pi bit order follows LSU_Train.h BitWriter order, from low bit to high bit:
+//   pi 按结构体声明顺序从低位到高位打包：
 //     rob_commit, rob_bcast, dec_bcast, csr_status, dis2lsu, exe2lsu,
 //     peripheral_resp, dcache2lsu, mmu2lsu.
-//   po bit order follows LSU_Train.h BitReader order, from low bit to high bit:
+//   po 按结构体声明顺序从低位到高位解包：
 //     lsu2dis, lsu2rob, lsu2exe, peripheral_req, lsu2dcache, lsu2mmu.
 //
 // simulator-main 中 DTLB/MMU 是 BackTop 的一级连接，LSU BSD 只需要实现
@@ -19,8 +19,6 @@
 // committed_store_pending，和 ROB 侧 W_LsuRobIO=1 保持一致。
 // peripheral/DCache 总线按 main 版压缩硬件接口打包，字段只包含有效位、地址、
 // 数据、请求号、replay 和少量控制位，组员按这个包即可对齐 main 后端行为。
-
-
 module lsu_top #(
     parameter integer DECODE_WIDTH           = 8,
     parameter integer COMMIT_WIDTH           = DECODE_WIDTH,
@@ -139,34 +137,35 @@ module lsu_top #(
     wire [W_LsuIn-1:0]  pi;
     wire [W_LsuOut-1:0] po;
 
-    localparam integer LSU_PI_ROB_COMMIT_BASE = 0;
-    localparam integer LSU_PI_ROB_BCAST_BASE =
+    // BSD training interface field offsets, ordered from low bit to high bit.
+    localparam integer LSU_PI_ROB_COMMIT_BASE      = 0;
+    localparam integer LSU_PI_ROB_BCAST_BASE       =
         LSU_PI_ROB_COMMIT_BASE + W_RobCommitIO;
-    localparam integer LSU_PI_DEC_BCAST_BASE =
+    localparam integer LSU_PI_DEC_BCAST_BASE       =
         LSU_PI_ROB_BCAST_BASE + W_RobBroadcastIO;
-    localparam integer LSU_PI_CSR_STATUS_BASE =
+    localparam integer LSU_PI_CSR_STATUS_BASE      =
         LSU_PI_DEC_BCAST_BASE + W_DecBroadcastIO;
-    localparam integer LSU_PI_DIS_BASE =
+    localparam integer LSU_PI_DIS_BASE             =
         LSU_PI_CSR_STATUS_BASE + W_CsrStatusIO;
-    localparam integer LSU_PI_EXE_BASE =
+    localparam integer LSU_PI_EXE_BASE             =
         LSU_PI_DIS_BASE + W_DisLsuIO;
     localparam integer LSU_PI_PERIPHERAL_RESP_BASE =
         LSU_PI_EXE_BASE + W_ExeLsuIO;
-    localparam integer LSU_PI_DCACHE_LSU_BASE =
+    localparam integer LSU_PI_DCACHE_LSU_BASE      =
         LSU_PI_PERIPHERAL_RESP_BASE + W_PeripheralRespIO;
-    localparam integer LSU_PI_MMU_LSU_BASE =
+    localparam integer LSU_PI_MMU_LSU_BASE         =
         LSU_PI_DCACHE_LSU_BASE + W_DcacheLsuIO;
 
-    localparam integer LSU_PO_LSU_DIS_BASE = 0;
-    localparam integer LSU_PO_LSU_ROB_BASE =
+    localparam integer LSU_PO_LSU_DIS_BASE         = 0;
+    localparam integer LSU_PO_LSU_ROB_BASE         =
         LSU_PO_LSU_DIS_BASE + W_LsuDisIO;
-    localparam integer LSU_PO_LSU_EXE_BASE =
+    localparam integer LSU_PO_LSU_EXE_BASE         =
         LSU_PO_LSU_ROB_BASE + W_LsuRobIO;
     localparam integer LSU_PO_PERIPHERAL_REQ_BASE =
         LSU_PO_LSU_EXE_BASE + W_LsuExeIO;
-    localparam integer LSU_PO_LSU_DCACHE_BASE =
+    localparam integer LSU_PO_LSU_DCACHE_BASE      =
         LSU_PO_PERIPHERAL_REQ_BASE + W_PeripheralReqIO;
-    localparam integer LSU_PO_LSU_MMU_BASE =
+    localparam integer LSU_PO_LSU_MMU_BASE         =
         LSU_PO_LSU_DCACHE_BASE + W_LsuDcacheIO;
 
     wire [COMMIT_WIDTH-1:0]                     rob_commit_entry_valid;
@@ -477,24 +476,24 @@ module lsu_top #(
         lsu2mmu_csr_status
     } = lsu2mmu;
 
-    assign pi[LSU_PI_ROB_COMMIT_BASE +: W_RobCommitIO] = rob_commit;
-    assign pi[LSU_PI_ROB_BCAST_BASE +: W_RobBroadcastIO] = rob_bcast;
-    assign pi[LSU_PI_DEC_BCAST_BASE +: W_DecBroadcastIO] = dec_bcast;
-    assign pi[LSU_PI_CSR_STATUS_BASE +: W_CsrStatusIO] = csr_status;
-    assign pi[LSU_PI_DIS_BASE +: W_DisLsuIO] = dis2lsu;
-    assign pi[LSU_PI_EXE_BASE +: W_ExeLsuIO] = exe2lsu;
+    assign pi[LSU_PI_ROB_COMMIT_BASE      +: W_RobCommitIO]    = rob_commit;
+    assign pi[LSU_PI_ROB_BCAST_BASE       +: W_RobBroadcastIO] = rob_bcast;
+    assign pi[LSU_PI_DEC_BCAST_BASE       +: W_DecBroadcastIO] = dec_bcast;
+    assign pi[LSU_PI_CSR_STATUS_BASE      +: W_CsrStatusIO]    = csr_status;
+    assign pi[LSU_PI_DIS_BASE             +: W_DisLsuIO]       = dis2lsu;
+    assign pi[LSU_PI_EXE_BASE             +: W_ExeLsuIO]       = exe2lsu;
     assign pi[LSU_PI_PERIPHERAL_RESP_BASE +: W_PeripheralRespIO] =
         peripheral_resp;
-    assign pi[LSU_PI_DCACHE_LSU_BASE +: W_DcacheLsuIO] = dcache2lsu;
-    assign pi[LSU_PI_MMU_LSU_BASE +: W_MMULsuIO] = mmu2lsu;
+    assign pi[LSU_PI_DCACHE_LSU_BASE      +: W_DcacheLsuIO]    = dcache2lsu;
+    assign pi[LSU_PI_MMU_LSU_BASE         +: W_MMULsuIO]       = mmu2lsu;
 
-    assign lsu2dis = po[LSU_PO_LSU_DIS_BASE +: W_LsuDisIO];
-    assign lsu2rob = po[LSU_PO_LSU_ROB_BASE +: W_LsuRobIO];
-    assign lsu2exe = po[LSU_PO_LSU_EXE_BASE +: W_LsuExeIO];
+    assign lsu2dis = po[LSU_PO_LSU_DIS_BASE         +: W_LsuDisIO];
+    assign lsu2rob = po[LSU_PO_LSU_ROB_BASE         +: W_LsuRobIO];
+    assign lsu2exe = po[LSU_PO_LSU_EXE_BASE         +: W_LsuExeIO];
     assign peripheral_req =
         po[LSU_PO_PERIPHERAL_REQ_BASE +: W_PeripheralReqIO];
-    assign lsu2dcache = po[LSU_PO_LSU_DCACHE_BASE +: W_LsuDcacheIO];
-    assign lsu2mmu = po[LSU_PO_LSU_MMU_BASE +: W_LsuMMUIO];
+    assign lsu2dcache = po[LSU_PO_LSU_DCACHE_BASE   +: W_LsuDcacheIO];
+    assign lsu2mmu    = po[LSU_PO_LSU_MMU_BASE      +: W_LsuMMUIO];
 
     lsu_bsd_top #(
         .W_LsuIn(W_LsuIn),

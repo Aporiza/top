@@ -1,0 +1,104 @@
+// 前端正式 comb 边界： bpu_pre_read_req_comb.
+// 源码依据： simulator-front/front-end/BPU 相关 comb 计算。
+// 作用：生成 BPU 预读请求包。
+//
+// 文件结构：
+// 1. *_comb_top 是可读连接层，父模块使用具名变量/语义 bundle 连接。
+// 2. 本层只按源码字段顺序打包 pi、拆包 po，不在这里实现真实算法。
+// 3. *_comb_bsd_top 是后续补真实组合逻辑的交付层，对外统一保持 pi/po。
+
+// -----------------------------------------------------------------------------
+// 端口自查
+// 模块：bpu_pre_read_req_comb
+// 来源：train_IO.h / BPU/BPU.h
+// 配置：simulator-front 默认 large 配置
+// 接口：BpuPreReadReqCombIn(369 bit) -> BpuPreReadReqCombOut(875 bit)
+//
+// 输入 BpuPreReadReqCombIn = 369 bit
+//   = refetch                           1 bit
+//   + refetch_address                  32 bit
+//   + icache_read_ready                 1 bit
+//   + pc_reg_snapshot                  32 bit
+//   + pc_can_send_to_icache_snapshot    1 bit
+//   + q_count_snapshot[BPU_BANK_NUM]  144 bit
+//   + q_rd_ptr_snapshot[BPU_BANK_NUM] 144 bit
+//   + Arch_ras_count_snapshot           7 bit
+//   + Spec_ras_count_snapshot           7 bit
+//   = 合计                              369 bit
+//
+// 输出 BpuPreReadReqCombOut = 875 bit
+//   = use_arch_ras_snapshot              1 bit
+//   + ras_count_snapshot                 7 bit
+//   + ras_has_entry_snapshot             1 bit
+//   + ras_top_index                      6 bit
+//   + pred_base_pc                      32 bit
+//   + boundary_addr                     32 bit
+//   + do_pred_on_this_pc[FETCH_WIDTH]   16 bit
+//   + this_pc_bank_sel[FETCH_WIDTH]     80 bit
+//   + do_pred_for_this_pc[FETCH_WIDTH] 512 bit
+//   + q_read_slot[BPU_BANK_NUM]        144 bit
+//   + going_to_do_pred                   1 bit
+//   + going_to_do_upd[BPU_BANK_NUM]     16 bit
+//   + set_submodule_input                1 bit
+//   + nlp_pred_base_re                   1 bit
+//   + nlp_pred_base_idx                 12 bit
+//   + nlp_train_re                       1 bit
+//   + nlp_train_idx                     12 bit
+//   = 合计                               875 bit
+//
+// 配置口径：
+//   FETCH_WIDTH            = 16
+//   COMMIT_WIDTH           = 8
+//   TN_MAX                 = 4
+//   BPU_BANK_NUM           = 16
+//   TAGE_IDX_WIDTH         = 12
+//   TAGE_TAG_WIDTH         = 8
+//   TAGE_SC_PATH_BITS      = 16
+//   BPU_SCL_META_NTABLE    = 8
+//   BPU_SCL_META_IDX_BITS  = 16
+//   BPU_LOOP_META_IDX_BITS = 16
+//   BPU_LOOP_META_TAG_BITS = 16
+//   tage_reset_ctr_t = TAGE_IDX_WIDTH + 11 = 23
+//   tage_path_hist_t  = TAGE_SC_PATH_BITS = 16
+//
+// 自查确认：bpu_pre_read_req_comb Input Bits = 369, Output Bits = 875。
+// 完整字段来源见 front_end/port_width_audit/details 对应文件。
+// -----------------------------------------------------------------------------
+
+module bpu_pre_read_req_comb_top #(
+    parameter W_BpuPreReadReqCombIn  = 369,  // 实际：BPU_TOP::BpuPreReadReqCombIn
+    parameter W_BpuPreReadReqCombOut = 875   // 实际：BPU_TOP::BpuPreReadReqCombOut
+) (
+    input  wire [W_BpuPreReadReqCombIn-1:0]  bpu_input_bundle,
+    output wire [W_BpuPreReadReqCombOut-1:0] bpu_pre_read_req_bundle
+);
+
+    // BSD 实现层的 pi/po 打包桥接。
+    wire [W_BpuPreReadReqCombIn-1:0]  pi;
+    wire [W_BpuPreReadReqCombOut-1:0] po;
+    assign pi = bpu_input_bundle;
+
+    assign bpu_pre_read_req_bundle = po;
+
+    bpu_pre_read_req_comb_bsd_top #(
+        .W_BpuPreReadReqCombIn(W_BpuPreReadReqCombIn),
+        .W_BpuPreReadReqCombOut(W_BpuPreReadReqCombOut)
+    ) u_bpu_pre_read_req_comb_bsd_top (
+        .pi(pi),
+        .po(po)
+    );
+
+endmodule
+
+module bpu_pre_read_req_comb_bsd_top #(
+    parameter W_BpuPreReadReqCombIn  = 369,  // 实际：BPU_TOP::BpuPreReadReqCombIn
+    parameter W_BpuPreReadReqCombOut = 875   // 实际：BPU_TOP::BpuPreReadReqCombOut
+) (
+    input  wire [W_BpuPreReadReqCombIn-1:0]  pi,
+    output wire [W_BpuPreReadReqCombOut-1:0] po
+);
+
+    // 当前是占位输出；后续真实 BSD 组合逻辑应替换这一行。
+    assign po = {W_BpuPreReadReqCombOut{1'b0}};
+
+endmodule
