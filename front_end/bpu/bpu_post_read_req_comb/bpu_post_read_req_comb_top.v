@@ -101,9 +101,16 @@ module bpu_post_read_req_comb_bsd_top #(
     output wire [W_BpuPostReadReqCombOut-1:0] po
 );
 
-    localparam [W_BpuPostReadReqCombOut-1:0] BPU_POST_READ_REQ_ZERO = 0;
+
+`ifdef USE_CPP_GOLDEN_BSD
+    `include "slices/cpp_golden/cpp_golden_bsd_macros.vh"
+    `CPP_GOLDEN_BSD(bpu_post_read_req_comb, W_BpuPostReadReqCombIn, W_BpuPostReadReqCombOut)
+`else
+localparam [W_BpuPostReadReqCombOut-1:0] BPU_POST_READ_REQ_ZERO = 0;
 
     // 当前是占位输出；后续真实 BSD 组合逻辑应替换这一行。
     assign po = BPU_POST_READ_REQ_ZERO;
+`endif
+
 
 endmodule

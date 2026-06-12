@@ -101,7 +101,7 @@ bpu_queue_comb
 
 因此学长担心的点是成立的：如果 RTL 只是把 13 个 BPU comb wrapper 串起来，但没有把这些 seq_read 读出的寄存器/RAM/table 数据明确接入对应 comb 输入，就只能说明“端口形状能连上”，不能说明 BPU 功能已经等价。
 
-当前 `top/front_end/bpu/bpu_top.v` 的状态：
+当前 `front_end/bpu/bpu_top.v` 的状态：
 
 - 已经有 BPU_TOP 级别寄存器骨架。
 - 已经例化 13 个 BPU 相关 comb wrapper。

@@ -82,7 +82,14 @@ module front_ptab_write_comb_bsd_top #(
     output wire [W_FrontPtabWriteCombOut-1:0] po
 );
 
-    // 当前是占位输出；后续真实 BSD 组合逻辑应替换这一行。
+
+`ifdef USE_CPP_GOLDEN_BSD
+    `include "slices/cpp_golden/cpp_golden_bsd_macros.vh"
+    `CPP_GOLDEN_BSD(front_ptab_write_comb, W_FrontPtabWriteCombIn, W_FrontPtabWriteCombOut)
+`else
+// 当前是占位输出；后续真实 BSD 组合逻辑应替换这一行。
     assign po = {W_FrontPtabWriteCombOut{1'b0}};
+`endif
+
 
 endmodule

@@ -5,7 +5,7 @@
 当前前端包位于：
 
 ```text
-top/front_end
+front_end
 ```
 
 本次训练版本统一依据 **simulator-front** 模拟器：
@@ -29,8 +29,8 @@ simulator-front
 | FIFO/PTAB 口径 | 已更新 | 按 `simulator-front` 的 `push/pop/clear req` 周期末写回模型描述和实现。 |
 | wrapper 接口口径 | 已更新 | 外层 `*_comb_top` 统一收 `xxx_input_bundle/xxx_output_bundle`，父级先用语义变量拼包；只有 `*_comb_bsd_top` 保留 `pi/po`。 |
 | HTML 说明 | 已更新 | 路径图和执行流说明中的源码依据已改为 `simulator-front`。 |
-| 扫描脚本 | 已更新 | `top/tools/scan_simulator_interfaces.py` 默认优先识别 `simulator-front`。 |
-| 扫描结果 | 已生成 | 新结果位于 `top/docs/generated_front/`。 |
+| 扫描脚本 | 已更新 | `tools/scan_simulator_interfaces.py` 默认优先识别 `simulator-front`。 |
+| 扫描结果 | 已生成 | 新结果位于 `docs/generated_front/`。 |
 
 本次对比结论：
 
@@ -41,8 +41,8 @@ simulator-front
 
 已执行的检查：
 
-- 已重新运行 `python top/tools/scan_simulator_interfaces.py simulator-front --out-dir top/docs/generated_front`。
-- 已执行 `git diff --check -- top/front_end top/tools`，未发现空白格式问题。
+- 已重新运行 `python tools/scan_simulator_interfaces.py simulator-front --out-dir docs/generated_front`。
+- 已执行 `git diff --check -- front_end tools`，未发现空白格式问题。
 - 已确认旧模拟器 hash 无残留；`simulator-ff` 仅在本文档的版本差异对比处保留。
 
 ### 0.1 上推汇报口径
@@ -56,7 +56,7 @@ front_top 直接连接 14 个前端 comb wrapper 和 1 个 bpu_top，bpu_top 内
 服务器 VCS 已完成 filelist.f 端口编译检查，front_top 被识别为顶层，compile/elab/link 通过。VCS 的 Unsupported Linux/kernel 是环境 warning，不是 RTL 端口错误。
 ```
 
-本次上推的是 `top/front_end` 前端训练框架，源码依据统一为 `simulator-front` 默认配置。`front_top.v` 作为前端总入口，直接连接 14 个前端 comb wrapper 和 1 个 `bpu_top`；`bpu_top` 内部继续连接 13 个 BPU comb wrapper，合计覆盖 27 个正式 comb 训练单元。
+本次上推的是 `front_end` 前端训练框架，源码依据统一为 `simulator-front` 默认配置。`front_top.v` 作为前端总入口，直接连接 14 个前端 comb wrapper 和 1 个 `bpu_top`；`bpu_top` 内部继续连接 13 个 BPU comb wrapper，合计覆盖 27 个正式 comb 训练单元。
 
 当前包已经完成：
 
@@ -147,7 +147,7 @@ front_top 直接连接 14 个前端 comb wrapper 和 1 个 bpu_top，bpu_top 内
 
 ### 3.1 与旧 simulator-ff 版本的差异
 
-本次已经用 `top/tools/scan_simulator_interfaces.py` 对 `simulator-front` 重新扫描，并与旧 `simulator-ff` 口径对比：
+本次已经用 `tools/scan_simulator_interfaces.py` 对 `simulator-front` 重新扫描，并与旧 `simulator-ff` 口径对比：
 
 | 项目 | 结论 | 对前端包的影响 |
 |---|---|---|
@@ -344,12 +344,12 @@ BPU 内部 comb 修正后的位宽如下：
 `W_BpuOut=4949` 仍保留为 `front_top` 接收 BPU 对外输出的总线宽度，但不再作为 BPU 内部所有 comb 的占位宽度。
 
 完整端口展开目录见 `port_width_audit/README.md`。该目录由
-`python top/tools/scan_frontend_comb_ports.py simulator-front --annotate-rtl top/front_end`
+`python tools/scan_frontend_comb_ports.py simulator-front --annotate-rtl front_end`
 从 `simulator-front` 源码生成，包含 27 个 comb 的输入/输出字段、位宽和源码位置。
 同一命令也会把“端口自查”注释写入每个 comb 的 `*_top.v`，注释格式为：
 正式端口总宽、输入字段拆分、输出字段拆分、关键结构体展开、large 配置口径和自查确认。
 如果只需要集中复查端口，不改 RTL 注释，运行：
-`python top/tools/scan_frontend_ports.py`
+`python tools/scan_frontend_ports.py`
 会在 `front_end` 根目录生成 `前端端口自查汇总.md`，把 27 个 comb 的端口自查集中到一个 Markdown 文件里，便于整体验收和人工复查。
 
 尚未完成的功能性验证：
@@ -395,3 +395,20 @@ grep -n "Error-" build/vcs_port_check/vcs_compile.log
 3. 回到 `front_top.v`，确认总连线如何把 27 个 comb 串起来。
 4. 如果负责 BPU，再看 `bpu/bpu_top.v`。
 5. 最后进入自己负责的 `*_comb_top.v`，补对应 `*_bsd_top`。
+
+## 10. Verilator 烟测仿真
+
+当前新增了一个前端顶层烟测入口：
+
+```bash
+cd front_end
+bash sim/run_verilator_smoke.sh
+```
+
+该烟测会用 Verilator 编译 `filelist.f` 中的前端 RTL，并实例化 `sim/front_top_smoke_tb.sv` 跑若干拍。成功时输出：
+
+```text
+FRONT_TOP_SMOKE_PASS
+```
+
+烟测检查范围是顶层骨架、`clk/rst_n/reset` 时序壳、ICache 固定边界、CSR 控制透传、第二路 ICache 关闭状态和主要输出无未知值。由于多数非 FIFO/PTAB 的 `*_bsd_top` 仍是占位逻辑，该烟测不代表前端功能已经等价 C++；后续真实 BSD 替换完成后，需要继续补 C-RTL 对拍和更细的功能断言。
