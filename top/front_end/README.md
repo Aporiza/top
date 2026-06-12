@@ -395,3 +395,20 @@ grep -n "Error-" build/vcs_port_check/vcs_compile.log
 3. 回到 `front_top.v`，确认总连线如何把 27 个 comb 串起来。
 4. 如果负责 BPU，再看 `bpu/bpu_top.v`。
 5. 最后进入自己负责的 `*_comb_top.v`，补对应 `*_bsd_top`。
+
+## 10. Verilator 烟测仿真
+
+当前新增了一个前端顶层烟测入口：
+
+```bash
+cd top/front_end
+bash sim/run_verilator_smoke.sh
+```
+
+该烟测会用 Verilator 编译 `filelist.f` 中的前端 RTL，并实例化 `sim/front_top_smoke_tb.sv` 跑若干拍。成功时输出：
+
+```text
+FRONT_TOP_SMOKE_PASS
+```
+
+烟测检查范围是顶层骨架、`clk/rst_n/reset` 时序壳、ICache 固定边界、CSR 控制透传、第二路 ICache 关闭状态和主要输出无未知值。由于多数非 FIFO/PTAB 的 `*_bsd_top` 仍是占位逻辑，该烟测不代表前端功能已经等价 C++；后续真实 BSD 替换完成后，需要继续补 C-RTL 对拍和更细的功能断言。

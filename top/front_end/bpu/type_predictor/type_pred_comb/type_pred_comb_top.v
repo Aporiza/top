@@ -84,7 +84,14 @@ module type_pred_comb_bsd_top #(
     output wire [W_TypePredCombOut-1:0] po
 );
 
-    // 当前是占位输出；后续真实 BSD 组合逻辑应替换这一行。
+
+`ifdef USE_CPP_GOLDEN_BSD
+    `include "slices/cpp_golden/cpp_golden_bsd_macros.vh"
+    `CPP_GOLDEN_BSD(type_pred_comb, W_TypePredCombIn, W_TypePredCombOut)
+`else
+// 当前是占位输出；后续真实 BSD 组合逻辑应替换这一行。
     assign po = {W_TypePredCombOut{1'b0}};
+`endif
+
 
 endmodule
